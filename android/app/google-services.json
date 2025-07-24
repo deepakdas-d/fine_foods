@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "600464634853",
+    "project_id": "fine-foods-b891f",
+    "storage_bucket": "fine-foods-b891f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:600464634853:android:67faa830e8f0f2bcc8350c",
+        "android_client_info": {
+          "package_name": "com.deepak.fine_foods"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDIkVqbPk5VfFP7tC0auKf8EGRbcMGls2s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
