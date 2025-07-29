@@ -3,6 +3,13 @@ import 'package:fine_foods/billing/view/billing_list.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fine_foods/invoice_generator/models/product_models.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'dart:developer' as developer;
 
 class BillingScreen extends StatelessWidget {
   const BillingScreen({super.key});
@@ -10,6 +17,7 @@ class BillingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final BillingController controller = Get.put(BillingController());
+    // ignore: unused_local_variable
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
 
@@ -432,6 +440,8 @@ class ProductCard extends StatelessWidget {
   }
 }
 
+//cart widget
+
 class CartSidebar extends StatelessWidget {
   final BillingController controller;
 
@@ -444,9 +454,9 @@ class CartSidebar extends StatelessWidget {
         // Header
         Container(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFD700),
-            borderRadius: const BorderRadius.only(topRight: Radius.circular(0)),
+          decoration: const BoxDecoration(
+            color: Color(0xFFFFD700),
+            borderRadius: BorderRadius.only(topRight: Radius.circular(0)),
           ),
           child: Row(
             children: [
@@ -608,8 +618,285 @@ class CartSidebar extends StatelessWidget {
                         child: ElevatedButton.icon(
                           onPressed: controller.selectedProducts.isEmpty
                               ? null
-                              : () => controller.createBill(),
-                          icon: const Icon(Icons.receipt_long),
+                              : () async {
+                                  try {
+                                    developer.log("Creating bill");
+                                    final billData = await controller
+                                        .createBill();
+                                    if (billData != null) {
+                                      // Generate PDF
+                                      final pdf = pw.Document();
+                                      pdf.addPage(
+                                        pw.Page(
+                                          build: (pw.Context context) {
+                                            return pw.Column(
+                                              crossAxisAlignment:
+                                                  pw.CrossAxisAlignment.start,
+                                              children: [
+                                                pw.Text(
+                                                  'Invoice #${billData['invoiceNumber']}',
+                                                  style: pw.TextStyle(
+                                                    fontSize: 24,
+                                                    fontWeight:
+                                                        pw.FontWeight.bold,
+                                                  ),
+                                                ),
+                                                pw.SizedBox(height: 16),
+                                                pw.Text(
+                                                  'Customer: ${billData['customerName']}',
+                                                ),
+                                                if (billData['customerPhone']
+                                                    .isNotEmpty)
+                                                  pw.Text(
+                                                    'Phone: ${billData['customerPhone']}',
+                                                  ),
+                                                pw.SizedBox(height: 16),
+                                                pw.Text(
+                                                  'Products:',
+                                                  style: pw.TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight:
+                                                        pw.FontWeight.bold,
+                                                  ),
+                                                ),
+                                                pw.Table(
+                                                  border: pw.TableBorder.all(),
+                                                  children: [
+                                                    pw.TableRow(
+                                                      children: [
+                                                        pw.Padding(
+                                                          padding:
+                                                              const pw.EdgeInsets.all(
+                                                                8,
+                                                              ),
+                                                          child: pw.Text(
+                                                            'Product',
+                                                          ),
+                                                        ),
+                                                        pw.Padding(
+                                                          padding:
+                                                              const pw.EdgeInsets.all(
+                                                                8,
+                                                              ),
+                                                          child: pw.Text('Qty'),
+                                                        ),
+                                                        pw.Padding(
+                                                          padding:
+                                                              const pw.EdgeInsets.all(
+                                                                8,
+                                                              ),
+                                                          child: pw.Text(
+                                                            'Price',
+                                                          ),
+                                                        ),
+                                                        pw.Padding(
+                                                          padding:
+                                                              const pw.EdgeInsets.all(
+                                                                8,
+                                                              ),
+                                                          child: pw.Text(
+                                                            'Total',
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    ...billData['products'].values.map(
+                                                      (product) => pw.TableRow(
+                                                        children: [
+                                                          pw.Padding(
+                                                            padding:
+                                                                const pw.EdgeInsets.all(
+                                                                  8,
+                                                                ),
+                                                            child: pw.Text(
+                                                              product['productName'],
+                                                            ),
+                                                          ),
+                                                          pw.Padding(
+                                                            padding:
+                                                                const pw.EdgeInsets.all(
+                                                                  8,
+                                                                ),
+                                                            child: pw.Text(
+                                                              product['quantity']
+                                                                  .toString(),
+                                                            ),
+                                                          ),
+                                                          pw.Padding(
+                                                            padding:
+                                                                const pw.EdgeInsets.all(
+                                                                  8,
+                                                                ),
+                                                            child: pw.Text(
+                                                              '\$${product['price']}',
+                                                            ),
+                                                          ),
+                                                          pw.Padding(
+                                                            padding:
+                                                                const pw.EdgeInsets.all(
+                                                                  8,
+                                                                ),
+                                                            child: pw.Text(
+                                                              '\$${product['total']}',
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                pw.SizedBox(height: 16),
+                                                pw.Text(
+                                                  'Total: \$${billData['total']}',
+                                                  style: pw.TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight:
+                                                        pw.FontWeight.bold,
+                                                  ),
+                                                ),
+                                                pw.Text(
+                                                  'Items: ${billData['itemCount']}',
+                                                ),
+                                                pw.SizedBox(height: 16),
+                                                pw.Text(
+                                                  'Date: ${billData['createdAt']}',
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        ),
+                                      );
+
+                                      // Save PDF to temporary file
+                                      final dir = await getTemporaryDirectory();
+                                      final file = File(
+                                        '${dir.path}/invoice_${billData['invoiceNumber']}.pdf',
+                                      );
+                                      await file.writeAsBytes(await pdf.save());
+
+                                      // Show preview dialog
+                                      await Get.dialog(
+                                        Dialog(
+                                          child: ConstrainedBox(
+                                            constraints: const BoxConstraints(
+                                              maxWidth: 600,
+                                              maxHeight: 700,
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                Padding(
+                                                  padding: const EdgeInsets.all(
+                                                    16,
+                                                  ),
+                                                  child: Text(
+                                                    'Invoice #${billData['invoiceNumber']} Preview',
+                                                    style: const TextStyle(
+                                                      fontSize: 20,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: PDFView(
+                                                    filePath: file.path,
+                                                    enableSwipe: true,
+                                                    autoSpacing: true,
+                                                    pageFling: true,
+                                                    onError: (error) {
+                                                      developer.log(
+                                                        'PDFView error: $error',
+                                                      );
+                                                      Get.snackbar(
+                                                        'Error',
+                                                        'Failed to load PDF preview: $error',
+                                                        snackPosition:
+                                                            SnackPosition
+                                                                .BOTTOM,
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                        colorText: Colors.white,
+                                                      );
+                                                    },
+                                                  ),
+                                                ),
+                                                Padding(
+                                                  padding: const EdgeInsets.all(
+                                                    16,
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment.end,
+                                                    children: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Get.back(),
+                                                        child: const Text(
+                                                          'Close',
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      ElevatedButton(
+                                                        onPressed: () async {
+                                                          try {
+                                                            await Printing.layoutPdf(
+                                                              onLayout:
+                                                                  (
+                                                                    PdfPageFormat
+                                                                    format,
+                                                                  ) async => pdf
+                                                                      .save(),
+                                                            );
+                                                            Get.back();
+                                                          } catch (e) {
+                                                            developer.log(
+                                                              'Print error: $e',
+                                                            );
+                                                            Get.snackbar(
+                                                              'Error',
+                                                              'Failed to print: $e',
+                                                              snackPosition:
+                                                                  SnackPosition
+                                                                      .BOTTOM,
+                                                              backgroundColor:
+                                                                  Colors.red,
+                                                              colorText:
+                                                                  Colors.white,
+                                                            );
+                                                          }
+                                                        },
+                                                        child: const Text(
+                                                          'Print',
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      );
+
+                                      // Clean up temporary file
+                                      await file.delete();
+                                    }
+                                  } catch (e) {
+                                    developer.log('Error: $e');
+                                    Get.snackbar(
+                                      'Error',
+                                      'Failed to generate preview: $e',
+                                      snackPosition: SnackPosition.BOTTOM,
+                                      backgroundColor: Colors.red,
+                                      colorText: Colors.white,
+                                    );
+                                  }
+                                },
+                          icon: controller.isLoading.value
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : const Icon(Icons.receipt_long),
                           label: const Text(
                             'Generate Invoice',
                             style: TextStyle(

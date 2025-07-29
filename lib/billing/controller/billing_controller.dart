@@ -1,9 +1,14 @@
 import 'dart:developer';
+import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fine_foods/invoice_generator/models/product_models.dart';
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:get/get.dart';
+
+import 'package:printing/printing.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 
@@ -125,7 +130,7 @@ class BillingController extends GetxController {
     return 'INV-$dateString-$timeString';
   }
 
-  void createBill() async {
+  Future<Map<String, dynamic>?> createBill() async {
     if (selectedProducts.isEmpty) {
       Get.snackbar(
         'Error',
@@ -134,7 +139,7 @@ class BillingController extends GetxController {
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
-      return;
+      return null;
     }
 
     isLoading.value = true;
@@ -202,8 +207,10 @@ class BillingController extends GetxController {
       // Clear the cart and customer details
       clearCart();
       filteredProducts.assignAll(products);
+
+      return billData;
     } catch (e) {
-      log('Failed to create bill: $e');
+      developer.log('Failed to create bill: $e');
       Get.snackbar(
         'Error',
         'Failed to create invoice: $e',
@@ -211,9 +218,107 @@ class BillingController extends GetxController {
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
+      return null;
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> printInvoice(Map<String, dynamic> billData) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'Invoice #${billData['invoiceNumber']}',
+                style: pw.TextStyle(
+                  fontSize: 24,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 16),
+              pw.Text('Customer: ${billData['customerName']}'),
+              if (billData['customerPhone'].isNotEmpty)
+                pw.Text('Phone: ${billData['customerPhone']}'),
+              pw.SizedBox(height: 16),
+              pw.Text(
+                'Products:',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.Table(
+                border: pw.TableBorder.all(),
+                children: [
+                  pw.TableRow(
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text('Product'),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text('Qty'),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text('Price'),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text('Total'),
+                      ),
+                    ],
+                  ),
+                  ...billData['products'].values.map(
+                    (product) => pw.TableRow(
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(product['productName']),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(product['quantity'].toString()),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('\$${product['price']}'),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('\$${product['total']}'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 16),
+              pw.Text(
+                'Total: \$${billData['total']}',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.Text('Items: ${billData['itemCount']}'),
+              pw.SizedBox(height: 16),
+              pw.Text('Date: ${billData['createdAt']}'),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+    );
   }
 
   void _showFeedback(String message) {
