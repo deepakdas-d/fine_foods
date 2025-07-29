@@ -1,33 +1,27 @@
 import 'dart:developer';
-import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:fine_foods/invoice_generator/models/product_models.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:open_file/open_file.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
-import 'package:logging/logging.dart';
+import 'package:intl/intl.dart';
 
 class BillingController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final customerName = TextEditingController();
   final customerPhone = TextEditingController();
   final RxList<Product> products = <Product>[].obs;
+  final RxList<Product> filteredProducts = <Product>[].obs;
   final RxMap<String, int> selectedProducts = <String, int>{}.obs;
-  final RxList<Map<String, dynamic>> bills = <Map<String, dynamic>>[].obs;
   final RxBool isLoading = false.obs;
+  final RxString searchQuery = ''.obs;
 
   @override
   void onInit() {
     super.onInit();
     fetchProducts();
-    fetchBills();
+    filteredProducts.assignAll(products);
   }
 
   void fetchProducts() async {
@@ -37,26 +31,38 @@ class BillingController extends GetxController {
       products.value = snapshot.docs
           .map((doc) => Product.fromFirestore(doc))
           .toList();
+
+      // Sort products by name for better UX
+      products.sort((a, b) => a.name.compareTo(b.name));
+
+      searchProducts(searchQuery.value);
     } catch (e) {
       log('Failed to fetch products: $e');
-      Get.snackbar('Error', 'Failed to fetch products: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to fetch products: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     } finally {
       isLoading.value = false;
     }
   }
 
-  void fetchBills() async {
-    isLoading.value = true;
-    try {
-      final snapshot = await _firestore.collection('bills').get();
-      bills.value = snapshot.docs
-          .map((doc) => {'id': doc.id, ...doc.data()})
-          .toList();
-    } catch (e) {
-      log('Failed to fetch bills: $e');
-      Get.snackbar('Error', 'Failed to fetch bills: $e');
-    } finally {
-      isLoading.value = false;
+  void searchProducts(String query) {
+    searchQuery.value = query;
+    if (query.isEmpty) {
+      filteredProducts.assignAll(products);
+    } else {
+      filteredProducts.assignAll(
+        products
+            .where(
+              (product) =>
+                  product.name.toLowerCase().contains(query.toLowerCase()),
+            )
+            .toList(),
+      );
     }
   }
 
@@ -65,20 +71,40 @@ class BillingController extends GetxController {
   }
 
   void increaseQuantity(Product product) {
-    if (product.count > (selectedProducts[product.id] ?? 0)) {
-      selectedProducts[product.id] = (selectedProducts[product.id] ?? 0) + 1;
+    final currentQuantity = selectedProducts[product.id] ?? 0;
+    if (product.count > currentQuantity) {
+      selectedProducts[product.id] = currentQuantity + 1;
+      _showFeedback('${product.name} added to cart');
     } else {
-      Get.snackbar('Error', '${product.name} is out of stock');
+      Get.snackbar(
+        'Out of Stock',
+        '${product.name} is out of stock',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
     }
   }
 
   void decreaseQuantity(Product product) {
-    if ((selectedProducts[product.id] ?? 0) > 0) {
-      selectedProducts[product.id] = selectedProducts[product.id]! - 1;
-      if (selectedProducts[product.id] == 0) {
+    final currentQuantity = selectedProducts[product.id] ?? 0;
+    if (currentQuantity > 0) {
+      if (currentQuantity == 1) {
         selectedProducts.remove(product.id);
+        _showFeedback('${product.name} removed from cart');
+      } else {
+        selectedProducts[product.id] = currentQuantity - 1;
+        _showFeedback('${product.name} quantity decreased');
       }
     }
+  }
+
+  void clearCart() {
+    selectedProducts.clear();
+    customerName.clear();
+    customerPhone.clear();
+    _showFeedback('Cart cleared');
   }
 
   double calculateTotal() {
@@ -91,26 +117,39 @@ class BillingController extends GetxController {
     return total;
   }
 
-  void createBill() async {
-    if (customerName.text.isEmpty || customerPhone.text.isEmpty) {
-      Get.snackbar('Error', 'Please fill in all customer details');
-      return;
-    }
+  String generateInvoiceNumber() {
+    final now = DateTime.now();
+    final formatter = DateFormat('yyyyMMdd');
+    final dateString = formatter.format(now);
+    final timeString = DateFormat('HHmmss').format(now);
+    return 'INV-$dateString-$timeString';
+  }
 
+  void createBill() async {
     if (selectedProducts.isEmpty) {
-      Get.snackbar('Error', 'Please select at least one product');
+      Get.snackbar(
+        'Error',
+        'Please select at least one product',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return;
     }
 
     isLoading.value = true;
     try {
       final billId = const Uuid().v4();
+      final invoiceNumber = generateInvoiceNumber();
       final batch = _firestore.batch();
 
-      // Create bill document
+      // Create bill document with optional customer details
       final billData = {
-        'customerName': customerName.text,
-        'customerPhone': customerPhone.text,
+        'invoiceNumber': invoiceNumber,
+        'customerName': customerName.text.isEmpty
+            ? 'Walk-in Customer'
+            : customerName.text,
+        'customerPhone': customerPhone.text.isEmpty ? '' : customerPhone.text,
         'products': selectedProducts.map((key, value) {
           final product = products.firstWhere((p) => p.id == key);
           return MapEntry(key, {
@@ -118,10 +157,13 @@ class BillingController extends GetxController {
             'productName': product.name,
             'quantity': value,
             'price': product.price,
+            'total': product.price * value,
           });
         }),
         'total': calculateTotal(),
+        'itemCount': selectedProducts.values.fold(0, (sum, qty) => sum + qty),
         'createdAt': DateTime.now().toIso8601String(),
+        'status': 'completed',
       };
 
       batch.set(_firestore.collection('bills').doc(billId), billData);
@@ -148,381 +190,49 @@ class BillingController extends GetxController {
 
       await batch.commit();
 
-      // Refresh bills list
-      fetchBills();
+      Get.snackbar(
+        'Success',
+        'Invoice $invoiceNumber created successfully!',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
 
-      Get.snackbar('Success', 'Bill created successfully');
-      customerName.clear();
-      customerPhone.clear();
-      selectedProducts.clear();
+      // Clear the cart and customer details
+      clearCart();
+      filteredProducts.assignAll(products);
     } catch (e) {
-      Get.snackbar('Error', 'Failed to create bill: $e');
+      log('Failed to create bill: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to create invoice: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     } finally {
       isLoading.value = false;
     }
   }
 
-  double calculateBillTotal(Map<String, dynamic> bill) {
-    if (bill['total'] != null && bill['total'] is num) {
-      return (bill['total'] as num).toDouble();
-    }
-    double total = 0;
-    if (bill['products'] != null && bill['products'] is Map) {
-      bill['products'].values.forEach((product) {
-        total += (product['price'] as num) * (product['quantity'] as num);
-      });
-    } else if (bill['price'] != null && bill['price'] is num) {
-      total = (bill['price'] as num).toDouble();
-    }
-    return total;
-  }
-
-  //single download
-  Future<Uint8List> generateBillPdf(Map<String, dynamic> bill) async {
-    log('[PDF] Starting PDF generation...');
-    final pdf = pw.Document();
-
-    final date = DateTime.parse(bill['createdAt']).toLocal();
-    final total = calculateBillTotal(bill);
-
-    log('[PDF] Bill date: $date');
-    log('[PDF] Total calculated: Rs. ${total.toStringAsFixed(2)}');
-
-    pdf.addPage(
-      pw.Page(
-        build: (pw.Context context) {
-          log('[PDF] Adding content to PDF page...');
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'Invoice',
-                style: pw.TextStyle(
-                  fontSize: 24,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 20),
-              pw.Text('Bill ID: ${bill['id'] ?? ''}'),
-              pw.Text('Customer: ${bill['customerName'] ?? ''}'),
-              pw.Text('Phone: ${bill['customerPhone'] ?? ''}'),
-              pw.Text('Date: ${date.toString().substring(0, 16)}'),
-              pw.SizedBox(height: 20),
-              pw.Text(
-                'Products:',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              ),
-              pw.Table(
-                border: pw.TableBorder.all(),
-                children: [
-                  pw.TableRow(
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Product'),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Quantity'),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Price'),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Total'),
-                      ),
-                    ],
-                  ),
-                  if (bill['products'] != null && bill['products'] is Map)
-                    ...bill['products'].values.map<pw.TableRow>((product) {
-                      return pw.TableRow(
-                        children: [
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(8),
-                            child: pw.Text(product['productName'] ?? ''),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(8),
-                            child: pw.Text('${product['quantity'] ?? 0}'),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(8),
-                            child: pw.Text(
-                              'Rs. ${(product['price'] ?? 0).toStringAsFixed(2)}',
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(8),
-                            child: pw.Text(
-                              'Rs. ${((product['price'] ?? 0) * (product['quantity'] ?? 0)).toStringAsFixed(2)}',
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList()
-                  else if (bill['productName'] != null)
-                    pw.TableRow(
-                      children: [
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text(bill['productName']),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text('1'),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text(
-                            'Rs. ${(bill['price'] ?? 0).toStringAsFixed(2)}',
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text(
-                            'Rs. ${(bill['price'] ?? 0).toStringAsFixed(2)}',
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-              pw.SizedBox(height: 20),
-              pw.Text(
-                'Total: Rs. ${total.toStringAsFixed(2)}',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              ),
-            ],
-          );
-        },
+  void _showFeedback(String message) {
+    Get.showSnackbar(
+      GetSnackBar(
+        message: message,
+        duration: const Duration(seconds: 1),
+        backgroundColor: Colors.black87,
+        borderRadius: 8,
+        margin: const EdgeInsets.all(16),
+        snackStyle: SnackStyle.FLOATING,
       ),
     );
-
-    log('[PDF] PDF generation completed.');
-    return pdf.save();
   }
 
-  //download option
-  Future<String> saveBillPdfToDownloads(
-    Uint8List pdfBytes,
-    String fileName,
-  ) async {
-    final log = Logger('PDFSaver');
-    log.info('[SAVE] Requesting storage permission...');
-    bool granted = false;
-    final deviceInfo = DeviceInfoPlugin();
-
-    int sdkInt = 0;
-    if (Platform.isAndroid) {
-      final androidInfo = await deviceInfo.androidInfo;
-      sdkInt = androidInfo.version.sdkInt;
-
-      if (sdkInt >= 33) {
-        // Android 13+: Request storage or photos permission
-        granted =
-            await Permission.photos.request().isGranted ||
-            await Permission.storage.request().isGranted;
-      } else {
-        // Android 12 and below: Request storage permission
-        granted = await Permission.storage.request().isGranted;
-      }
-    } else {
-      granted = true; // iOS/macOS/etc., no permission needed for Downloads
-    }
-
-    if (!granted) {
-      log.warning('[✗] Permission denied');
-      throw Exception('Storage permission denied');
-    }
-
-    log.info('[SAVE] Permission granted.');
-    String filePath;
-
-    if (Platform.isAndroid) {
-      // Use Downloads directory for Android
-      final dir = Directory('/storage/emulated/0/Download');
-      if (!await dir.exists()) {
-        log.info('[SAVE] Creating Downloads directory...');
-        await dir.create(recursive: true);
-      }
-      filePath = '${dir.path}/$fileName';
-    } else {
-      // Use getDownloadsDirectory for iOS or other platforms
-      final dir = await getDownloadsDirectory();
-      if (dir == null) {
-        log.warning('[✗] Could not access Downloads directory');
-        throw Exception('Could not access Downloads directory');
-      }
-      filePath = '${dir.path}/$fileName';
-    }
-
-    final file = File(filePath);
-    await file.writeAsBytes(pdfBytes);
-    log.info('[✓] PDF saved successfully to: $filePath');
-
-    // Open the saved PDF file
-    try {
-      final result = await OpenFile.open(filePath);
-      if (result.type == ResultType.done) {
-        log.info('[✓] PDF opened successfully');
-      } else {
-        log.warning('[✗] Failed to open PDF: ${result.message}');
-        throw Exception('Failed to open PDF: ${result.message}');
-      }
-    } catch (e) {
-      log.severe('[✗] Error opening PDF: $e');
-      throw Exception('Error opening PDF: $e');
-    }
-
-    return filePath; // Return the file path
-  }
-
-  //monthly bill
-  Future<Uint8List> generateMonthlyBillPdf(
-    List<Map<String, dynamic>> bills,
-  ) async {
-    log('[PDF] Starting monthly bill PDF generation...');
-    final pdf = pw.Document();
-
-    if (bills.isEmpty) {
-      throw Exception('No bills to generate for the month.');
-    }
-
-    // Grouping and sorting bills by date
-    bills.sort(
-      (a, b) => DateTime.parse(
-        a['createdAt'],
-      ).compareTo(DateTime.parse(b['createdAt'])),
-    );
-
-    final monthDate = DateTime.parse(bills.first['createdAt']).toLocal();
-    final monthLabel =
-        '${monthDate.year}-${monthDate.month.toString().padLeft(2, '0')}';
-
-    pdf.addPage(
-      pw.MultiPage(
-        build: (pw.Context context) {
-          return [
-            pw.Text(
-              'Monthly Bill Summary - $monthLabel',
-              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
-            ),
-            pw.SizedBox(height: 20),
-
-            ...bills.map((bill) {
-              final date = DateTime.parse(bill['createdAt']).toLocal();
-              final total = calculateBillTotal(bill);
-
-              return pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('───────────────────────────────────────────────'),
-                  pw.Text(
-                    'Bill ID: ${bill['id'] ?? ''}',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                  ),
-                  pw.Text('Date: ${date.toString().substring(0, 16)}'),
-                  pw.Text('Customer: ${bill['customerName'] ?? ''}'),
-                  pw.Text('Phone: ${bill['customerPhone'] ?? ''}'),
-                  pw.SizedBox(height: 5),
-                  pw.Table(
-                    border: pw.TableBorder.all(),
-                    children: [
-                      pw.TableRow(
-                        children: [
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(4),
-                            child: pw.Text('Product'),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(4),
-                            child: pw.Text('Qty'),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(4),
-                            child: pw.Text('Price'),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(4),
-                            child: pw.Text('Total'),
-                          ),
-                        ],
-                      ),
-                      if (bill['products'] != null && bill['products'] is Map)
-                        ...bill['products'].values.map<pw.TableRow>((product) {
-                          return pw.TableRow(
-                            children: [
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.all(4),
-                                child: pw.Text(product['productName'] ?? ''),
-                              ),
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.all(4),
-                                child: pw.Text('${product['quantity'] ?? 0}'),
-                              ),
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.all(4),
-                                child: pw.Text(
-                                  'Rs. ${(product['price'] ?? 0).toStringAsFixed(2)}',
-                                ),
-                              ),
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.all(4),
-                                child: pw.Text(
-                                  'Rs. ${((product['price'] ?? 0) * (product['quantity'] ?? 0)).toStringAsFixed(2)}',
-                                ),
-                              ),
-                            ],
-                          );
-                        }).toList()
-                      else if (bill['productName'] != null)
-                        pw.TableRow(
-                          children: [
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(bill['productName']),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text('1'),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(
-                                'Rs. ${(bill['price'] ?? 0).toStringAsFixed(2)}',
-                              ),
-                            ),
-                            pw.Padding(
-                              padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(
-                                'Rs. ${(bill['price'] ?? 0).toStringAsFixed(2)}',
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                  pw.SizedBox(height: 5),
-                  pw.Text('Subtotal: Rs. ${total.toStringAsFixed(2)}'),
-                  pw.SizedBox(height: 10),
-                ],
-              );
-            }),
-
-            pw.SizedBox(height: 20),
-            pw.Divider(),
-            pw.Text(
-              'Grand Total: Rs. ${bills.fold(0.0, (sum, bill) => sum + calculateBillTotal(bill)).toStringAsFixed(2)}',
-              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-            ),
-          ];
-        },
-      ),
-    );
-
-    log('[PDF] Monthly bill PDF generation completed.');
-    return pdf.save();
+  @override
+  void onClose() {
+    customerName.dispose();
+    customerPhone.dispose();
+    super.onClose();
   }
 }

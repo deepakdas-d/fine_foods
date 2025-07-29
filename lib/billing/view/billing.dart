@@ -1,5 +1,3 @@
-// ignore_for_file: unused_local_variable
-
 import 'package:fine_foods/billing/controller/billing_controller.dart';
 import 'package:fine_foods/billing/view/billing_list.dart';
 import 'package:flutter/material.dart';
@@ -12,160 +10,238 @@ class BillingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final BillingController controller = Get.put(BillingController());
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        backgroundColor: Color(0xFFFFD700),
-        title: Text("Billing"),
-        foregroundColor: Colors.black,
+        elevation: 0,
+        backgroundColor: const Color(0xFFFFD700),
+        title: const Text(
+          "Point of Sale",
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
+        ),
+        foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            onPressed: () {
-              Get.to(() => BillingList());
-            },
-            icon: Icon(Icons.list),
+          // Cart Icon with Badge
+          Obx(
+            () => Stack(
+              children: [
+                IconButton(
+                  onPressed: () => _showCartSheet(context, controller),
+                  icon: const Icon(Icons.shopping_cart_outlined, size: 26),
+                ),
+                if (controller.selectedProducts.isNotEmpty)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${controller.selectedProducts.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
+          IconButton(
+            onPressed: () => Get.to(() => BillingList()),
+            icon: const Icon(Icons.receipt_long_outlined, size: 26),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Obx(
         () => controller.isLoading.value
-            ? const Center(child: CircularProgressIndicator())
-            : Padding(
-                padding: const EdgeInsets.all(16.0),
+            ? const Center(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Customer Details Section
-                    Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Customer Details',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: controller.customerName,
-                              decoration: InputDecoration(
-                                labelText: 'Customer Name',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                prefixIcon: const Icon(Icons.person),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: controller.customerPhone,
-                              decoration: InputDecoration(
-                                labelText: 'Phone Number',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                prefixIcon: const Icon(Icons.phone),
-                              ),
-                              keyboardType: TextInputType.phone,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Product Selection Section
-                    Expanded(
-                      child: Card(
-                        elevation: 4,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Select Products',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Total: \$${controller.calculateTotal().toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.teal,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              child: ListView.builder(
-                                itemCount: controller.products.length,
-                                itemBuilder: (context, index) {
-                                  final product = controller.products[index];
-                                  return ProductSelectionTile(
-                                    product: product,
-                                    controller: controller,
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Create Bill Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed:
-                            controller.selectedProducts.isEmpty ||
-                                controller.isLoading.value
-                            ? null
-                            : () => controller.createBill(),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          backgroundColor: Colors.teal,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Create Bill',
-                          style: TextStyle(fontSize: 18),
-                        ),
-                      ),
-                    ),
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text("Loading products..."),
                   ],
                 ),
+              )
+            : Row(
+                children: [
+                  // Main Product Selection Area
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      children: [
+                        // Search Bar
+                        Container(
+                          margin: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: TextField(
+                            onChanged: (value) =>
+                                controller.searchProducts(value),
+                            decoration: InputDecoration(
+                              hintText: 'Search products by name...',
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: Color(0xFFFFD700),
+                              ),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () => controller.searchProducts(''),
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Products Grid
+                        Expanded(
+                          child: Obx(
+                            () => controller.filteredProducts.isEmpty
+                                ? const Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.search_off,
+                                          size: 64,
+                                          color: Colors.grey,
+                                        ),
+                                        SizedBox(height: 16),
+                                        Text(
+                                          "No products found",
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : GridView.builder(
+                                    padding: const EdgeInsets.all(16),
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: screenWidth > 1200
+                                              ? 4
+                                              : screenWidth > 800
+                                              ? 3
+                                              : 2,
+                                          childAspectRatio: 0.8,
+                                          crossAxisSpacing: 16,
+                                          mainAxisSpacing: 16,
+                                        ),
+                                    itemCount:
+                                        controller.filteredProducts.length,
+                                    itemBuilder: (context, index) {
+                                      final product =
+                                          controller.filteredProducts[index];
+                                      return ProductCard(
+                                        product: product,
+                                        controller: controller,
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Cart Sidebar (for larger screens)
+                  if (screenWidth > 800)
+                    Container(
+                      width: 350,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(-2, 0),
+                          ),
+                        ],
+                      ),
+                      child: CartSidebar(controller: controller),
+                    ),
+                ],
               ),
+      ),
+      // Floating Action Button for smaller screens
+      floatingActionButton: screenWidth <= 800
+          ? Obx(
+              () => controller.selectedProducts.isNotEmpty
+                  ? FloatingActionButton.extended(
+                      onPressed: () => _showCartSheet(context, controller),
+                      backgroundColor: const Color(0xFFFFD700),
+                      icon: const Icon(Icons.shopping_cart),
+                      label: Text(
+                        'Cart (${controller.selectedProducts.length})',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            )
+          : null,
+    );
+  }
+
+  void _showCartSheet(BuildContext context, BillingController controller) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        minChildSize: 0.5,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: CartSheet(
+            controller: controller,
+            scrollController: scrollController,
+          ),
+        ),
       ),
     );
   }
 }
 
-class ProductSelectionTile extends StatelessWidget {
+class ProductCard extends StatelessWidget {
   final Product product;
   final BillingController controller;
 
-  const ProductSelectionTile({
+  const ProductCard({
     super.key,
     required this.product,
     required this.controller,
@@ -173,56 +249,526 @@ class ProductSelectionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
-    return Obx(
-      () => ListTile(
-        enabled: product.count > 0,
-        title: Text(
-          product.name,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: product.count > 0 ? Colors.black : Colors.grey,
-          ),
-        ),
-        subtitle: Text(
-          'Price: \$${product.price.toStringAsFixed(2)} | Stock: ${product.count}',
-          style: TextStyle(
-            color: product.count > 0 ? Colors.black54 : Colors.grey,
-          ),
-        ),
-        trailing: product.count > 0
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    iconSize: screenWidth * 0.1,
-                    icon: const Icon(
-                      Icons.remove_circle_outline,
-                      color: Colors.red,
-                    ),
-                    onPressed: () => controller.decreaseQuantity(product),
-                  ),
-                  Text(
-                    '${controller.getSelectedQuantity(product)}',
-                    style: TextStyle(fontSize: screenWidth * 0.1),
-                  ),
-                  IconButton(
-                    iconSize: screenWidth * 0.1,
+    return Obx(() {
+      final isSelected = controller.getSelectedQuantity(product) > 0;
+      final isOutOfStock = product.count <= 0;
 
-                    icon: const Icon(Icons.add_circle_outline),
-                    onPressed: () => controller.increaseQuantity(product),
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFFFFD700)
+                : Colors.grey.withOpacity(0.2),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isSelected ? 0.1 : 0.05),
+              blurRadius: isSelected ? 15 : 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: isOutOfStock
+                ? null
+                : () => controller.increaseQuantity(product),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Product Icon/Image placeholder
+                  Container(
+                    height: 60,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: isOutOfStock
+                          ? Colors.grey.withOpacity(0.3)
+                          : const Color(0xFFFFD700).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.inventory_2_outlined,
+                      size: 32,
+                      color: isOutOfStock
+                          ? Colors.grey
+                          : const Color(0xFFFFD700),
+                    ),
                   ),
+                  const SizedBox(height: 12),
+                  // Product Name
+                  Expanded(
+                    child: Text(
+                      product.name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: isOutOfStock ? Colors.grey : Colors.black87,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Price and Stock
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '\$${product.price.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: isOutOfStock
+                              ? Colors.grey
+                              : const Color(0xFF1565C0),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isOutOfStock
+                              ? Colors.red.withOpacity(0.1)
+                              : Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          isOutOfStock
+                              ? 'Out of Stock'
+                              : 'Stock: ${product.count}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: isOutOfStock ? Colors.red : Colors.green,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Add to Cart Button
+                  if (!isOutOfStock)
+                    Row(
+                      children: [
+                        if (isSelected) ...[
+                          Expanded(
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  onPressed: () =>
+                                      controller.decreaseQuantity(product),
+                                  icon: const Icon(Icons.remove_circle_outline),
+                                  color: Colors.red,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 32,
+                                    minHeight: 32,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    '${controller.getSelectedQuantity(product)}',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () =>
+                                      controller.increaseQuantity(product),
+                                  icon: const Icon(Icons.add_circle_outline),
+                                  color: const Color(0xFFFFD700),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 32,
+                                    minHeight: 32,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ] else
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () =>
+                                  controller.increaseQuantity(product),
+                              icon: const Icon(
+                                Icons.add_shopping_cart,
+                                size: 18,
+                              ),
+                              label: const Text('Add'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFFD700),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                 ],
-              )
-            : const Text('Out of Stock', style: TextStyle(color: Colors.red)),
-        onTap: product.count > 0
-            ? () {
-                if (controller.getSelectedQuantity(product) == 0) {
-                  controller.increaseQuantity(product);
-                }
-              }
-            : null,
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+class CartSidebar extends StatelessWidget {
+  final BillingController controller;
+
+  const CartSidebar({super.key, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFD700),
+            borderRadius: const BorderRadius.only(topRight: Radius.circular(0)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.shopping_cart, color: Colors.white),
+              const SizedBox(width: 12),
+              const Text(
+                'Shopping Cart',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Obx(
+                () => Text(
+                  '${controller.selectedProducts.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Cart Items
+        Expanded(
+          child: Obx(() {
+            if (controller.selectedProducts.isEmpty) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.shopping_cart_outlined,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Cart is empty',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Add products to get started',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: controller.selectedProducts.length,
+                    itemBuilder: (context, index) {
+                      final productId = controller.selectedProducts.keys
+                          .elementAt(index);
+                      final product = controller.products.firstWhere(
+                        (p) => p.id == productId,
+                      );
+                      final quantity = controller.selectedProducts[productId]!;
+
+                      return CartItem(
+                        product: product,
+                        quantity: quantity,
+                        controller: controller,
+                      );
+                    },
+                  ),
+                ),
+                // Customer Details & Checkout
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    border: Border(
+                      top: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      // Customer Details (Optional)
+                      ExpansionTile(
+                        title: const Text(
+                          'Customer Details (Optional)',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        children: [
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: controller.customerName,
+                            decoration: InputDecoration(
+                              labelText: 'Customer Name',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              prefixIcon: const Icon(Icons.person_outline),
+                              isDense: true,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: controller.customerPhone,
+                            decoration: InputDecoration(
+                              labelText: 'Phone Number',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              prefixIcon: const Icon(Icons.phone_outlined),
+                              isDense: true,
+                            ),
+                            keyboardType: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Total
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFD700).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Total:',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Obx(
+                              () => Text(
+                                '\$${controller.calculateTotal().toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFFFD700),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Create Bill Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: controller.selectedProducts.isEmpty
+                              ? null
+                              : () => controller.createBill(),
+                          icon: const Icon(Icons.receipt_long),
+                          label: const Text(
+                            'Generate Invoice',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFD700),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }),
+        ),
+      ],
+    );
+  }
+}
+
+class CartSheet extends StatelessWidget {
+  final BillingController controller;
+  final ScrollController scrollController;
+
+  const CartSheet({
+    super.key,
+    required this.controller,
+    required this.scrollController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Handle
+        Container(
+          margin: const EdgeInsets.only(top: 8),
+          height: 4,
+          width: 40,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        // Content
+        Expanded(child: CartSidebar(controller: controller)),
+      ],
+    );
+  }
+}
+
+class CartItem extends StatelessWidget {
+  final Product product;
+  final int quantity;
+  final BillingController controller;
+
+  const CartItem({
+    super.key,
+    required this.product,
+    required this.quantity,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          // Product Icon
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD700).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              color: Color(0xFFFFD700),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Product Details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '\$${product.price.toStringAsFixed(2)} each',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          // Quantity Controls
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => controller.decreaseQuantity(product),
+                icon: const Icon(Icons.remove_circle_outline),
+                color: Colors.red,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  '$quantity',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () => controller.increaseQuantity(product),
+                icon: const Icon(Icons.add_circle_outline),
+                color: const Color(0xFFFFD700),
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+            ],
+          ),
+          // Total Price
+          const SizedBox(width: 8),
+          Text(
+            '\$${(product.price * quantity).toStringAsFixed(2)}',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFFFFD700),
+            ),
+          ),
+        ],
       ),
     );
   }
