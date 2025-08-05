@@ -48,41 +48,60 @@ class BillListController extends GetxController {
     }
   }
 
-  double calculateBillTotal(Map<String, dynamic> bill) {
-    if (bill['total'] != null && bill['total'] is num) {
-      return (bill['total'] as num).toDouble();
-    }
-    double total = 0;
+  double calculateBillSubtotal(Map<String, dynamic> bill) {
+    double subtotal = 0;
     if (bill['products'] != null && bill['products'] is Map) {
-      final products = bill['products'] as Map;
+      final products = Map<String, dynamic>.from(bill['products']);
       for (var product in products.values) {
-        if (product is Map &&
-            product.containsKey('price') &&
-            product.containsKey('quantity')) {
-          total += (product['price'] as num) * (product['quantity'] as num);
+        if (product is Map) {
+          final price = (product['price'] ?? 0) as num;
+          final qty = (product['quantity'] ?? 0) as num;
+          subtotal += price * qty;
         }
       }
     } else if (bill['price'] != null && bill['price'] is num) {
-      total = (bill['price'] as num).toDouble();
+      subtotal = (bill['price'] as num).toDouble();
     }
-    return total;
+    return subtotal;
+  }
+
+  double calculateBillDiscount(Map<String, dynamic> bill) {
+    double discountTotal = 0;
+    if (bill['products'] != null && bill['products'] is Map) {
+      final products = Map<String, dynamic>.from(bill['products']);
+      for (var product in products.values) {
+        if (product is Map) {
+          // ignore: unused_local_variable
+          final price = (product['price'] ?? 0) as num;
+          final qty = (product['quantity'] ?? 0) as num;
+          final productDiscount = (product['discount'] ?? 0) as num;
+          discountTotal += productDiscount * qty;
+        }
+      }
+    }
+    return discountTotal;
   }
 
   Future<Uint8List> generateBillPdf(Map<String, dynamic> bill) async {
     log('[PDF] Starting PDF generation...');
     final pdf = pw.Document();
     final date = DateTime.parse(bill['createdAt']).toLocal();
-    final total = calculateBillTotal(bill);
+
+    final subtotal = calculateBillSubtotal(bill);
+    final discount = calculateBillDiscount(bill);
+    final total = (subtotal - discount).clamp(0, double.infinity);
+
     final invoiceNumber = bill['invoiceNumber'] ?? 'INV-${bill['id']}';
 
     log('[PDF] Invoice: $invoiceNumber');
     log('[PDF] Bill date: $date');
-    log('[PDF] Total calculated: \$${total.toStringAsFixed(2)}');
+    log('[PDF] Subtotal: \$${total.toStringAsFixed(2)}');
+    log('[PDF] Discount: \$${discount.toStringAsFixed(2)}');
+    log('[PDF] Final total: \$${total.toStringAsFixed(2)}');
 
     pdf.addPage(
       pw.Page(
         build: (pw.Context context) {
-          log('[PDF] Adding content to PDF page...');
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
@@ -105,9 +124,7 @@ class BillListController extends GetxController {
                         'Fine Foods POS System',
                         style: pw.TextStyle(
                           fontSize: 16,
-                          color: pw.PdfColor.fromInt(
-                            0xFF666666,
-                          ), // Grey600 equivalent
+                          color: pw.PdfColor.fromInt(0xFF666666),
                         ),
                       ),
                     ],
@@ -132,13 +149,12 @@ class BillListController extends GetxController {
                 ],
               ),
               pw.SizedBox(height: 30),
+
               // Customer Info
               pw.Container(
                 padding: const pw.EdgeInsets.all(16),
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(
-                    color: pw.PdfColor.fromInt(0xFFE0E0E0),
-                  ), // Grey300 equivalent
+                  border: pw.Border.all(color: pw.PdfColor.fromInt(0xFFE0E0E0)),
                   borderRadius: const pw.BorderRadius.all(
                     pw.Radius.circular(8),
                   ),
@@ -168,7 +184,8 @@ class BillListController extends GetxController {
                 ),
               ),
               pw.SizedBox(height: 30),
-              // Products Table
+
+              // Items Table
               pw.Text(
                 'Items:',
                 style: pw.TextStyle(
@@ -180,7 +197,7 @@ class BillListController extends GetxController {
               pw.Table(
                 border: pw.TableBorder.all(
                   color: pw.PdfColor.fromInt(0xFFE0E0E0),
-                ), // Grey300 equivalent
+                ),
                 columnWidths: const {
                   0: pw.FlexColumnWidth(3),
                   1: pw.FlexColumnWidth(1),
@@ -188,12 +205,10 @@ class BillListController extends GetxController {
                   3: pw.FlexColumnWidth(1.5),
                 },
                 children: [
-                  // Header
+                  // Table Header
                   pw.TableRow(
                     decoration: pw.BoxDecoration(
-                      color: pw.PdfColor.fromInt(
-                        0xFFF5F5F5,
-                      ), // Grey100 equivalent
+                      color: pw.PdfColor.fromInt(0xFFF5F5F5),
                     ),
                     children: [
                       pw.Padding(
@@ -229,9 +244,12 @@ class BillListController extends GetxController {
                       ),
                     ],
                   ),
-                  // Products
+
+                  // Table Items
                   if (bill['products'] != null && bill['products'] is Map)
                     ...bill['products'].values.map<pw.TableRow>((product) {
+                      final price = (product['price'] ?? 0) as num;
+                      final qty = (product['quantity'] ?? 0) as num;
                       return pw.TableRow(
                         children: [
                           pw.Padding(
@@ -241,21 +259,21 @@ class BillListController extends GetxController {
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(12),
                             child: pw.Text(
-                              '${product['quantity'] ?? 0}',
+                              '$qty',
                               textAlign: pw.TextAlign.center,
                             ),
                           ),
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(12),
                             child: pw.Text(
-                              '\$${product['price']?.toStringAsFixed(2) ?? '0.00'}',
+                              '\$${price.toStringAsFixed(2)}',
                               textAlign: pw.TextAlign.right,
                             ),
                           ),
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(12),
                             child: pw.Text(
-                              '\$${((product['price'] ?? 0) * (product['quantity'] ?? 0)).toStringAsFixed(2)}',
+                              '\$${(price * qty).toStringAsFixed(2)}',
                               textAlign: pw.TextAlign.right,
                             ),
                           ),
@@ -276,14 +294,14 @@ class BillListController extends GetxController {
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(12),
                           child: pw.Text(
-                            '\$${bill['price']?.toStringAsFixed(2) ?? '0.00'}',
+                            '\$${(bill['price'] ?? 0).toStringAsFixed(2)}',
                             textAlign: pw.TextAlign.right,
                           ),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(12),
                           child: pw.Text(
-                            '\$${bill['price']?.toStringAsFixed(2) ?? '0.00'}',
+                            '\$${(bill['price'] ?? 0).toStringAsFixed(2)}',
                             textAlign: pw.TextAlign.right,
                           ),
                         ),
@@ -292,6 +310,7 @@ class BillListController extends GetxController {
                 ],
               ),
               pw.SizedBox(height: 20),
+
               // Total Section
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.end,
@@ -300,9 +319,7 @@ class BillListController extends GetxController {
                     width: 200,
                     padding: const pw.EdgeInsets.all(16),
                     decoration: pw.BoxDecoration(
-                      color: pw.PdfColor.fromInt(
-                        0xFFFAFAFA,
-                      ), // Grey50 equivalent
+                      color: pw.PdfColor.fromInt(0xFFFAFAFA),
                       borderRadius: const pw.BorderRadius.all(
                         pw.Radius.circular(8),
                       ),
@@ -316,6 +333,17 @@ class BillListController extends GetxController {
                             pw.Text('\$${total.toStringAsFixed(2)}'),
                           ],
                         ),
+                        if (discount > 0) ...[
+                          pw.SizedBox(height: 8),
+                          pw.Row(
+                            mainAxisAlignment:
+                                pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Text('Discount:'),
+                              pw.Text('-\$${discount.toStringAsFixed(2)}'),
+                            ],
+                          ),
+                        ],
                         pw.SizedBox(height: 8),
                         pw.Divider(),
                         pw.SizedBox(height: 8),
@@ -343,7 +371,9 @@ class BillListController extends GetxController {
                   ),
                 ],
               ),
+
               pw.SizedBox(height: 40),
+
               // Footer
               pw.Center(
                 child: pw.Text(
@@ -351,9 +381,7 @@ class BillListController extends GetxController {
                   style: pw.TextStyle(
                     fontSize: 14,
                     fontStyle: pw.FontStyle.italic,
-                    color: pw.PdfColor.fromInt(
-                      0xFF666666,
-                    ), // Grey600 equivalent
+                    color: pw.PdfColor.fromInt(0xFF666666),
                   ),
                 ),
               ),
@@ -465,7 +493,7 @@ class BillListController extends GetxController {
             pw.SizedBox(height: 20),
             ...bills.map((bill) {
               final date = DateTime.parse(bill['createdAt']).toLocal();
-              final total = calculateBillTotal(bill);
+              final total = calculateBillSubtotal(bill);
               final invoiceNumber =
                   bill['invoiceNumber'] ?? 'INV-${bill['id']}';
 
@@ -575,7 +603,7 @@ class BillListController extends GetxController {
             pw.SizedBox(height: 20),
             pw.Divider(),
             pw.Text(
-              'Grand Total: \$${bills.fold(0.0, (sum, bill) => sum + calculateBillTotal(bill)).toStringAsFixed(2)}',
+              'Grand Total: \$${bills.fold(0.0, (sum, bill) => sum + calculateBillSubtotal(bill)).toStringAsFixed(2)}',
               style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
             pw.Text(

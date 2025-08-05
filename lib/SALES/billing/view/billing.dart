@@ -1,8 +1,8 @@
-import 'package:fine_foods/billing/controller/billing_controller.dart';
-import 'package:fine_foods/billing/view/billing_list.dart';
+import 'package:fine_foods/SALES/billing/controller/billing_controller.dart';
+import 'package:fine_foods/SALES/billing/view/billing_list.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:fine_foods/invoice_generator/models/product_models.dart';
+import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -449,259 +449,236 @@ class CartSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: Color(0xFFFFD700),
-            borderRadius: BorderRadius.only(topRight: Radius.circular(0)),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.shopping_cart, color: Colors.white),
-              const SizedBox(width: 12),
-              const Text(
-                'Shopping Cart',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              Obx(
-                () => Text(
-                  '${controller.selectedProducts.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Cart Items
-        Expanded(
-          child: Obx(() {
-            if (controller.selectedProducts.isEmpty) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.shopping_cart_outlined,
-                      size: 64,
-                      color: Colors.grey,
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Cart is empty',
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Add products to get started',
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return Column(
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      body: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFD700),
+              borderRadius: BorderRadius.only(topRight: Radius.circular(0)),
+            ),
+            child: Row(
               children: [
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: controller.selectedProducts.length,
-                    itemBuilder: (context, index) {
-                      final productId = controller.selectedProducts.keys
-                          .elementAt(index);
-                      final product = controller.products.firstWhere(
-                        (p) => p.id == productId,
-                      );
-                      final quantity = controller.selectedProducts[productId]!;
-
-                      return CartItem(
-                        product: product,
-                        quantity: quantity,
-                        controller: controller,
-                      );
-                    },
+                const Icon(Icons.shopping_cart, color: Colors.white),
+                const SizedBox(width: 12),
+                const Text(
+                  'Shopping Cart',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                // Customer Details & Checkout
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    border: Border(
-                      top: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                const Spacer(),
+                Obx(
+                  () => Text(
+                    '${controller.selectedProducts.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+          // Cart Items
+          Expanded(
+            child: Obx(() {
+              if (controller.selectedProducts.isEmpty) {
+                return const Center(
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Customer Details (Optional)
-                      ExpansionTile(
-                        title: const Text(
-                          'Customer Details (Optional)',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        children: [
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: controller.customerName,
-                            decoration: InputDecoration(
-                              labelText: 'Customer Name',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              prefixIcon: const Icon(Icons.person_outline),
-                              isDense: true,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: controller.customerPhone,
-                            decoration: InputDecoration(
-                              labelText: 'Phone Number',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              prefixIcon: const Icon(Icons.phone_outlined),
-                              isDense: true,
-                            ),
-                            keyboardType: TextInputType.phone,
-                          ),
-                          const SizedBox(height: 16),
-                        ],
+                      Icon(
+                        Icons.shopping_cart_outlined,
+                        size: 64,
+                        color: Colors.grey,
                       ),
-                      const SizedBox(height: 16),
-                      // Total
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFD700).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
+                      SizedBox(height: 16),
+                      Text(
+                        'Cart is empty',
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Add products to get started',
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: controller.selectedProducts.length,
+                      itemBuilder: (context, index) {
+                        final productId = controller.selectedProducts.keys
+                            .elementAt(index);
+                        final product = controller.products.firstWhere(
+                          (p) => p.id == productId,
+                        );
+                        final quantity =
+                            controller.selectedProducts[productId]!;
+
+                        return CartItem(
+                          product: product,
+                          quantity: quantity,
+                          controller: controller,
+                        );
+                      },
+                    ),
+                  ),
+                  // Customer Details & Checkout
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      border: Border(
+                        top: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: controller.customerDiscount,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Discount',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            prefixIcon: const Icon(Icons.discount_outlined),
+                            isDense: true,
+                          ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        // Customer Details (Optional)
+                        ExpansionTile(
+                          title: const Text(
+                            'Customer Details (Optional)',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
                           children: [
-                            const Text(
-                              'Total:',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Obx(
-                              () => Text(
-                                '\$${controller.calculateTotal().toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFFFD700),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: controller.customerName,
+                              decoration: InputDecoration(
+                                labelText: 'Customer Name',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
+                                prefixIcon: const Icon(Icons.person_outline),
+                                isDense: true,
                               ),
                             ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: controller.customerPhone,
+                              decoration: InputDecoration(
+                                labelText: 'Phone Number',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                prefixIcon: const Icon(Icons.phone_outlined),
+                                isDense: true,
+                              ),
+                              keyboardType: TextInputType.phone,
+                            ),
+                            const SizedBox(height: 16),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Create Bill Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: controller.selectedProducts.isEmpty
-                              ? null
-                              : () async {
-                                  try {
-                                    developer.log("Creating bill");
-                                    final billData = await controller
-                                        .createBill();
-                                    if (billData != null) {
-                                      // Generate PDF
-                                      final pdf = pw.Document();
-                                      pdf.addPage(
-                                        pw.Page(
-                                          build: (pw.Context context) {
-                                            return pw.Column(
-                                              crossAxisAlignment:
-                                                  pw.CrossAxisAlignment.start,
-                                              children: [
-                                                pw.Text(
-                                                  'Invoice #${billData['invoiceNumber']}',
-                                                  style: pw.TextStyle(
-                                                    fontSize: 24,
-                                                    fontWeight:
-                                                        pw.FontWeight.bold,
-                                                  ),
-                                                ),
-                                                pw.SizedBox(height: 16),
-                                                pw.Text(
-                                                  'Customer: ${billData['customerName']}',
-                                                ),
-                                                if (billData['customerPhone']
-                                                    .isNotEmpty)
+                        const SizedBox(height: 16),
+                        // Total
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFD700).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Total:',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Obx(
+                                () => Text(
+                                  '\$${controller.calculateTotal().toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFFFD700),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Create Bill Button
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: controller.selectedProducts.isEmpty
+                                ? null
+                                : () async {
+                                    try {
+                                      developer.log("Creating bill");
+                                      final billData = await controller
+                                          .createBill();
+                                      if (billData != null) {
+                                        // Generate PDF
+                                        final pdf = pw.Document();
+                                        pdf.addPage(
+                                          pw.Page(
+                                            build: (pw.Context context) {
+                                              return pw.Column(
+                                                crossAxisAlignment:
+                                                    pw.CrossAxisAlignment.start,
+                                                children: [
                                                   pw.Text(
-                                                    'Phone: ${billData['customerPhone']}',
-                                                  ),
-                                                pw.SizedBox(height: 16),
-                                                pw.Text(
-                                                  'Products:',
-                                                  style: pw.TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight:
-                                                        pw.FontWeight.bold,
-                                                  ),
-                                                ),
-                                                pw.Table(
-                                                  border: pw.TableBorder.all(),
-                                                  children: [
-                                                    pw.TableRow(
-                                                      children: [
-                                                        pw.Padding(
-                                                          padding:
-                                                              const pw.EdgeInsets.all(
-                                                                8,
-                                                              ),
-                                                          child: pw.Text(
-                                                            'Product',
-                                                          ),
-                                                        ),
-                                                        pw.Padding(
-                                                          padding:
-                                                              const pw.EdgeInsets.all(
-                                                                8,
-                                                              ),
-                                                          child: pw.Text('Qty'),
-                                                        ),
-                                                        pw.Padding(
-                                                          padding:
-                                                              const pw.EdgeInsets.all(
-                                                                8,
-                                                              ),
-                                                          child: pw.Text(
-                                                            'Price',
-                                                          ),
-                                                        ),
-                                                        pw.Padding(
-                                                          padding:
-                                                              const pw.EdgeInsets.all(
-                                                                8,
-                                                              ),
-                                                          child: pw.Text(
-                                                            'Total',
-                                                          ),
-                                                        ),
-                                                      ],
+                                                    'Invoice #${billData['invoiceNumber']}',
+                                                    style: pw.TextStyle(
+                                                      fontSize: 24,
+                                                      fontWeight:
+                                                          pw.FontWeight.bold,
                                                     ),
-                                                    ...billData['products'].values.map(
-                                                      (product) => pw.TableRow(
+                                                  ),
+                                                  pw.SizedBox(height: 16),
+                                                  pw.Text(
+                                                    'Customer: ${billData['customerName']}',
+                                                  ),
+                                                  if (billData['customerPhone']
+                                                      .isNotEmpty)
+                                                    pw.Text(
+                                                      'Phone: ${billData['customerPhone']}',
+                                                    ),
+                                                  pw.SizedBox(height: 16),
+                                                  pw.Text(
+                                                    'Products:',
+                                                    style: pw.TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          pw.FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  pw.Table(
+                                                    border:
+                                                        pw.TableBorder.all(),
+                                                    children: [
+                                                      pw.TableRow(
                                                         children: [
                                                           pw.Padding(
                                                             padding:
@@ -709,7 +686,7 @@ class CartSidebar extends StatelessWidget {
                                                                   8,
                                                                 ),
                                                             child: pw.Text(
-                                                              product['productName'],
+                                                              'Product',
                                                             ),
                                                           ),
                                                           pw.Padding(
@@ -718,8 +695,7 @@ class CartSidebar extends StatelessWidget {
                                                                   8,
                                                                 ),
                                                             child: pw.Text(
-                                                              product['quantity']
-                                                                  .toString(),
+                                                              'Qty',
                                                             ),
                                                           ),
                                                           pw.Padding(
@@ -728,7 +704,7 @@ class CartSidebar extends StatelessWidget {
                                                                   8,
                                                                 ),
                                                             child: pw.Text(
-                                                              '\$${product['price']}',
+                                                              'Price',
                                                             ),
                                                           ),
                                                           pw.Padding(
@@ -737,191 +713,245 @@ class CartSidebar extends StatelessWidget {
                                                                   8,
                                                                 ),
                                                             child: pw.Text(
-                                                              '\$${product['total']}',
+                                                              'Total',
                                                             ),
                                                           ),
                                                         ],
                                                       ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                pw.SizedBox(height: 16),
-                                                pw.Text(
-                                                  'Total: \$${billData['total']}',
-                                                  style: pw.TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight:
-                                                        pw.FontWeight.bold,
-                                                  ),
-                                                ),
-                                                pw.Text(
-                                                  'Items: ${billData['itemCount']}',
-                                                ),
-                                                pw.SizedBox(height: 16),
-                                                pw.Text(
-                                                  'Date: ${billData['createdAt']}',
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                        ),
-                                      );
-
-                                      // Save PDF to temporary file
-                                      final dir = await getTemporaryDirectory();
-                                      final file = File(
-                                        '${dir.path}/invoice_${billData['invoiceNumber']}.pdf',
-                                      );
-                                      await file.writeAsBytes(await pdf.save());
-
-                                      // Show preview dialog
-                                      await Get.dialog(
-                                        Dialog(
-                                          child: ConstrainedBox(
-                                            constraints: const BoxConstraints(
-                                              maxWidth: 600,
-                                              maxHeight: 700,
-                                            ),
-                                            child: Column(
-                                              children: [
-                                                Padding(
-                                                  padding: const EdgeInsets.all(
-                                                    16,
-                                                  ),
-                                                  child: Text(
-                                                    'Invoice #${billData['invoiceNumber']} Preview',
-                                                    style: const TextStyle(
-                                                      fontSize: 20,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ),
-                                                Expanded(
-                                                  child: PDFView(
-                                                    filePath: file.path,
-                                                    enableSwipe: true,
-                                                    autoSpacing: true,
-                                                    pageFling: true,
-                                                    onError: (error) {
-                                                      developer.log(
-                                                        'PDFView error: $error',
-                                                      );
-                                                      Get.snackbar(
-                                                        'Error',
-                                                        'Failed to load PDF preview: $error',
-                                                        snackPosition:
-                                                            SnackPosition
-                                                                .BOTTOM,
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                        colorText: Colors.white,
-                                                      );
-                                                    },
-                                                  ),
-                                                ),
-                                                Padding(
-                                                  padding: const EdgeInsets.all(
-                                                    16,
-                                                  ),
-                                                  child: Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment.end,
-                                                    children: [
-                                                      TextButton(
-                                                        onPressed: () =>
-                                                            Get.back(),
-                                                        child: const Text(
-                                                          'Close',
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      ElevatedButton(
-                                                        onPressed: () async {
-                                                          try {
-                                                            await Printing.layoutPdf(
-                                                              onLayout:
-                                                                  (
-                                                                    PdfPageFormat
-                                                                    format,
-                                                                  ) async => pdf
-                                                                      .save(),
-                                                            );
-                                                            Get.back();
-                                                          } catch (e) {
-                                                            developer.log(
-                                                              'Print error: $e',
-                                                            );
-                                                            Get.snackbar(
-                                                              'Error',
-                                                              'Failed to print: $e',
-                                                              snackPosition:
-                                                                  SnackPosition
-                                                                      .BOTTOM,
-                                                              backgroundColor:
-                                                                  Colors.red,
-                                                              colorText:
-                                                                  Colors.white,
-                                                            );
-                                                          }
-                                                        },
-                                                        child: const Text(
-                                                          'Print',
+                                                      ...billData['products'].values.map(
+                                                        (
+                                                          product,
+                                                        ) => pw.TableRow(
+                                                          children: [
+                                                            pw.Padding(
+                                                              padding:
+                                                                  const pw.EdgeInsets.all(
+                                                                    8,
+                                                                  ),
+                                                              child: pw.Text(
+                                                                product['productName'],
+                                                              ),
+                                                            ),
+                                                            pw.Padding(
+                                                              padding:
+                                                                  const pw.EdgeInsets.all(
+                                                                    8,
+                                                                  ),
+                                                              child: pw.Text(
+                                                                product['quantity']
+                                                                    .toString(),
+                                                              ),
+                                                            ),
+                                                            pw.Padding(
+                                                              padding:
+                                                                  const pw.EdgeInsets.all(
+                                                                    8,
+                                                                  ),
+                                                              child: pw.Text(
+                                                                '\$${product['price']}',
+                                                              ),
+                                                            ),
+                                                            pw.Padding(
+                                                              padding:
+                                                                  const pw.EdgeInsets.all(
+                                                                    8,
+                                                                  ),
+                                                              child: pw.Text(
+                                                                '\$${product['total']}',
+                                                              ),
+                                                            ),
+                                                          ],
                                                         ),
                                                       ),
                                                     ],
                                                   ),
-                                                ),
-                                              ],
+                                                  pw.SizedBox(height: 16),
+                                                  pw.Text(
+                                                    'Total: \$${billData['total']}',
+                                                    style: pw.TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          pw.FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  pw.Text(
+                                                    'Items: ${billData['itemCount']}',
+                                                  ),
+                                                  pw.SizedBox(height: 16),
+                                                  pw.Text(
+                                                    'Date: ${billData['createdAt']}',
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          ),
+                                        );
+
+                                        // Save PDF to temporary file
+                                        final dir =
+                                            await getTemporaryDirectory();
+                                        final file = File(
+                                          '${dir.path}/invoice_${billData['invoiceNumber']}.pdf',
+                                        );
+                                        await file.writeAsBytes(
+                                          await pdf.save(),
+                                        );
+
+                                        // Show preview dialog
+                                        await Get.dialog(
+                                          Dialog(
+                                            child: ConstrainedBox(
+                                              constraints: const BoxConstraints(
+                                                maxWidth: 600,
+                                                maxHeight: 700,
+                                              ),
+                                              child: Column(
+                                                children: [
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                          16,
+                                                        ),
+                                                    child: Text(
+                                                      'Invoice #${billData['invoiceNumber']} Preview',
+                                                      style: const TextStyle(
+                                                        fontSize: 20,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Expanded(
+                                                    child: PDFView(
+                                                      filePath: file.path,
+                                                      enableSwipe: true,
+                                                      autoSpacing: true,
+                                                      pageFling: true,
+                                                      onError: (error) {
+                                                        developer.log(
+                                                          'PDFView error: $error',
+                                                        );
+                                                        Get.snackbar(
+                                                          'Error',
+                                                          'Failed to load PDF preview: $error',
+                                                          snackPosition:
+                                                              SnackPosition
+                                                                  .BOTTOM,
+                                                          backgroundColor:
+                                                              Colors.red,
+                                                          colorText:
+                                                              Colors.white,
+                                                        );
+                                                      },
+                                                    ),
+                                                  ),
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                          16,
+                                                        ),
+                                                    child: Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment.end,
+                                                      children: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Get.back(),
+                                                          child: const Text(
+                                                            'Close',
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        ElevatedButton(
+                                                          onPressed: () async {
+                                                            try {
+                                                              await Printing.layoutPdf(
+                                                                onLayout:
+                                                                    (
+                                                                      PdfPageFormat
+                                                                      format,
+                                                                    ) async => pdf
+                                                                        .save(),
+                                                              );
+                                                              Get.back();
+                                                            } catch (e) {
+                                                              developer.log(
+                                                                'Print error: $e',
+                                                              );
+                                                              Get.snackbar(
+                                                                'Error',
+                                                                'Failed to print: $e',
+                                                                snackPosition:
+                                                                    SnackPosition
+                                                                        .BOTTOM,
+                                                                backgroundColor:
+                                                                    Colors.red,
+                                                                colorText:
+                                                                    Colors
+                                                                        .white,
+                                                              );
+                                                            }
+                                                          },
+                                                          child: const Text(
+                                                            'Print',
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      );
+                                        );
 
-                                      // Clean up temporary file
-                                      await file.delete();
+                                        // Clean up temporary file
+                                        await file.delete();
+                                      }
+                                    } catch (e) {
+                                      developer.log('Error: $e');
+                                      Get.snackbar(
+                                        'Error',
+                                        'Failed to generate preview: $e',
+                                        snackPosition: SnackPosition.BOTTOM,
+                                        backgroundColor: Colors.red,
+                                        colorText: Colors.white,
+                                      );
                                     }
-                                  } catch (e) {
-                                    developer.log('Error: $e');
-                                    Get.snackbar(
-                                      'Error',
-                                      'Failed to generate preview: $e',
-                                      snackPosition: SnackPosition.BOTTOM,
-                                      backgroundColor: Colors.red,
-                                      colorText: Colors.white,
-                                    );
-                                  }
-                                },
-                          icon: controller.isLoading.value
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                              : const Icon(Icons.receipt_long),
-                          label: const Text(
-                            'Generate Invoice',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                                  },
+                            icon: controller.isLoading.value
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                : const Icon(Icons.receipt_long),
+                            label: const Text(
+                              'Generate Invoice',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFFD700),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFFD700),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            );
-          }),
-        ),
-      ],
+                ],
+              );
+            }),
+          ),
+        ],
+      ),
     );
   }
 }

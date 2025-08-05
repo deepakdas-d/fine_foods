@@ -1,4 +1,4 @@
-import 'package:fine_foods/invoice_generator/models/product_models.dart';
+import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
 
 class Invoice {
   final String id;

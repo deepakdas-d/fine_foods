@@ -1,7 +1,7 @@
 import 'dart:developer';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:fine_foods/invoice_generator/models/invoice_models.dart';
+import 'package:fine_foods/ADMIN/invoice_generator/invoice_models.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:open_file/open_file.dart';

@@ -1,5 +1,5 @@
-import 'package:fine_foods/invoice_generator/models/invoice_models.dart';
-import 'package:fine_foods/invoice_view/controller/invoice_view_controller.dart';
+import 'package:fine_foods/ADMIN/invoice_generator/invoice_models.dart';
+import 'package:fine_foods/ADMIN/invoice_view/controller/invoice_view_controller.dart';
 import 'package:fine_foods/widgets/appbar_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';

@@ -1,5 +1,5 @@
 import 'dart:developer';
-import 'package:fine_foods/billing/controller/billing_list_controller.dart';
+import 'package:fine_foods/SALES/billing/controller/billing_list_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -63,7 +63,7 @@ class BillCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = DateTime.parse(bill['createdAt']).toLocal();
-    final total = controller.calculateBillTotal(bill);
+    final total = controller.calculateBillSubtotal(bill);
     final invoiceNumber =
         bill['invoiceNumber'] ?? 'INV-${bill['id'].substring(0, 8)}';
 

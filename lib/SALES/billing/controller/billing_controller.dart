@@ -2,7 +2,7 @@ import 'dart:developer';
 import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fine_foods/invoice_generator/models/product_models.dart';
+import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -16,6 +16,8 @@ class BillingController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final customerName = TextEditingController();
   final customerPhone = TextEditingController();
+  final customerDiscount = TextEditingController();
+
   final RxList<Product> products = <Product>[].obs;
   final RxList<Product> filteredProducts = <Product>[].obs;
   final RxMap<String, int> selectedProducts = <String, int>{}.obs;
@@ -109,6 +111,7 @@ class BillingController extends GetxController {
     selectedProducts.clear();
     customerName.clear();
     customerPhone.clear();
+    customerDiscount.clear();
     _showFeedback('Cart cleared');
   }
 
@@ -163,6 +166,9 @@ class BillingController extends GetxController {
             'quantity': value,
             'price': product.price,
             'total': product.price * value,
+            'discount': customerDiscount.text.isEmpty
+                ? 0
+                : double.tryParse(customerDiscount.text),
           });
         }),
         'total': calculateTotal(),
@@ -185,10 +191,12 @@ class BillingController extends GetxController {
         if (index != -1) {
           products[index] = Product(
             id: product.id,
+            productId: product.productId,
             name: product.name,
             count: product.count - entry.value,
             price: product.price,
             createdAt: product.createdAt,
+            quantityType: product.quantityType,
           );
         }
       }
@@ -322,6 +330,17 @@ class BillingController extends GetxController {
   }
 
   void _showFeedback(String message) {
+    // If a snackbar is already open, delay showing the next one
+    if (Get.isSnackbarOpen) {
+      Future.delayed(const Duration(seconds: 1), () {
+        _showSnack(message);
+      });
+    } else {
+      _showSnack(message);
+    }
+  }
+
+  void _showSnack(String message) {
     Get.showSnackbar(
       GetSnackBar(
         message: message,

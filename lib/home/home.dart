@@ -1,8 +1,7 @@
 // ignore_for_file: unused_local_variable
 
-import 'package:fine_foods/billing/view/billing.dart';
-import 'package:fine_foods/invoice_generator/view/invoice_generator.dart';
-import 'package:fine_foods/invoice_view/invoice_list.dart';
+import 'package:fine_foods/ADMIN/dashboard/dashboard.dart';
+import 'package:fine_foods/SALES/billing/view/billing.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -22,7 +21,7 @@ class Home extends StatelessWidget {
         actions: [
           IconButton(
             onPressed: () {
-              Get.to(() => InvoiceList());
+              // Get.to(() => InvoiceList());
             },
             icon: Icon(Icons.inbox),
           ),
@@ -36,7 +35,7 @@ class Home extends StatelessWidget {
             children: [
               ElevatedButton(
                 onPressed: () {
-                  Get.to(() => InvoiceGenerator());
+                  Get.to(() => Dashboard());
                 },
                 child: Text("Admin"),
               ),
