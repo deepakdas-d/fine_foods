@@ -62,11 +62,13 @@ class BillingController extends GetxController {
     if (query.isEmpty) {
       filteredProducts.assignAll(products);
     } else {
+      final lowerQuery = query.toLowerCase();
       filteredProducts.assignAll(
         products
             .where(
               (product) =>
-                  product.name.toLowerCase().contains(query.toLowerCase()),
+                  product.name.toLowerCase().contains(lowerQuery) ||
+                  product.productId.toLowerCase().contains(lowerQuery),
             )
             .toList(),
       );

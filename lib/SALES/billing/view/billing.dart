@@ -16,250 +16,182 @@ class BillingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final BillingController controller = Get.put(BillingController());
-    // ignore: unused_local_variable
-    final screenHeight = MediaQuery.of(context).size.height;
+    final controller = Get.put(BillingController());
     final screenWidth = MediaQuery.of(context).size.width;
+    final isLargeScreen = screenWidth > 800;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: const Color(0xFFFFD700),
-        title: const Text(
-          "Point of Sale",
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
-        ),
-        foregroundColor: Colors.white,
-        actions: [
-          // Cart Icon with Badge
-          Obx(
-            () => Stack(
-              children: [
-                IconButton(
-                  onPressed: () => _showCartSheet(context, controller),
-                  icon: const Icon(Icons.shopping_cart_outlined, size: 26),
-                ),
-                if (controller.selectedProducts.isNotEmpty)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        '${controller.selectedProducts.length}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () => Get.to(() => BillingList()),
-            icon: const Icon(Icons.receipt_long_outlined, size: 26),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      appBar: _buildAppBar(controller),
       body: Obx(
         () => controller.isLoading.value
-            ? const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text("Loading products..."),
-                  ],
-                ),
-              )
+            ? _buildLoadingState()
             : Row(
                 children: [
-                  // Main Product Selection Area
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      children: [
-                        // Search Bar
-                        Container(
-                          margin: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: TextField(
-                            onChanged: (value) =>
-                                controller.searchProducts(value),
-                            decoration: InputDecoration(
-                              hintText: 'Search products by name...',
-                              prefixIcon: const Icon(
-                                Icons.search,
-                                color: Color(0xFFFFD700),
-                              ),
-                              suffixIcon: IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () => controller.searchProducts(''),
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Products Grid
-                        Expanded(
-                          child: Obx(
-                            () => controller.filteredProducts.isEmpty
-                                ? const Center(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.search_off,
-                                          size: 64,
-                                          color: Colors.grey,
-                                        ),
-                                        SizedBox(height: 16),
-                                        Text(
-                                          "No products found",
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                : GridView.builder(
-                                    padding: const EdgeInsets.all(16),
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: screenWidth > 1200
-                                              ? 4
-                                              : screenWidth > 800
-                                              ? 3
-                                              : 2,
-                                          childAspectRatio: 0.8,
-                                          crossAxisSpacing: 16,
-                                          mainAxisSpacing: 16,
-                                        ),
-                                    itemCount:
-                                        controller.filteredProducts.length,
-                                    itemBuilder: (context, index) {
-                                      final product =
-                                          controller.filteredProducts[index];
-                                      return ProductCard(
-                                        product: product,
-                                        controller: controller,
-                                      );
-                                    },
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Cart Sidebar (for larger screens)
-                  if (screenWidth > 800)
-                    Container(
-                      width: 350,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(-2, 0),
-                          ),
-                        ],
-                      ),
-                      child: CartSidebar(controller: controller),
-                    ),
+                  _buildProductsArea(controller, screenWidth),
+                  if (isLargeScreen) _buildCartSidebar(controller),
                 ],
               ),
       ),
-      // Floating Action Button for smaller screens
-      floatingActionButton: screenWidth <= 800
-          ? Obx(
-              () => controller.selectedProducts.isNotEmpty
-                  ? FloatingActionButton.extended(
-                      onPressed: () => _showCartSheet(context, controller),
-                      backgroundColor: const Color(0xFFFFD700),
-                      icon: const Icon(Icons.shopping_cart),
-                      label: Text(
-                        'Cart (${controller.selectedProducts.length})',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            )
+      floatingActionButton: !isLargeScreen
+          ? _buildFAB(controller, context)
           : null,
     );
   }
 
-  void _showCartSheet(BuildContext context, BillingController controller) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        minChildSize: 0.5,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  AppBar _buildAppBar(BillingController controller) {
+    return AppBar(
+      elevation: 0,
+      backgroundColor: const Color(0xFFFFD700),
+      title: const Text(
+        "Point of Sale",
+        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
+      ),
+      foregroundColor: Colors.white,
+      actions: [
+        Obx(
+          () => Stack(
+            children: [
+              IconButton(
+                onPressed: () => _showCartSheet(Get.context!, controller),
+                icon: const Icon(Icons.shopping_cart_outlined, size: 26),
+              ),
+              if (controller.selectedProducts.isNotEmpty)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '${controller.selectedProducts.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          child: CartSheet(
-            controller: controller,
-            scrollController: scrollController,
+        ),
+        IconButton(
+          onPressed: () => Get.to(() => BillingList()),
+          icon: const Icon(Icons.receipt_long_outlined, size: 26),
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text("Loading products..."),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductsArea(BillingController controller, double screenWidth) {
+    return Expanded(
+      flex: 3,
+      child: Column(
+        children: [
+          _buildSearchBar(controller),
+          Expanded(
+            child: Obx(
+              () => controller.filteredProducts.isEmpty
+                  ? _buildEmptyState()
+                  : _buildProductsList(controller, screenWidth),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(BillingController controller) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        onChanged: controller.searchProducts,
+        decoration: InputDecoration(
+          hintText: 'Search products by name...',
+          prefixIcon: const Icon(Icons.search, color: Color(0xFFFFD700)),
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.clear),
+            onPressed: () => controller.searchProducts(''),
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
           ),
         ),
       ),
     );
   }
-}
 
-class ProductCard extends StatelessWidget {
-  final Product product;
-  final BillingController controller;
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            "No products found",
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
 
-  const ProductCard({
-    super.key,
-    required this.product,
-    required this.controller,
-  });
+  Widget _buildProductsList(BillingController controller, double screenWidth) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: controller.filteredProducts.length,
+      itemBuilder: (context, index) {
+        final product = controller.filteredProducts[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16), // spacing between items
+          child: _buildProductCard(product, controller),
+        );
+      },
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildProductCard(Product product, BillingController controller) {
     return Obx(() {
       final isSelected = controller.getSelectedQuantity(product) > 0;
       final isOutOfStock = product.count <= 0;
+      final quantity = controller.getSelectedQuantity(product);
 
       return AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -292,7 +224,7 @@ class ProductCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Product Icon/Image placeholder
+                  // Product Icon
                   Container(
                     height: 60,
                     width: double.infinity,
@@ -311,26 +243,26 @@ class ProductCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
+
                   // Product Name
-                  Expanded(
-                    child: Text(
-                      product.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                        color: isOutOfStock ? Colors.grey : Colors.black87,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    product.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      color: isOutOfStock ? Colors.grey : Colors.black87,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  // Price and Stock
+
+                  // Price & Stock
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '\$${product.price.toStringAsFixed(2)}',
+                        '₹${product.price.toStringAsFixed(2)}',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
@@ -364,49 +296,46 @@ class ProductCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  // Add to Cart Button
+
+                  // Add / Quantity Buttons
                   if (!isOutOfStock)
-                    Row(
-                      children: [
-                        if (isSelected) ...[
-                          Expanded(
-                            child: Row(
-                              children: [
-                                IconButton(
-                                  onPressed: () =>
-                                      controller.decreaseQuantity(product),
-                                  icon: const Icon(Icons.remove_circle_outline),
-                                  color: Colors.red,
-                                  constraints: const BoxConstraints(
-                                    minWidth: 32,
-                                    minHeight: 32,
+                    isSelected
+                        ? Row(
+                            children: [
+                              IconButton(
+                                onPressed: () =>
+                                    controller.decreaseQuantity(product),
+                                icon: const Icon(Icons.remove_circle_outline),
+                                color: Colors.red,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  '$quantity',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
                                   ),
                                 ),
-                                Expanded(
-                                  child: Text(
-                                    '${controller.getSelectedQuantity(product)}',
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
+                              ),
+                              IconButton(
+                                onPressed: () =>
+                                    controller.increaseQuantity(product),
+                                icon: const Icon(Icons.add_circle_outline),
+                                color: const Color(0xFFFFD700),
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
                                 ),
-                                IconButton(
-                                  onPressed: () =>
-                                      controller.increaseQuantity(product),
-                                  icon: const Icon(Icons.add_circle_outline),
-                                  color: const Color(0xFFFFD700),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 32,
-                                    minHeight: 32,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ] else
-                          Expanded(
+                              ),
+                            ],
+                          )
+                        : SizedBox(
+                            width: double.infinity,
                             child: ElevatedButton.icon(
                               onPressed: () =>
                                   controller.increaseQuantity(product),
@@ -428,8 +357,6 @@ class ProductCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                      ],
-                    ),
                 ],
               ),
             ),
@@ -438,569 +365,127 @@ class ProductCard extends StatelessWidget {
       );
     });
   }
-}
 
-//cart widget
+  Widget _buildCartSidebar(BillingController controller) {
+    return Container(
+      width: 350,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(-2, 0),
+          ),
+        ],
+      ),
+      child: _buildCartContent(controller),
+    );
+  }
 
-class CartSidebar extends StatelessWidget {
-  final BillingController controller;
-
-  const CartSidebar({super.key, required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildCartContent(BillingController controller) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: Column(
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFD700),
-              borderRadius: BorderRadius.only(topRight: Radius.circular(0)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.shopping_cart, color: Colors.white),
-                const SizedBox(width: 12),
-                const Text(
-                  'Shopping Cart',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                Obx(
-                  () => Text(
-                    '${controller.selectedProducts.length}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Cart Items
+          _buildCartHeader(controller),
           Expanded(
-            child: Obx(() {
-              if (controller.selectedProducts.isEmpty) {
-                return const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.shopping_cart_outlined,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Cart is empty',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Add products to get started',
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: controller.selectedProducts.length,
-                      itemBuilder: (context, index) {
-                        final productId = controller.selectedProducts.keys
-                            .elementAt(index);
-                        final product = controller.products.firstWhere(
-                          (p) => p.id == productId,
-                        );
-                        final quantity =
-                            controller.selectedProducts[productId]!;
-
-                        return CartItem(
-                          product: product,
-                          quantity: quantity,
-                          controller: controller,
-                        );
-                      },
-                    ),
-                  ),
-                  // Customer Details & Checkout
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      border: Border(
-                        top: BorderSide(color: Colors.grey.withOpacity(0.2)),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        TextField(
-                          controller: controller.customerDiscount,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: 'Discount',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            prefixIcon: const Icon(Icons.discount_outlined),
-                            isDense: true,
-                          ),
-                        ),
-                        // Customer Details (Optional)
-                        ExpansionTile(
-                          title: const Text(
-                            'Customer Details (Optional)',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          children: [
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: controller.customerName,
-                              decoration: InputDecoration(
-                                labelText: 'Customer Name',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                prefixIcon: const Icon(Icons.person_outline),
-                                isDense: true,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: controller.customerPhone,
-                              decoration: InputDecoration(
-                                labelText: 'Phone Number',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                prefixIcon: const Icon(Icons.phone_outlined),
-                                isDense: true,
-                              ),
-                              keyboardType: TextInputType.phone,
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Total
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFD700).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Total:',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Obx(
-                                () => Text(
-                                  '\$${controller.calculateTotal().toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFFFD700),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        // Create Bill Button
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: controller.selectedProducts.isEmpty
-                                ? null
-                                : () async {
-                                    try {
-                                      developer.log("Creating bill");
-                                      final billData = await controller
-                                          .createBill();
-                                      if (billData != null) {
-                                        // Generate PDF
-                                        final pdf = pw.Document();
-                                        pdf.addPage(
-                                          pw.Page(
-                                            build: (pw.Context context) {
-                                              return pw.Column(
-                                                crossAxisAlignment:
-                                                    pw.CrossAxisAlignment.start,
-                                                children: [
-                                                  pw.Text(
-                                                    'Invoice #${billData['invoiceNumber']}',
-                                                    style: pw.TextStyle(
-                                                      fontSize: 24,
-                                                      fontWeight:
-                                                          pw.FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  pw.SizedBox(height: 16),
-                                                  pw.Text(
-                                                    'Customer: ${billData['customerName']}',
-                                                  ),
-                                                  if (billData['customerPhone']
-                                                      .isNotEmpty)
-                                                    pw.Text(
-                                                      'Phone: ${billData['customerPhone']}',
-                                                    ),
-                                                  pw.SizedBox(height: 16),
-                                                  pw.Text(
-                                                    'Products:',
-                                                    style: pw.TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          pw.FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  pw.Table(
-                                                    border:
-                                                        pw.TableBorder.all(),
-                                                    children: [
-                                                      pw.TableRow(
-                                                        children: [
-                                                          pw.Padding(
-                                                            padding:
-                                                                const pw.EdgeInsets.all(
-                                                                  8,
-                                                                ),
-                                                            child: pw.Text(
-                                                              'Product',
-                                                            ),
-                                                          ),
-                                                          pw.Padding(
-                                                            padding:
-                                                                const pw.EdgeInsets.all(
-                                                                  8,
-                                                                ),
-                                                            child: pw.Text(
-                                                              'Qty',
-                                                            ),
-                                                          ),
-                                                          pw.Padding(
-                                                            padding:
-                                                                const pw.EdgeInsets.all(
-                                                                  8,
-                                                                ),
-                                                            child: pw.Text(
-                                                              'Price',
-                                                            ),
-                                                          ),
-                                                          pw.Padding(
-                                                            padding:
-                                                                const pw.EdgeInsets.all(
-                                                                  8,
-                                                                ),
-                                                            child: pw.Text(
-                                                              'Total',
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      ...billData['products'].values.map(
-                                                        (
-                                                          product,
-                                                        ) => pw.TableRow(
-                                                          children: [
-                                                            pw.Padding(
-                                                              padding:
-                                                                  const pw.EdgeInsets.all(
-                                                                    8,
-                                                                  ),
-                                                              child: pw.Text(
-                                                                product['productName'],
-                                                              ),
-                                                            ),
-                                                            pw.Padding(
-                                                              padding:
-                                                                  const pw.EdgeInsets.all(
-                                                                    8,
-                                                                  ),
-                                                              child: pw.Text(
-                                                                product['quantity']
-                                                                    .toString(),
-                                                              ),
-                                                            ),
-                                                            pw.Padding(
-                                                              padding:
-                                                                  const pw.EdgeInsets.all(
-                                                                    8,
-                                                                  ),
-                                                              child: pw.Text(
-                                                                '\$${product['price']}',
-                                                              ),
-                                                            ),
-                                                            pw.Padding(
-                                                              padding:
-                                                                  const pw.EdgeInsets.all(
-                                                                    8,
-                                                                  ),
-                                                              child: pw.Text(
-                                                                '\$${product['total']}',
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  pw.SizedBox(height: 16),
-                                                  pw.Text(
-                                                    'Total: \$${billData['total']}',
-                                                    style: pw.TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          pw.FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  pw.Text(
-                                                    'Items: ${billData['itemCount']}',
-                                                  ),
-                                                  pw.SizedBox(height: 16),
-                                                  pw.Text(
-                                                    'Date: ${billData['createdAt']}',
-                                                  ),
-                                                ],
-                                              );
-                                            },
-                                          ),
-                                        );
-
-                                        // Save PDF to temporary file
-                                        final dir =
-                                            await getTemporaryDirectory();
-                                        final file = File(
-                                          '${dir.path}/invoice_${billData['invoiceNumber']}.pdf',
-                                        );
-                                        await file.writeAsBytes(
-                                          await pdf.save(),
-                                        );
-
-                                        // Show preview dialog
-                                        await Get.dialog(
-                                          Dialog(
-                                            child: ConstrainedBox(
-                                              constraints: const BoxConstraints(
-                                                maxWidth: 600,
-                                                maxHeight: 700,
-                                              ),
-                                              child: Column(
-                                                children: [
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                          16,
-                                                        ),
-                                                    child: Text(
-                                                      'Invoice #${billData['invoiceNumber']} Preview',
-                                                      style: const TextStyle(
-                                                        fontSize: 20,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  Expanded(
-                                                    child: PDFView(
-                                                      filePath: file.path,
-                                                      enableSwipe: true,
-                                                      autoSpacing: true,
-                                                      pageFling: true,
-                                                      onError: (error) {
-                                                        developer.log(
-                                                          'PDFView error: $error',
-                                                        );
-                                                        Get.snackbar(
-                                                          'Error',
-                                                          'Failed to load PDF preview: $error',
-                                                          snackPosition:
-                                                              SnackPosition
-                                                                  .BOTTOM,
-                                                          backgroundColor:
-                                                              Colors.red,
-                                                          colorText:
-                                                              Colors.white,
-                                                        );
-                                                      },
-                                                    ),
-                                                  ),
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                          16,
-                                                        ),
-                                                    child: Row(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment.end,
-                                                      children: [
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Get.back(),
-                                                          child: const Text(
-                                                            'Close',
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 8,
-                                                        ),
-                                                        ElevatedButton(
-                                                          onPressed: () async {
-                                                            try {
-                                                              await Printing.layoutPdf(
-                                                                onLayout:
-                                                                    (
-                                                                      PdfPageFormat
-                                                                      format,
-                                                                    ) async => pdf
-                                                                        .save(),
-                                                              );
-                                                              Get.back();
-                                                            } catch (e) {
-                                                              developer.log(
-                                                                'Print error: $e',
-                                                              );
-                                                              Get.snackbar(
-                                                                'Error',
-                                                                'Failed to print: $e',
-                                                                snackPosition:
-                                                                    SnackPosition
-                                                                        .BOTTOM,
-                                                                backgroundColor:
-                                                                    Colors.red,
-                                                                colorText:
-                                                                    Colors
-                                                                        .white,
-                                                              );
-                                                            }
-                                                          },
-                                                          child: const Text(
-                                                            'Print',
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        );
-
-                                        // Clean up temporary file
-                                        await file.delete();
-                                      }
-                                    } catch (e) {
-                                      developer.log('Error: $e');
-                                      Get.snackbar(
-                                        'Error',
-                                        'Failed to generate preview: $e',
-                                        snackPosition: SnackPosition.BOTTOM,
-                                        backgroundColor: Colors.red,
-                                        colorText: Colors.white,
-                                      );
-                                    }
-                                  },
-                            icon: controller.isLoading.value
-                                ? const CircularProgressIndicator(
-                                    color: Colors.white,
-                                  )
-                                : const Icon(Icons.receipt_long),
-                            label: const Text(
-                              'Generate Invoice',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFFD700),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            }),
+            child: Obx(
+              () => controller.selectedProducts.isEmpty
+                  ? _buildEmptyCart()
+                  : _buildCartItems(controller),
+            ),
           ),
         ],
       ),
     );
   }
-}
 
-class CartSheet extends StatelessWidget {
-  final BillingController controller;
-  final ScrollController scrollController;
+  Widget _buildCartHeader(BillingController controller) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFD700),
+        borderRadius: BorderRadius.only(topRight: Radius.circular(0)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.shopping_cart, color: Colors.white),
+          const SizedBox(width: 12),
+          const Text(
+            'Shopping Cart',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          Obx(
+            () => Text(
+              '${controller.selectedProducts.length}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  const CartSheet({
-    super.key,
-    required this.controller,
-    required this.scrollController,
-  });
+  Widget _buildEmptyCart() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            'Cart is empty',
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Add products to get started',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildCartItems(BillingController controller) {
     return Column(
       children: [
-        // Handle
-        Container(
-          margin: const EdgeInsets.only(top: 8),
-          height: 4,
-          width: 40,
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(2),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: controller.selectedProducts.length,
+            itemBuilder: (context, index) {
+              final productId = controller.selectedProducts.keys.elementAt(
+                index,
+              );
+              final product = controller.products.firstWhere(
+                (p) => p.id == productId,
+              );
+              final quantity = controller.selectedProducts[productId]!;
+              return _buildCartItem(product, quantity, controller);
+            },
           ),
         ),
-        // Content
-        Expanded(child: CartSidebar(controller: controller)),
+        _buildCheckoutSection(controller),
       ],
     );
   }
-}
 
-class CartItem extends StatelessWidget {
-  final Product product;
-  final int quantity;
-  final BillingController controller;
-
-  const CartItem({
-    super.key,
-    required this.product,
-    required this.quantity,
-    required this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildCartItem(
+    Product product,
+    int quantity,
+    BillingController controller,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -1011,7 +496,6 @@ class CartItem extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Product Icon
           Container(
             width: 48,
             height: 48,
@@ -1025,7 +509,6 @@ class CartItem extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          // Product Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1047,7 +530,6 @@ class CartItem extends StatelessWidget {
               ],
             ),
           ),
-          // Quantity Controls
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1075,7 +557,6 @@ class CartItem extends StatelessWidget {
               ),
             ],
           ),
-          // Total Price
           const SizedBox(width: 8),
           Text(
             '\$${(product.price * quantity).toStringAsFixed(2)}',
@@ -1087,6 +568,335 @@ class CartItem extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCheckoutSection(BillingController controller) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
+      ),
+      child: Column(
+        children: [
+          TextField(
+            controller: controller.customerDiscount,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Discount',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              prefixIcon: const Icon(Icons.discount_outlined),
+              isDense: true,
+            ),
+          ),
+          ExpansionTile(
+            title: const Text(
+              'Customer Details (Optional)',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            children: [
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller.customerName,
+                decoration: InputDecoration(
+                  labelText: 'Customer Name',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  prefixIcon: const Icon(Icons.person_outline),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller.customerPhone,
+                decoration: InputDecoration(
+                  labelText: 'Phone Number',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  prefixIcon: const Icon(Icons.phone_outlined),
+                  isDense: true,
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD700).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total:',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Obx(
+                  () => Text(
+                    '\$${controller.calculateTotal().toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFFFD700),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: controller.selectedProducts.isEmpty
+                  ? null
+                  : () => _generateInvoice(controller),
+              icon: controller.isLoading.value
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Icon(Icons.receipt_long),
+              label: const Text(
+                'Generate Invoice',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFD700),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget? _buildFAB(BillingController controller, BuildContext context) {
+    return Obx(
+      () => controller.selectedProducts.isNotEmpty
+          ? FloatingActionButton.extended(
+              onPressed: () => _showCartSheet(context, controller),
+              backgroundColor: const Color(0xFFFFD700),
+              icon: const Icon(Icons.shopping_cart),
+              label: Text(
+                'Cart (${controller.selectedProducts.length})',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            )
+          : const SizedBox.shrink(),
+    );
+  }
+
+  void _showCartSheet(BuildContext context, BillingController controller) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        minChildSize: 0.5,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                height: 4,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(child: _buildCartContent(controller)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _generateInvoice(BillingController controller) async {
+    try {
+      developer.log("Creating bill");
+      final billData = await controller.createBill();
+      if (billData != null) {
+        final pdf = pw.Document();
+        pdf.addPage(
+          pw.Page(build: (pw.Context context) => _buildPDFContent(billData)),
+        );
+
+        final dir = await getTemporaryDirectory();
+        final file = File(
+          '${dir.path}/invoice_${billData['invoiceNumber']}.pdf',
+        );
+        await file.writeAsBytes(await pdf.save());
+
+        await Get.dialog(
+          Dialog(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Invoice #${billData['invoiceNumber']} Preview',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: PDFView(
+                      filePath: file.path,
+                      enableSwipe: true,
+                      autoSpacing: true,
+                      pageFling: true,
+                      onError: (error) {
+                        developer.log('PDFView error: $error');
+                        Get.snackbar(
+                          'Error',
+                          'Failed to load PDF preview: $error',
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.red,
+                          colorText: Colors.white,
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Get.back(),
+                          child: const Text('Close'),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () async {
+                            try {
+                              await Printing.layoutPdf(
+                                onLayout: (PdfPageFormat format) async =>
+                                    pdf.save(),
+                              );
+                              Get.back();
+                            } catch (e) {
+                              developer.log('Print error: $e');
+                              Get.snackbar(
+                                'Error',
+                                'Failed to print: $e',
+                                snackPosition: SnackPosition.BOTTOM,
+                                backgroundColor: Colors.red,
+                                colorText: Colors.white,
+                              );
+                            }
+                          },
+                          child: const Text('Print'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        await file.delete();
+      }
+    } catch (e) {
+      developer.log('Error: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to generate preview: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  pw.Widget _buildPDFContent(Map<String, dynamic> billData) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Invoice #${billData['invoiceNumber']}',
+          style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 16),
+        pw.Text('Customer: ${billData['customerName']}'),
+        if (billData['customerPhone'].isNotEmpty)
+          pw.Text('Phone: ${billData['customerPhone']}'),
+        pw.SizedBox(height: 16),
+        pw.Text(
+          'Products:',
+          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.Table(
+          border: pw.TableBorder.all(),
+          children: [
+            pw.TableRow(
+              children: ['Product', 'Qty', 'Price', 'Total']
+                  .map(
+                    (text) => pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(text),
+                    ),
+                  )
+                  .toList(),
+            ),
+            ...billData['products'].values.map(
+              (product) => pw.TableRow(
+                children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(8),
+                    child: pw.Text(product['productName']),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(8),
+                    child: pw.Text(product['quantity'].toString()),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(8),
+                    child: pw.Text('\$${product['price']}'),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(8),
+                    child: pw.Text('\$${product['total']}'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 16),
+        pw.Text(
+          'Total: \$${billData['total']}',
+          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.Text('Items: ${billData['itemCount']}'),
+        pw.SizedBox(height: 16),
+        pw.Text('Date: ${billData['createdAt']}'),
+      ],
     );
   }
 }
