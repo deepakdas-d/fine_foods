@@ -1,6 +1,7 @@
 import 'package:fine_foods/ADMIN/Inventory/inventary.dart';
 import 'package:fine_foods/ADMIN/Stocks/stocks.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/invoice_generator.dart';
+import 'package:fine_foods/ADMIN/sales_data/Sales_Growth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,7 +25,7 @@ class Dashboard extends StatelessWidget {
       _DashboardItem(
         title: "Stocks",
         icon: Icons.store_rounded,
-        color: Colors.green.shade400,
+        color: Colors.red.shade400,
         page: Stocks(),
       ),
       _DashboardItem(
@@ -32,6 +33,12 @@ class Dashboard extends StatelessWidget {
         icon: Icons.receipt_long_rounded,
         color: Colors.orange.shade400,
         page: InvoiceGenerator(),
+      ),
+      _DashboardItem(
+        title: "Sales Data",
+        icon: Icons.bar_chart_outlined,
+        color: Colors.green.shade400,
+        page: SalesGrowth(),
       ),
     ];
 
@@ -92,10 +99,16 @@ class Dashboard extends StatelessWidget {
 
               /// 🔹 Dashboard Menu Grid
               /// 🔹 Dashboard Menu List
-              ListView.builder(
+              GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: menuItems.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2, // number of columns
+                  crossAxisSpacing: 12, // horizontal spacing
+                  mainAxisSpacing: 12, // vertical spacing
+                  childAspectRatio: 1.2, // width/height ratio
+                ),
                 itemBuilder: (context, index) {
                   final item = menuItems[index];
                   return Card(
@@ -103,25 +116,34 @@ class Dashboard extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    child: ListTile(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
                       onTap: () => Get.to(() => item.page),
-                      leading: CircleAvatar(
-                        radius: 28,
-                        backgroundColor: item.color.withOpacity(0.2),
-                        child: Icon(item.icon, size: 32, color: item.color),
-                      ),
-                      title: Text(
-                        item.title,
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircleAvatar(
+                              radius: 28,
+                              backgroundColor: item.color.withOpacity(0.2),
+                              child: Icon(
+                                item.icon,
+                                size: 32,
+                                color: item.color,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              item.title,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      trailing: Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: Colors.grey[400],
-                        size: 18,
                       ),
                     ),
                   );

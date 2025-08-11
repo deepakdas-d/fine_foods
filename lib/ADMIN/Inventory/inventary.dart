@@ -126,11 +126,13 @@ class Inventory extends StatelessWidget {
                                 ),
                               ),
                               DataColumn(
-                                label: Text(
-                                  'Total',
-                                  style: GoogleFonts.k2d(
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.blue[800],
+                                label: Expanded(
+                                  child: Text(
+                                    'Total',
+                                    style: GoogleFonts.k2d(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blue[800],
+                                    ),
                                   ),
                                 ),
                               ),
