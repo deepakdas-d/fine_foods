@@ -10,6 +10,9 @@ class Home extends StatelessWidget {
   Home({super.key});
   final PrinterController controller = Get.find();
 
+  // Local loader state
+  final RxBool isLoading = false.obs;
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -17,37 +20,71 @@ class Home extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Color(0xFFFFD700),
-        title: Text("HOME"),
+        backgroundColor: const Color(0xFFFFD700),
+        title: const Text("HOME"),
         foregroundColor: Colors.black,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.bluetooth),
-            onPressed: () => controller.connectPrinter(context),
-          ),
+          Obx(() {
+            return IconButton(
+              icon: Icon(
+                controller.isConnected.value
+                    ? Icons.bluetooth_connected
+                    : Icons.bluetooth,
+                color: controller.isConnected.value ? Colors.green : null,
+              ),
+              tooltip: controller.isConnected.value
+                  ? 'Printer Connected'
+                  : 'Connect Printer',
+              onPressed: () => controller.connectPrinter(context),
+            );
+          }),
         ],
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      body: Stack(
         children: [
-          Row(
+          Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ElevatedButton(
-                onPressed: () {
-                  Get.to(() => Dashboard());
-                },
-                child: Text("Admin"),
-              ),
-              SizedBox(width: screenWidth * 0.05),
-              ElevatedButton(
-                onPressed: () {
-                  Get.to(() => BillingScreen());
-                },
-                child: Text("Sales"),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Obx(
+                    () => ElevatedButton(
+                      onPressed: isLoading.value
+                          ? null // disable button while loading
+                          : () async {
+                              isLoading.value = true;
+                              await Get.to(() => Dashboard());
+                              isLoading.value = false;
+                            },
+                      child: const Text("Admin"),
+                    ),
+                  ),
+                  SizedBox(width: screenWidth * 0.05),
+                  Obx(
+                    () => ElevatedButton(
+                      onPressed: isLoading.value
+                          ? null
+                          : () async {
+                              isLoading.value = true;
+                              await Get.to(() => BillingScreen());
+                              isLoading.value = false;
+                            },
+                      child: const Text("Sales"),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
+          // Loader overlay
+          Obx(() {
+            if (!isLoading.value) return const SizedBox.shrink();
+            return Container(
+              color: Colors.black45,
+              child: const Center(child: CircularProgressIndicator()),
+            );
+          }),
         ],
       ),
     );

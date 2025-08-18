@@ -4,12 +4,8 @@ import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
 import 'package:flutter/material.dart';
-// import 'package:pdf/pdf.dart';
-// import 'package:pdf/widgets.dart' as pw;
 import 'package:get/get.dart';
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
-// import 'package:flutter/services.dart';
-// import 'package:printing/printing.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 
@@ -155,6 +151,11 @@ class BillingController extends GetxController {
       final batch = _firestore.batch();
 
       // Create bill document with optional customer details
+      // Parse the discount once
+      final globalDiscount = customerDiscount.text.trim().isEmpty
+          ? 0.0
+          : double.tryParse(customerDiscount.text.trim()) ?? 0.0;
+
       final billData = {
         'invoiceNumber': invoiceNumber,
         'customerName': customerName.text.isEmpty
@@ -169,12 +170,12 @@ class BillingController extends GetxController {
             'quantity': value,
             'price': product.price,
             'total': product.price * value,
-            'discount': customerDiscount.text.isEmpty
-                ? 0
-                : double.tryParse(customerDiscount.text),
+            // Remove discount here
           });
         }),
-        'total': calculateTotal(),
+        'total':
+            calculateTotal(), // this should be total **after discount** if needed
+        'discount': globalDiscount, // store global discount here
         'itemCount': selectedProducts.values.fold(0, (sum, qty) => sum + qty),
         'createdAt': DateTime.now().toIso8601String(),
         'status': 'completed',
@@ -247,56 +248,81 @@ class BillingController extends GetxController {
     print('DEBUG: Initializing EscCommand and clearing buffer');
     await esc.cleanCommand();
 
-    // Title (center-aligned, bold)
-    print('DEBUG: Printing title');
+    // Initialize printer (reset settings)
+    esc.text(content: '\x1B\x40');
+
+    // Shop Name - Centered, Bold, Smaller Font
+    esc.text(
+      content:
+          '\x1B\x61\x01' // Center align
+          '\x1B\x45\x01' // Bold ON
+          '\x1D\x21\x00' // Normal size (58mm printer, 32 chars width)
+          'FINE FOODS\n'
+          '\x1B\x45\x00', // Bold OFF
+    );
+
+    // Invoice Title - Centered, Bold
     esc.text(
       content:
           '\x1B\x61\x01\x1B\x45\x01Invoice #${billData['invoiceNumber']}\n\x1B\x45\x00',
     );
 
-    // Customer details (left-aligned)
-    print('DEBUG: Printing customer details');
-    esc.text(content: '\x1B\x61\x00Customer: ${billData['customerName']}\n');
+    // Divider (32 characters for 58mm width)
+    esc.text(content: '--------------------------------\n');
 
+    // Customer Details - Left-aligned
+    esc.text(content: '\x1B\x61\x00Customer: ${billData['customerName']}\n');
     if ((billData['customerPhone'] ?? '').toString().isNotEmpty) {
-      print('DEBUG: Printing customer phone');
       esc.text(content: 'Phone: ${billData['customerPhone']}\n');
     }
 
     // Divider
-    print('DEBUG: Printing divider');
     esc.text(content: '--------------------------------\n');
 
-    // Products header (bold)
-    print('DEBUG: Printing products header');
-    esc.text(content: '\x1B\x45\x01Products:\n\x1B\x45\x00');
-    esc.text(content: 'Product        Qty   Price   Total\n');
+    // Products Header - Bold
+    esc.text(content: '\x1B\x61\x00\x1B\x45\x01Items:\n\x1B\x45\x00');
 
-    // Products
-    print('DEBUG: Printing products list');
+    // Table Header (optimized for 32 chars: Item 14, Qty 4, Price 7, Total 7)
+    esc.text(content: 'Item          Qty Price  Total\n');
+
+    // Products List
     for (var product in billData['products'].values) {
-      print('DEBUG: Printing product: ${product['productName']}');
-      esc.text(
-        content:
-            '${product['productName']}  ${product['quantity']}   \$${product['price']}   \$${product['total']}\n',
-      );
+      String name = product['productName'].toString();
+      if (name.length > 13) name = name.substring(0, 13); // Fit 13 chars
+      name = name.padRight(13); // Item column (13 chars)
+
+      String qty = product['quantity'].toString().padLeft(
+        3,
+      ); // Qty column (3 chars)
+      String price = product['price'].toString().padLeft(
+        6,
+      ); // Price column (6 chars)
+      String total = product['total'].toString().padLeft(
+        6,
+      ); // Total column (6 chars)
+
+      esc.text(content: '$name $qty $price $total\n');
     }
 
-    // Totals
-    print('DEBUG: Printing totals section');
+    // Divider
     esc.text(content: '--------------------------------\n');
-    esc.text(
-      content: '\x1B\x45\x01Total: \$${billData['total']}\n\x1B\x45\x00',
-    );
-    esc.text(content: 'Items: ${billData['itemCount']}\n');
-    esc.text(content: 'Date: ${billData['createdAt']}\n\n\n\n');
 
-    // Print
-    print('DEBUG: Generating command bytes');
+    // Totals Section - Right-aligned
+    esc.text(
+      content:
+          '\x1B\x61\x02' // Right align
+          '\x1B\x45\x01Total: Rs${billData['total']}\n\x1B\x45\x00',
+    );
+    esc.text(content: '\x1B\x61\x02Items: ${billData['itemCount']}\n');
+    esc.text(content: '\x1B\x61\x02Date: ${billData['createdAt']}\n');
+
+    // Add extra line feeds for paper cut
+    esc.text(content: '\n\n\n');
+
+    // Generate and send command bytes
     final cmd = await esc.getCommand();
     if (cmd != null) {
-      print('DEBUG: Command bytes generated: ${cmd.length} bytes');
-      print('DEBUG: Sending to printer');
+      print('DEBUG: Sending print command (${cmd.length} bytes)');
       await BluetoothPrintPlus.write(cmd);
       print('DEBUG: Print command sent successfully');
     } else {

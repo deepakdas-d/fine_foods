@@ -30,6 +30,7 @@ dependencies:
   flutter_pdfview: ^1.4.1+1
   google_fonts: ^6.3.0
   bluetooth_print_plus: ^2.4.6
+  
 
 
 dev_dependencies:
@@ -73,3 +74,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/logo.png
+    - assets/fonts/

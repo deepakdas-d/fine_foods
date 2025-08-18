@@ -2,11 +2,10 @@ import 'package:fine_foods/SALES/billing/controller/billing_controller.dart';
 import 'package:fine_foods/SALES/billing/view/billing_list.dart';
 import 'package:fine_foods/home/home_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
-// import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-// import 'package:printing/printing.dart';
+import 'package:pdf/widgets.dart' as pw; // includes PdfGoogleFonts
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -526,7 +525,7 @@ class BillingScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '\$${product.price.toStringAsFixed(2)} each',
+                  '\₹${product.price.toStringAsFixed(2)} each',
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
               ],
@@ -561,7 +560,7 @@ class BillingScreen extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            '\$${(product.price * quantity).toStringAsFixed(2)}',
+            '\₹${(product.price * quantity).toStringAsFixed(2)}',
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 14,
@@ -644,7 +643,7 @@ class BillingScreen extends StatelessWidget {
                 ),
                 Obx(
                   () => Text(
-                    '\$${controller.calculateTotal().toStringAsFixed(2)}',
+                    '\₹${controller.calculateTotal().toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -739,8 +738,15 @@ class BillingScreen extends StatelessWidget {
       final billData = await controller.createBill();
       if (billData != null) {
         final pdf = pw.Document();
+        final fontData = await rootBundle.load(
+          'assets/fonts/Roboto-Regular.ttf',
+        );
+        final robotoFont = pw.Font.ttf(fontData);
         pdf.addPage(
-          pw.Page(build: (pw.Context context) => _buildPDFContent(billData)),
+          pw.Page(
+            build: (pw.Context context) =>
+                _buildPDFContent(billData, robotoFont),
+          ),
         );
 
         final dir = await getTemporaryDirectory();
@@ -811,10 +817,15 @@ class BillingScreen extends StatelessWidget {
                             }
 
                             try {
-                              await controller.printInvoice(
-                                billData,
-                              ); // ✅ your function stays the same
+                              await controller.printInvoice(billData);
                               Get.back();
+                              Get.snackbar(
+                                'Success',
+                                'Invoice printed successfully',
+                                snackPosition: SnackPosition.BOTTOM,
+                                backgroundColor: Colors.green,
+                                colorText: Colors.white,
+                              );
                             } catch (e) {
                               developer.log('Print error: $e');
                               Get.snackbar(
@@ -850,22 +861,39 @@ class BillingScreen extends StatelessWidget {
     }
   }
 
-  pw.Widget _buildPDFContent(Map<String, dynamic> billData) {
+  pw.Widget _buildPDFContent(
+    Map<String, dynamic> billData,
+    pw.Font robotoFont,
+  ) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
           'Invoice #${billData['invoiceNumber']}',
-          style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
+          style: pw.TextStyle(
+            fontSize: 24,
+            fontWeight: pw.FontWeight.bold,
+            font: robotoFont,
+          ),
         ),
         pw.SizedBox(height: 16),
-        pw.Text('Customer: ${billData['customerName']}'),
+        pw.Text(
+          'Customer: ${billData['customerName']}',
+          style: pw.TextStyle(font: robotoFont),
+        ),
         if (billData['customerPhone'].isNotEmpty)
-          pw.Text('Phone: ${billData['customerPhone']}'),
+          pw.Text(
+            'Phone: ${billData['customerPhone']}',
+            style: pw.TextStyle(font: robotoFont),
+          ),
         pw.SizedBox(height: 16),
         pw.Text(
           'Products:',
-          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+          style: pw.TextStyle(
+            fontSize: 16,
+            fontWeight: pw.FontWeight.bold,
+            font: robotoFont,
+          ),
         ),
         pw.Table(
           border: pw.TableBorder.all(),
@@ -875,7 +903,10 @@ class BillingScreen extends StatelessWidget {
                   .map(
                     (text) => pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(text),
+                      child: pw.Text(
+                        text,
+                        style: pw.TextStyle(font: robotoFont),
+                      ),
                     ),
                   )
                   .toList(),
@@ -885,19 +916,31 @@ class BillingScreen extends StatelessWidget {
                 children: [
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text(product['productName']),
+                    child: pw.Text(
+                      product['productName'],
+                      style: pw.TextStyle(font: robotoFont),
+                    ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text(product['quantity'].toString()),
+                    child: pw.Text(
+                      product['quantity'].toString(),
+                      style: pw.TextStyle(font: robotoFont),
+                    ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text('\$${product['price']}'),
+                    child: pw.Text(
+                      '₹${product['price']}',
+                      style: pw.TextStyle(font: robotoFont),
+                    ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text('\$${product['total']}'),
+                    child: pw.Text(
+                      '₹${product['total']}',
+                      style: pw.TextStyle(font: robotoFont),
+                    ),
                   ),
                 ],
               ),
@@ -906,12 +949,22 @@ class BillingScreen extends StatelessWidget {
         ),
         pw.SizedBox(height: 16),
         pw.Text(
-          'Total: \$${billData['total']}',
-          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+          'Total: ₹${billData['total']}',
+          style: pw.TextStyle(
+            fontSize: 16,
+            fontWeight: pw.FontWeight.bold,
+            font: robotoFont,
+          ),
         ),
-        pw.Text('Items: ${billData['itemCount']}'),
+        pw.Text(
+          'Items: ${billData['itemCount']}',
+          style: pw.TextStyle(font: robotoFont),
+        ),
         pw.SizedBox(height: 16),
-        pw.Text('Date: ${billData['createdAt']}'),
+        pw.Text(
+          'Date: ${billData['createdAt']}',
+          style: pw.TextStyle(font: robotoFont),
+        ),
       ],
     );
   }

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
@@ -54,36 +55,21 @@ class BillListController extends GetxController {
       final products = Map<String, dynamic>.from(bill['products']);
       for (var product in products.values) {
         if (product is Map) {
-          final price = (product['price'] ?? 0) as num;
-          final qty = (product['quantity'] ?? 0) as num;
-          subtotal += price * qty;
+          final total = (product['total'] ?? 0) as num; // use total directly
+          subtotal += total;
         }
       }
-    } else if (bill['price'] != null && bill['price'] is num) {
-      subtotal = (bill['price'] as num).toDouble();
     }
-    return subtotal;
+    return subtotal.toDouble();
   }
 
   double calculateBillDiscount(Map<String, dynamic> bill) {
-    double discountTotal = 0;
-    if (bill['products'] != null && bill['products'] is Map) {
-      final products = Map<String, dynamic>.from(bill['products']);
-      for (var product in products.values) {
-        if (product is Map) {
-          // ignore: unused_local_variable
-          final price = (product['price'] ?? 0) as num;
-          final qty = (product['quantity'] ?? 0) as num;
-          final productDiscount = (product['discount'] ?? 0) as num;
-          discountTotal += productDiscount * qty;
-        }
-      }
-    }
-    return discountTotal;
+    return ((bill['discount'] ?? 0) as num).toDouble(); // global discount
   }
 
   Future<Uint8List> generateBillPdf(Map<String, dynamic> bill) async {
     log('[PDF] Starting PDF generation...');
+
     final pdf = pw.Document();
     final date = DateTime.parse(bill['createdAt']).toLocal();
 
@@ -95,9 +81,13 @@ class BillListController extends GetxController {
 
     log('[PDF] Invoice: $invoiceNumber');
     log('[PDF] Bill date: $date');
-    log('[PDF] Subtotal: \$${total.toStringAsFixed(2)}');
+    log('[PDF] Subtotal: \$${subtotal.toStringAsFixed(2)}');
     log('[PDF] Discount: \$${discount.toStringAsFixed(2)}');
     log('[PDF] Final total: \$${total.toStringAsFixed(2)}');
+
+    // 1️⃣ Load Roboto font (supports ₹)
+    final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+    final robotoFont = pw.Font.ttf(fontData);
 
     pdf.addPage(
       pw.Page(
@@ -115,6 +105,7 @@ class BillListController extends GetxController {
                       pw.Text(
                         'INVOICE',
                         style: pw.TextStyle(
+                          font: robotoFont,
                           fontSize: 28,
                           fontWeight: pw.FontWeight.bold,
                         ),
@@ -123,6 +114,7 @@ class BillListController extends GetxController {
                       pw.Text(
                         'Fine Foods POS System',
                         style: pw.TextStyle(
+                          font: robotoFont,
                           fontSize: 16,
                           color: pw.PdfColor.fromInt(0xFF666666),
                         ),
@@ -135,6 +127,7 @@ class BillListController extends GetxController {
                       pw.Text(
                         'Invoice #: $invoiceNumber',
                         style: pw.TextStyle(
+                          font: robotoFont,
                           fontSize: 14,
                           fontWeight: pw.FontWeight.bold,
                         ),
@@ -142,7 +135,7 @@ class BillListController extends GetxController {
                       pw.SizedBox(height: 4),
                       pw.Text(
                         'Date: ${DateFormat('MMM dd, yyyy HH:mm').format(date)}',
-                        style: const pw.TextStyle(fontSize: 12),
+                        style: pw.TextStyle(font: robotoFont, fontSize: 12),
                       ),
                     ],
                   ),
@@ -165,6 +158,7 @@ class BillListController extends GetxController {
                     pw.Text(
                       'Bill To:',
                       style: pw.TextStyle(
+                        font: robotoFont,
                         fontSize: 14,
                         fontWeight: pw.FontWeight.bold,
                       ),
@@ -172,13 +166,13 @@ class BillListController extends GetxController {
                     pw.SizedBox(height: 8),
                     pw.Text(
                       '${bill['customerName'] ?? 'Walk-in Customer'}',
-                      style: const pw.TextStyle(fontSize: 16),
+                      style: pw.TextStyle(font: robotoFont, fontSize: 16),
                     ),
                     if (bill['customerPhone'] != null &&
                         bill['customerPhone'].toString().isNotEmpty)
                       pw.Text(
                         'Phone: ${bill['customerPhone']}',
-                        style: const pw.TextStyle(fontSize: 12),
+                        style: pw.TextStyle(font: robotoFont, fontSize: 12),
                       ),
                   ],
                 ),
@@ -189,6 +183,7 @@ class BillListController extends GetxController {
               pw.Text(
                 'Items:',
                 style: pw.TextStyle(
+                  font: robotoFont,
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
                 ),
@@ -215,14 +210,20 @@ class BillListController extends GetxController {
                         padding: const pw.EdgeInsets.all(12),
                         child: pw.Text(
                           'Product',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(
+                            font: robotoFont,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
                         ),
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(12),
                         child: pw.Text(
                           'Qty',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(
+                            font: robotoFont,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
                           textAlign: pw.TextAlign.center,
                         ),
                       ),
@@ -230,7 +231,10 @@ class BillListController extends GetxController {
                         padding: const pw.EdgeInsets.all(12),
                         child: pw.Text(
                           'Price',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(
+                            font: robotoFont,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
                           textAlign: pw.TextAlign.right,
                         ),
                       ),
@@ -238,7 +242,10 @@ class BillListController extends GetxController {
                         padding: const pw.EdgeInsets.all(12),
                         child: pw.Text(
                           'Total',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                          style: pw.TextStyle(
+                            font: robotoFont,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
                           textAlign: pw.TextAlign.right,
                         ),
                       ),
@@ -254,59 +261,75 @@ class BillListController extends GetxController {
                         children: [
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(12),
-                            child: pw.Text(product['productName'] ?? ''),
+                            child: pw.Text(
+                              product['productName'] ?? '',
+                              style: pw.TextStyle(font: robotoFont),
+                            ),
                           ),
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(12),
                             child: pw.Text(
                               '$qty',
                               textAlign: pw.TextAlign.center,
+                              style: pw.TextStyle(font: robotoFont),
                             ),
                           ),
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(12),
                             child: pw.Text(
-                              '\$${price.toStringAsFixed(2)}',
+                              '₹${price.toStringAsFixed(2)}',
                               textAlign: pw.TextAlign.right,
+                              style: pw.TextStyle(font: robotoFont),
                             ),
                           ),
                           pw.Padding(
                             padding: const pw.EdgeInsets.all(12),
                             child: pw.Text(
-                              '\$${(price * qty).toStringAsFixed(2)}',
+                              '₹${(price * qty).toStringAsFixed(2)}',
                               textAlign: pw.TextAlign.right,
+                              style: pw.TextStyle(font: robotoFont),
                             ),
                           ),
                         ],
                       );
                     }).toList()
-                  else if (bill['productName'] != null)
+                  else if (bill['productName'] != null) ...[
                     pw.TableRow(
                       children: [
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(12),
-                          child: pw.Text(bill['productName']),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(12),
-                          child: pw.Text('1', textAlign: pw.TextAlign.center),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(12),
                           child: pw.Text(
-                            '\$${(bill['price'] ?? 0).toStringAsFixed(2)}',
-                            textAlign: pw.TextAlign.right,
+                            bill['productName'],
+                            style: pw.TextStyle(font: robotoFont),
                           ),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(12),
                           child: pw.Text(
-                            '\$${(bill['price'] ?? 0).toStringAsFixed(2)}',
+                            '1',
+                            textAlign: pw.TextAlign.center,
+                            style: pw.TextStyle(font: robotoFont),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(12),
+                          child: pw.Text(
+                            '₹${(bill['price'] ?? 0).toStringAsFixed(2)}',
                             textAlign: pw.TextAlign.right,
+                            style: pw.TextStyle(font: robotoFont),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(12),
+                          child: pw.Text(
+                            '₹${(bill['price'] ?? 0).toStringAsFixed(2)}',
+                            textAlign: pw.TextAlign.right,
+                            style: pw.TextStyle(font: robotoFont),
                           ),
                         ),
                       ],
                     ),
+                  ],
                 ],
               ),
               pw.SizedBox(height: 20),
@@ -329,8 +352,14 @@ class BillListController extends GetxController {
                         pw.Row(
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
-                            pw.Text('Subtotal:'),
-                            pw.Text('\$${total.toStringAsFixed(2)}'),
+                            pw.Text(
+                              'Subtotal:',
+                              style: pw.TextStyle(font: robotoFont),
+                            ),
+                            pw.Text(
+                              '₹${subtotal.toStringAsFixed(2)}',
+                              style: pw.TextStyle(font: robotoFont),
+                            ),
                           ],
                         ),
                         if (discount > 0) ...[
@@ -339,8 +368,14 @@ class BillListController extends GetxController {
                             mainAxisAlignment:
                                 pw.MainAxisAlignment.spaceBetween,
                             children: [
-                              pw.Text('Discount:'),
-                              pw.Text('-\$${discount.toStringAsFixed(2)}'),
+                              pw.Text(
+                                'Discount:',
+                                style: pw.TextStyle(font: robotoFont),
+                              ),
+                              pw.Text(
+                                '-₹${discount.toStringAsFixed(2)}',
+                                style: pw.TextStyle(font: robotoFont),
+                              ),
                             ],
                           ),
                         ],
@@ -353,13 +388,15 @@ class BillListController extends GetxController {
                             pw.Text(
                               'Total:',
                               style: pw.TextStyle(
+                                font: robotoFont,
                                 fontSize: 16,
                                 fontWeight: pw.FontWeight.bold,
                               ),
                             ),
                             pw.Text(
-                              '\$${total.toStringAsFixed(2)}',
+                              '₹${total.toStringAsFixed(2)}',
                               style: pw.TextStyle(
+                                font: robotoFont,
                                 fontSize: 16,
                                 fontWeight: pw.FontWeight.bold,
                               ),
@@ -371,7 +408,6 @@ class BillListController extends GetxController {
                   ),
                 ],
               ),
-
               pw.SizedBox(height: 40),
 
               // Footer
@@ -379,6 +415,7 @@ class BillListController extends GetxController {
                 child: pw.Text(
                   'Thank you for your business!',
                   style: pw.TextStyle(
+                    font: robotoFont,
                     fontSize: 14,
                     fontStyle: pw.FontStyle.italic,
                     color: pw.PdfColor.fromInt(0xFF666666),

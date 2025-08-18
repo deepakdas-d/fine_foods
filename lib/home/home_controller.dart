@@ -37,10 +37,18 @@ class PrinterController extends GetxController {
         return;
       }
 
-      // 2) Start scanning
-      await BluetoothPrintPlus.startScan(timeout: const Duration(seconds: 4));
+      // 🔍 2) Start scanning (longer timeout for reliability)
+      await BluetoothPrintPlus.startScan(timeout: const Duration(seconds: 5));
 
-      // 3) Show dialog with results
+      await Future.delayed(const Duration(seconds: 1));
+
+      // 🔍 3) Get initial scanned devices
+      final bonded = await BluetoothPrintPlus.scanResults.firstWhere(
+        (list) => list.isNotEmpty, // only return once there’s at least 1 device
+        orElse: () => [],
+      );
+
+      // 4) Show dialog with results
       final chosen = await showDialog<BluetoothDevice>(
         context: context,
         builder: (ctx) {
@@ -50,25 +58,38 @@ class PrinterController extends GetxController {
               width: double.maxFinite,
               child: StreamBuilder<List<BluetoothDevice>>(
                 stream: BluetoothPrintPlus.scanResults,
-                initialData: const [],
+                initialData: bonded, // show paired devices immediately
                 builder: (context, snapshot) {
-                  final devices = snapshot.data ?? [];
+                  final devices = [
+                    ...bonded,
+                    ...snapshot.data!.where((d) => !bonded.contains(d)),
+                  ];
+
                   if (devices.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(12.0),
-                      child: Text(
-                        'Scanning... (make sure printer is on & discoverable)',
+                    return SizedBox(
+                      height: 80,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 12),
+                          Text(
+                            'Scanning... (make sure printer is on & discoverable)',
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     );
                   }
+
                   return ListView.builder(
                     shrinkWrap: true,
                     itemCount: devices.length,
                     itemBuilder: (context, i) {
                       final d = devices[i];
                       return ListTile(
-                        title: Text(d.name ?? 'Unknown'),
-                        subtitle: Text(d.address ?? ''),
+                        title: Text(d.name),
+                        subtitle: Text(d.address),
                         onTap: () => Navigator.pop(ctx, d),
                       );
                     },
@@ -93,12 +114,17 @@ class PrinterController extends GetxController {
 
       if (chosen == null) return; // user canceled
 
-      // 4) Connect
-      await BluetoothPrintPlus.connect(chosen);
-      selectedPrinter = chosen;
-
-      // 5) Verify connection
-      final connected = BluetoothPrintPlus.isConnected;
+      // 🔗 5) Connect
+      await Future.delayed(const Duration(seconds: 1));
+      bool connected = false;
+      for (int i = 0; i < 2; i++) {
+        try {
+          await BluetoothPrintPlus.connect(chosen);
+          connected = BluetoothPrintPlus.isConnected;
+          if (connected) break;
+        } catch (_) {}
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
       isConnected.value = connected;
 
       if (connected) {
