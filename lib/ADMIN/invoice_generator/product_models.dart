@@ -44,13 +44,15 @@ class Product {
   }
 
   factory Product.fromFirestore(DocumentSnapshot doc) {
-    Map data = doc.data() as Map;
+    final data = doc.data() as Map<String, dynamic>;
     return Product(
       id: doc.id,
       name: data['name'] ?? '',
       productId: data['productId'] ?? '',
-      count: data['count'] ?? 0,
-      price: data['price'] ?? 0,
+      count: (data['count'] is int)
+          ? data['count'] as int
+          : (data['count'] as num?)?.toInt() ?? 0,
+      price: (data['price'] as num?)?.toDouble() ?? 0.0,
       createdAt: data['createdAt']?.toString() ?? '',
       quantityType: data['quantityType'] ?? 'Nos',
     );

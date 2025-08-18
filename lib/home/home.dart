@@ -2,11 +2,13 @@
 
 import 'package:fine_foods/ADMIN/dashboard/dashboard.dart';
 import 'package:fine_foods/SALES/billing/view/billing.dart';
+import 'package:fine_foods/home/home_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class Home extends StatelessWidget {
-  const Home({super.key});
+  Home({super.key});
+  final PrinterController controller = Get.find();
 
   @override
   Widget build(BuildContext context) {
@@ -20,10 +22,8 @@ class Home extends StatelessWidget {
         foregroundColor: Colors.black,
         actions: [
           IconButton(
-            onPressed: () {
-              // Get.to(() => InvoiceList());
-            },
-            icon: Icon(Icons.inbox),
+            icon: const Icon(Icons.bluetooth),
+            onPressed: () => controller.connectPrinter(context),
           ),
         ],
       ),

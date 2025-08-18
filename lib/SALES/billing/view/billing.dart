@@ -1,22 +1,24 @@
 import 'package:fine_foods/SALES/billing/controller/billing_controller.dart';
 import 'package:fine_foods/SALES/billing/view/billing_list.dart';
+import 'package:fine_foods/home/home_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
-import 'package:pdf/pdf.dart';
+// import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+// import 'package:printing/printing.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:developer' as developer;
 
 class BillingScreen extends StatelessWidget {
-  const BillingScreen({super.key});
+  BillingScreen({super.key});
+
+  final controller = Get.put(BillingController());
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(BillingController());
     final screenWidth = MediaQuery.of(context).size.width;
     final isLargeScreen = screenWidth > 800;
 
@@ -793,11 +795,25 @@ class BillingScreen extends StatelessWidget {
                         const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: () async {
-                            try {
-                              await Printing.layoutPdf(
-                                onLayout: (PdfPageFormat format) async =>
-                                    pdf.save(),
+                            final printerController = Get.put(
+                              PrinterController(),
+                            );
+
+                            if (!printerController.isConnected.value) {
+                              Get.snackbar(
+                                'Error',
+                                'No printer connected',
+                                snackPosition: SnackPosition.BOTTOM,
+                                backgroundColor: Colors.red,
+                                colorText: Colors.white,
                               );
+                              return;
+                            }
+
+                            try {
+                              await controller.printInvoice(
+                                billData,
+                              ); // ✅ your function stays the same
                               Get.back();
                             } catch (e) {
                               developer.log('Print error: $e');

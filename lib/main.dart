@@ -1,12 +1,18 @@
 import 'package:fine_foods/firebase_options.dart';
 import 'package:fine_foods/home/home.dart';
+import 'package:fine_foods/home/home_controller.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Register PrinterController globally, after binding is ready
+  Get.put(PrinterController(), permanent: true);
+
   runApp(MyApp());
 }
 

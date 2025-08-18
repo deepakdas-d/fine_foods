@@ -4,11 +4,12 @@ import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
 import 'package:flutter/material.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
+// import 'package:pdf/pdf.dart';
+// import 'package:pdf/widgets.dart' as pw;
 import 'package:get/get.dart';
-
-import 'package:printing/printing.dart';
+import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
+// import 'package:flutter/services.dart';
+// import 'package:printing/printing.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 
@@ -235,100 +236,72 @@ class BillingController extends GetxController {
   }
 
   Future<void> printInvoice(Map<String, dynamic> billData) async {
-    final pdf = pw.Document();
+    print('DEBUG: Starting printInvoice with billData: $billData');
 
-    pdf.addPage(
-      pw.Page(
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'Invoice #${billData['invoiceNumber']}',
-                style: pw.TextStyle(
-                  fontSize: 24,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 16),
-              pw.Text('Customer: ${billData['customerName']}'),
-              if (billData['customerPhone'].isNotEmpty)
-                pw.Text('Phone: ${billData['customerPhone']}'),
-              pw.SizedBox(height: 16),
-              pw.Text(
-                'Products:',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.Table(
-                border: pw.TableBorder.all(),
-                children: [
-                  pw.TableRow(
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Product'),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Qty'),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Price'),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text('Total'),
-                      ),
-                    ],
-                  ),
-                  ...billData['products'].values.map(
-                    (product) => pw.TableRow(
-                      children: [
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text(product['productName']),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text(product['quantity'].toString()),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text('\$${product['price']}'),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(8),
-                          child: pw.Text('\$${product['total']}'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 16),
-              pw.Text(
-                'Total: \$${billData['total']}',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.Text('Items: ${billData['itemCount']}'),
-              pw.SizedBox(height: 16),
-              pw.Text('Date: ${billData['createdAt']}'),
-            ],
-          );
-        },
-      ),
+    if (!BluetoothPrintPlus.isConnected) {
+      print('DEBUG: Printer not connected');
+      return;
+    }
+
+    final esc = EscCommand();
+    print('DEBUG: Initializing EscCommand and clearing buffer');
+    await esc.cleanCommand();
+
+    // Title (center-aligned, bold)
+    print('DEBUG: Printing title');
+    esc.text(
+      content:
+          '\x1B\x61\x01\x1B\x45\x01Invoice #${billData['invoiceNumber']}\n\x1B\x45\x00',
     );
 
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
+    // Customer details (left-aligned)
+    print('DEBUG: Printing customer details');
+    esc.text(content: '\x1B\x61\x00Customer: ${billData['customerName']}\n');
+
+    if ((billData['customerPhone'] ?? '').toString().isNotEmpty) {
+      print('DEBUG: Printing customer phone');
+      esc.text(content: 'Phone: ${billData['customerPhone']}\n');
+    }
+
+    // Divider
+    print('DEBUG: Printing divider');
+    esc.text(content: '--------------------------------\n');
+
+    // Products header (bold)
+    print('DEBUG: Printing products header');
+    esc.text(content: '\x1B\x45\x01Products:\n\x1B\x45\x00');
+    esc.text(content: 'Product        Qty   Price   Total\n');
+
+    // Products
+    print('DEBUG: Printing products list');
+    for (var product in billData['products'].values) {
+      print('DEBUG: Printing product: ${product['productName']}');
+      esc.text(
+        content:
+            '${product['productName']}  ${product['quantity']}   \$${product['price']}   \$${product['total']}\n',
+      );
+    }
+
+    // Totals
+    print('DEBUG: Printing totals section');
+    esc.text(content: '--------------------------------\n');
+    esc.text(
+      content: '\x1B\x45\x01Total: \$${billData['total']}\n\x1B\x45\x00',
     );
+    esc.text(content: 'Items: ${billData['itemCount']}\n');
+    esc.text(content: 'Date: ${billData['createdAt']}\n\n\n\n');
+
+    // Print
+    print('DEBUG: Generating command bytes');
+    final cmd = await esc.getCommand();
+    if (cmd != null) {
+      print('DEBUG: Command bytes generated: ${cmd.length} bytes');
+      print('DEBUG: Sending to printer');
+      await BluetoothPrintPlus.write(cmd);
+      print('DEBUG: Print command sent successfully');
+    } else {
+      print('DEBUG: Failed to generate command bytes');
+    }
   }
 
   void _showFeedback(String message) {
