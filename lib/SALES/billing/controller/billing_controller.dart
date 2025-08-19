@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
+import 'package:fine_foods/SALES/billing/controller/billing_list_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
@@ -20,6 +21,7 @@ class BillingController extends GetxController {
   final RxMap<String, int> selectedProducts = <String, int>{}.obs;
   final RxBool isLoading = false.obs;
   final RxString searchQuery = ''.obs;
+  final controller = Get.put(BillListController());
 
   @override
   void onInit() {
@@ -80,7 +82,6 @@ class BillingController extends GetxController {
     final currentQuantity = selectedProducts[product.id] ?? 0;
     if (product.count > currentQuantity) {
       selectedProducts[product.id] = currentQuantity + 1;
-      _showFeedback('${product.name} added to cart');
     } else {
       Get.snackbar(
         'Out of Stock',
@@ -101,7 +102,6 @@ class BillingController extends GetxController {
         _showFeedback('${product.name} removed from cart');
       } else {
         selectedProducts[product.id] = currentQuantity - 1;
-        _showFeedback('${product.name} quantity decreased');
       }
     }
   }
@@ -111,7 +111,6 @@ class BillingController extends GetxController {
     customerName.clear();
     customerPhone.clear();
     customerDiscount.clear();
-    _showFeedback('Cart cleared');
   }
 
   double calculateTotal() {
@@ -218,6 +217,9 @@ class BillingController extends GetxController {
 
       // Clear the cart and customer details
       clearCart();
+      if (Get.isBottomSheetOpen == true) {
+        Navigator.of(Get.overlayContext!, rootNavigator: true).pop();
+      }
       filteredProducts.assignAll(products);
 
       return billData;
@@ -238,6 +240,8 @@ class BillingController extends GetxController {
 
   Future<void> printInvoice(Map<String, dynamic> billData) async {
     print('DEBUG: Starting printInvoice with billData: $billData');
+    final createdAt = DateTime.parse(billData['createdAt']);
+    final formattedDate = DateFormat('yyyy-MM-dd HH:mm').format(createdAt);
 
     if (!BluetoothPrintPlus.isConnected) {
       print('DEBUG: Printer not connected');
@@ -248,78 +252,86 @@ class BillingController extends GetxController {
     print('DEBUG: Initializing EscCommand and clearing buffer');
     await esc.cleanCommand();
 
-    // Initialize printer (reset settings)
+    // Initialize printer
     esc.text(content: '\x1B\x40');
 
-    // Shop Name - Centered, Bold, Smaller Font
+    // Shop Name
     esc.text(
       content:
-          '\x1B\x61\x01' // Center align
-          '\x1B\x45\x01' // Bold ON
-          '\x1D\x21\x00' // Normal size (58mm printer, 32 chars width)
-          'FINE FOODS\n'
-          '\x1B\x45\x00', // Bold OFF
+          '\x1B\x61\x01' // Center
+          '\x1B\x45\x01' // Bold
+          '\x1D\x21\x00'
+          'FINE FOODS & GIFTS\n'
+          '\x1B\x45\x00',
     );
-
-    // Invoice Title - Centered, Bold
+    esc.text(content: '\n');
     esc.text(
       content:
-          '\x1B\x61\x01\x1B\x45\x01Invoice #${billData['invoiceNumber']}\n\x1B\x45\x00',
+          '\x1B\x61\x01'
+          'Main Road Alathur\n'
+          '7907609118\n'
+          '\x1B\x61\x00',
     );
 
-    // Divider (32 characters for 58mm width)
+    // Invoice title + Date
+    esc.text(
+      content:
+          '\x1B\x61\x00'
+          '\x1B\x4D\x01'
+          'Invoice #${billData['invoiceNumber']}\n'
+          'Date: $formattedDate\n'
+          '\x1B\x4D\x00',
+    );
+
+    esc.text(content: '--------------------------------\n');
+    esc.text(
+      content:
+          '\x1B\x45\x01'
+          'Item          Qty Price  Total\n'
+          '\x1B\x45\x00',
+    );
     esc.text(content: '--------------------------------\n');
 
-    // Customer Details - Left-aligned
-    esc.text(content: '\x1B\x61\x00Customer: ${billData['customerName']}\n');
-    if ((billData['customerPhone'] ?? '').toString().isNotEmpty) {
-      esc.text(content: 'Phone: ${billData['customerPhone']}\n');
-    }
-
-    // Divider
-    esc.text(content: '--------------------------------\n');
-
-    // Products Header - Bold
-    esc.text(content: '\x1B\x61\x00\x1B\x45\x01Items:\n\x1B\x45\x00');
-
-    // Table Header (optimized for 32 chars: Item 14, Qty 4, Price 7, Total 7)
-    esc.text(content: 'Item          Qty Price  Total\n');
-
-    // Products List
+    // Products
     for (var product in billData['products'].values) {
       String name = product['productName'].toString();
-      if (name.length > 13) name = name.substring(0, 13); // Fit 13 chars
-      name = name.padRight(13); // Item column (13 chars)
+      if (name.length > 13) name = name.substring(0, 13);
+      name = name.padRight(13);
 
-      String qty = product['quantity'].toString().padLeft(
-        3,
-      ); // Qty column (3 chars)
-      String price = product['price'].toString().padLeft(
-        6,
-      ); // Price column (6 chars)
-      String total = product['total'].toString().padLeft(
-        6,
-      ); // Total column (6 chars)
+      String qty = product['quantity'].toString().padLeft(3);
+      String price = product['price'].toString().padLeft(6);
+      String total = product['total'].toString().padLeft(6);
 
       esc.text(content: '$name $qty $price $total\n');
     }
 
-    // Divider
     esc.text(content: '--------------------------------\n');
 
-    // Totals Section - Right-aligned
+    // ---- Totals Section ----
+    final subtotal = controller.calculateBillSubtotal(billData);
+    final discount = controller.calculateBillDiscount(billData);
+    final finalTotal = (subtotal - discount).clamp(0, double.infinity);
+
     esc.text(
       content:
           '\x1B\x61\x02' // Right align
-          '\x1B\x45\x01Total: Rs${billData['total']}\n\x1B\x45\x00',
+          'Subtotal: Rs${subtotal.toStringAsFixed(2)}\n',
     );
-    esc.text(content: '\x1B\x61\x02Items: ${billData['itemCount']}\n');
-    esc.text(content: '\x1B\x61\x02Date: ${billData['createdAt']}\n');
+    esc.text(
+      content:
+          '\x1B\x61\x02'
+          'Discount: Rs${discount.toStringAsFixed(2)}\n',
+    );
+    esc.text(
+      content:
+          '\x1B\x61\x02'
+          '\x1B\x45\x01Total: Rs${finalTotal.toStringAsFixed(2)}\n\x1B\x45\x00',
+    );
 
-    // Add extra line feeds for paper cut
+    // Extra space for paper cut
     esc.text(content: '\n\n\n');
 
-    // Generate and send command bytes
+    // Send to printer
     final cmd = await esc.getCommand();
     if (cmd != null) {
       print('DEBUG: Sending print command (${cmd.length} bytes)');
