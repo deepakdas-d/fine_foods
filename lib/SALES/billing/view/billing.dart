@@ -136,6 +136,8 @@ class BillingScreen extends StatelessWidget {
     final isOutOfStock = product.count <= 0;
     final quantity = controller.getSelectedQuantity(product);
 
+    final currentPrice = controller.getCustomPrice(product);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -183,14 +185,25 @@ class BillingScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '₹${product.price.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: isOutOfStock
-                          ? Colors.grey
-                          : const Color(0xFF1565C0),
+                  SizedBox(
+                    width: 150,
+                    child: TextField(
+                      enabled: !isOutOfStock,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: '$currentPrice',
+                        prefixText: '₹',
+                        hintText: product.price.toStringAsFixed(2),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        isDense: true,
+                      ),
+                      onChanged: (value) {
+                        final newPrice =
+                            double.tryParse(value) ?? product.price;
+                        controller.setCustomPrice(product, newPrice);
+                      },
                     ),
                   ),
                   Container(
@@ -342,75 +355,96 @@ class BillingScreen extends StatelessWidget {
     ],
   );
 
-  Widget _buildCartItem(Product product, int quantity) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.grey.withOpacity(0.2)),
-    ),
-    child: Row(
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFD700).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+  Widget _buildCartItem(Product product, int quantity) {
+    final currentPrice = controller.getCustomPrice(product);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD700).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              color: Color(0xFFFFD700),
+            ),
           ),
-          child: const Icon(
-            Icons.inventory_2_outlined,
-            color: Color(0xFFFFD700),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                ),
+                SizedBox(
+                  width: 100,
+                  child: TextField(
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: '$currentPrice',
+                      prefixText: '₹',
+                      hintText: controller
+                          .getCustomPrice(product)
+                          .toStringAsFixed(2),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      isDense: true,
+                    ),
+                    onChanged: (value) {
+                      final newPrice = double.tryParse(value) ?? product.price;
+                      controller.setCustomPrice(product, newPrice);
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                product.name,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-                maxLines: 2,
+              IconButton(
+                onPressed: () => controller.decreaseQuantity(product),
+                icon: const Icon(Icons.remove_circle_outline),
+                color: Colors.red,
               ),
               Text(
-                '₹${product.price.toStringAsFixed(2)} each',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                '$quantity',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                onPressed: () => controller.increaseQuantity(product),
+                icon: const Icon(Icons.add_circle_outline),
+                color: const Color(0xFFFFD700),
               ),
             ],
           ),
-        ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              onPressed: () => controller.decreaseQuantity(product),
-              icon: const Icon(Icons.remove_circle_outline),
-              color: Colors.red,
+          const SizedBox(width: 8),
+          Text(
+            '₹${(controller.getCustomPrice(product) * quantity).toStringAsFixed(2)}',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFFFD700),
             ),
-            Text(
-              '$quantity',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            IconButton(
-              onPressed: () => controller.increaseQuantity(product),
-              icon: const Icon(Icons.add_circle_outline),
-              color: const Color(0xFFFFD700),
-            ),
-          ],
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '₹${(product.price * quantity).toStringAsFixed(2)}',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFFFFD700),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 
   Widget _buildCheckoutSection() => Container(
     padding: const EdgeInsets.all(16),
@@ -736,14 +770,14 @@ class BillingScreen extends StatelessWidget {
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
                     child: pw.Text(
-                      '₹${product['price']}',
+                      '₹${product['price'].toStringAsFixed(2)}',
                       style: pw.TextStyle(font: robotoFont),
                     ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
                     child: pw.Text(
-                      '₹${product['total']}',
+                      '₹${product['total'].toStringAsFixed(2)}',
                       style: pw.TextStyle(font: robotoFont),
                     ),
                   ),
@@ -753,8 +787,6 @@ class BillingScreen extends StatelessWidget {
           ],
         ),
         pw.SizedBox(height: 16),
-
-        // Totals Section
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.end,
           children: [

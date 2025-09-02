@@ -19,6 +19,7 @@ class BillingController extends GetxController {
   final RxList<Product> products = <Product>[].obs;
   final RxList<Product> filteredProducts = <Product>[].obs;
   final RxMap<String, int> selectedProducts = <String, int>{}.obs;
+  final RxMap<String, double> customPrices = <String, double>{}.obs;
   final RxBool isLoading = false.obs;
   final RxString searchQuery = ''.obs;
   final controller = Get.put(BillListController());
@@ -38,9 +39,7 @@ class BillingController extends GetxController {
           .map((doc) => Product.fromFirestore(doc))
           .toList();
 
-      // Sort products by name for better UX
       products.sort((a, b) => a.name.compareTo(b.name));
-
       searchProducts(searchQuery.value);
     } catch (e) {
       log('Failed to fetch products: $e');
@@ -78,6 +77,18 @@ class BillingController extends GetxController {
     return selectedProducts[product.id] ?? 0;
   }
 
+  double getCustomPrice(Product product) {
+    return customPrices[product.id] ?? product.price;
+  }
+
+  void setCustomPrice(Product product, double price) {
+    if (price > 0) {
+      customPrices[product.id] = price;
+    } else {
+      customPrices.remove(product.id);
+    }
+  }
+
   void increaseQuantity(Product product) {
     final currentQuantity = selectedProducts[product.id] ?? 0;
     if (product.count > currentQuantity) {
@@ -99,6 +110,7 @@ class BillingController extends GetxController {
     if (currentQuantity > 0) {
       if (currentQuantity == 1) {
         selectedProducts.remove(product.id);
+        customPrices.remove(product.id);
         _showFeedback('${product.name} removed from cart');
       } else {
         selectedProducts[product.id] = currentQuantity - 1;
@@ -108,6 +120,7 @@ class BillingController extends GetxController {
 
   void clearCart() {
     selectedProducts.clear();
+    customPrices.clear();
     customerName.clear();
     customerPhone.clear();
     customerDiscount.clear();
@@ -117,10 +130,14 @@ class BillingController extends GetxController {
     double total = 0;
     for (var product in products) {
       if (selectedProducts.containsKey(product.id)) {
-        total += product.price * selectedProducts[product.id]!;
+        final price = getCustomPrice(product);
+        total += price * selectedProducts[product.id]!;
       }
     }
-    return total;
+    final discount = customerDiscount.text.trim().isEmpty
+        ? 0.0
+        : double.tryParse(customerDiscount.text.trim()) ?? 0.0;
+    return (total - discount).clamp(0, double.infinity);
   }
 
   String generateInvoiceNumber() {
@@ -149,8 +166,6 @@ class BillingController extends GetxController {
       final invoiceNumber = generateInvoiceNumber();
       final batch = _firestore.batch();
 
-      // Create bill document with optional customer details
-      // Parse the discount once
       final globalDiscount = customerDiscount.text.trim().isEmpty
           ? 0.0
           : double.tryParse(customerDiscount.text.trim()) ?? 0.0;
@@ -163,18 +178,17 @@ class BillingController extends GetxController {
         'customerPhone': customerPhone.text.isEmpty ? '' : customerPhone.text,
         'products': selectedProducts.map((key, value) {
           final product = products.firstWhere((p) => p.id == key);
+          final price = getCustomPrice(product);
           return MapEntry(key, {
             'productId': key,
             'productName': product.name,
             'quantity': value,
-            'price': product.price,
-            'total': product.price * value,
-            // Remove discount here
+            'price': price,
+            'total': price * value,
           });
         }),
-        'total':
-            calculateTotal(), // this should be total **after discount** if needed
-        'discount': globalDiscount, // store global discount here
+        'total': calculateTotal(),
+        'discount': globalDiscount,
         'itemCount': selectedProducts.values.fold(0, (sum, qty) => sum + qty),
         'createdAt': DateTime.now().toIso8601String(),
         'status': 'completed',
@@ -182,14 +196,12 @@ class BillingController extends GetxController {
 
       batch.set(_firestore.collection('bills').doc(billId), billData);
 
-      // Update product counts
       for (var entry in selectedProducts.entries) {
         final product = products.firstWhere((p) => p.id == entry.key);
         batch.update(_firestore.collection('products').doc(product.id), {
           'count': product.count - entry.value,
         });
 
-        // Update local product list
         final index = products.indexWhere((p) => p.id == product.id);
         if (index != -1) {
           products[index] = Product(
@@ -215,7 +227,6 @@ class BillingController extends GetxController {
         duration: const Duration(seconds: 3),
       );
 
-      // Clear the cart and customer details
       clearCart();
       if (Get.isBottomSheetOpen == true) {
         Navigator.of(Get.overlayContext!, rootNavigator: true).pop();
@@ -252,16 +263,14 @@ class BillingController extends GetxController {
     print('DEBUG: Initializing EscCommand and clearing buffer');
     await esc.cleanCommand();
 
-    // Initialize printer
     esc.text(content: '\x1B\x40');
-
-    // Shop Name
     esc.text(
       content:
-          '\x1B\x61\x01' // Center
-          '\x1B\x45\x01' // Bold
+          '\x1B\x61\x01'
+          '\x1B\x45\x01'
           '\x1D\x21\x00'
-          'FINE FOODS & GIFTS\n'
+          'WRAPPIE\n'
+          'CRAFTS & GIFTS\n'
           '\x1B\x45\x00',
     );
     esc.text(content: '\n');
@@ -273,7 +282,6 @@ class BillingController extends GetxController {
           '\x1B\x61\x00',
     );
 
-    // Invoice title + Date
     esc.text(
       content:
           '\x1B\x61\x00'
@@ -292,46 +300,44 @@ class BillingController extends GetxController {
     );
     esc.text(content: '--------------------------------\n');
 
-    // Products
     for (var product in billData['products'].values) {
       String name = product['productName'].toString();
       if (name.length > 13) name = name.substring(0, 13);
       name = name.padRight(13);
 
       String qty = product['quantity'].toString().padLeft(3);
-      String price = product['price'].toString().padLeft(6);
-      String total = product['total'].toString().padLeft(6);
+      String price = product['price'].toStringAsFixed(2).padLeft(6);
+      String total = product['total'].toStringAsFixed(2).padLeft(6);
 
       esc.text(content: '$name $qty $price $total\n');
     }
 
     esc.text(content: '--------------------------------\n');
 
-    // ---- Totals Section ----
     final subtotal = controller.calculateBillSubtotal(billData);
     final discount = controller.calculateBillDiscount(billData);
     final finalTotal = (subtotal - discount).clamp(0, double.infinity);
 
     esc.text(
       content:
-          '\x1B\x61\x02' // Right align
+          '\x1B\x61\x02'
           'Subtotal: Rs${subtotal.toStringAsFixed(2)}\n',
     );
-    esc.text(
-      content:
-          '\x1B\x61\x02'
-          'Discount: Rs${discount.toStringAsFixed(2)}\n',
-    );
+    if (discount > 0) {
+      esc.text(
+        content:
+            '\x1B\x61\x02'
+            'Discount: Rs${discount.toStringAsFixed(2)}\n',
+      );
+    }
     esc.text(
       content:
           '\x1B\x61\x02'
           '\x1B\x45\x01Total: Rs${finalTotal.toStringAsFixed(2)}\n\x1B\x45\x00',
     );
 
-    // Extra space for paper cut
     esc.text(content: '\n\n\n');
 
-    // Send to printer
     final cmd = await esc.getCommand();
     if (cmd != null) {
       print('DEBUG: Sending print command (${cmd.length} bytes)');
@@ -343,7 +349,6 @@ class BillingController extends GetxController {
   }
 
   void _showFeedback(String message) {
-    // If a snackbar is already open, delay showing the next one
     if (Get.isSnackbarOpen) {
       Future.delayed(const Duration(seconds: 1), () {
         _showSnack(message);
@@ -370,6 +375,7 @@ class BillingController extends GetxController {
   void onClose() {
     customerName.dispose();
     customerPhone.dispose();
+    customerDiscount.dispose();
     super.onClose();
   }
 }

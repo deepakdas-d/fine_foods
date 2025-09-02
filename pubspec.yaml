@@ -30,6 +30,8 @@ dependencies:
   flutter_pdfview: ^1.4.1+1
   google_fonts: ^6.3.0
   bluetooth_print_plus: ^2.4.6
+  app_settings: ^6.1.1
+  get_storage: ^2.1.1
   
 
 

@@ -1,54 +1,121 @@
 import 'package:get/get.dart';
-import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:get_storage/get_storage.dart';
 
-class PrinterController extends GetxController {
+class PrinterController extends GetxController with WidgetsBindingObserver {
   var isConnected = false.obs;
+  var isScanning = false.obs;
+  var printerName = ''.obs;
+
   BluetoothDevice? selectedPrinter;
+  final storage = GetStorage();
+
+  @override
+  void onInit() {
+    super.onInit();
+    WidgetsBinding.instance.addObserver(this);
+
+    // Try reconnect on startup
+    _restoreLastPrinter();
+  }
+
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // When app resumes after call/background
+      if (!isConnected.value && selectedPrinter != null) {
+        Get.snackbar(
+          'Printer',
+          'Reconnecting to last printer...',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 2),
+        );
+        connectToLastPrinter();
+      }
+    }
+  }
 
   /// Request Bluetooth permissions
   Future<bool> _requestPermissions() async {
     if (GetPlatform.isAndroid) {
-      if (await Permission.bluetoothScan.isDenied ||
-          await Permission.bluetoothConnect.isDenied) {
-        final status = await [
-          Permission.bluetoothScan,
-          Permission.bluetoothConnect,
-          Permission.location, // for Android < 12
-        ].request();
+      final status = await [
+        Permission.bluetoothScan,
+        Permission.bluetoothConnect,
+        Permission.location, // needed for Android < 12
+      ].request();
 
-        return status.values.every((s) => s.isGranted);
-      }
+      return status.values.every((s) => s.isGranted);
     }
     return true;
   }
 
-  /// Scan, show device list, connect
+  /// Save last printer in storage
+  /// Save last printer in storage
+  Future<void> _saveLastPrinter(BluetoothDevice device) async {
+    await storage.write('last_printer', {
+      'name': device.name,
+      'address': device.address,
+    });
+  }
+
+  /// Restore last printer on startup
+  /// Restore last printer on startup
+  Future<void> _restoreLastPrinter() async {
+    final data = storage.read('last_printer');
+    if (data != null && data is Map) {
+      final name = data['name'] ?? 'Saved Printer';
+      final addr = data['address'];
+      if (addr != null) {
+        selectedPrinter = BluetoothDevice(name, addr);
+
+        Get.snackbar(
+          'Printer',
+          'Restoring last printer: $name',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 2),
+        );
+
+        await connectToLastPrinter();
+      }
+    }
+  }
+
+  /// Connect to the previously saved printer
+  Future<void> connectToLastPrinter() async {
+    if (selectedPrinter == null) return;
+    try {
+      await BluetoothPrintPlus.connect(selectedPrinter!);
+      isConnected.value = BluetoothPrintPlus.isConnected;
+    } catch (_) {
+      isConnected.value = false;
+    }
+  }
+
+  /// Scan, show list, connect
   Future<void> connectPrinter(BuildContext context) async {
     try {
-      // 🔑 Step 1: Ensure permissions
       final granted = await _requestPermissions();
-      if (!granted) {
-        Get.snackbar(
-          'Permission Denied',
-          'Bluetooth permissions are required to scan printers',
-        );
-        return;
-      }
+      if (!granted) return;
 
-      // 🔍 2) Start scanning (longer timeout for reliability)
+      isScanning.value = true;
       await BluetoothPrintPlus.startScan(timeout: const Duration(seconds: 5));
-
       await Future.delayed(const Duration(seconds: 1));
 
-      // 🔍 3) Get initial scanned devices
       final bonded = await BluetoothPrintPlus.scanResults.firstWhere(
-        (list) => list.isNotEmpty, // only return once there’s at least 1 device
+        (list) => list.isNotEmpty,
         orElse: () => [],
       );
 
-      // 4) Show dialog with results
+      isScanning.value = false;
+
       final chosen = await showDialog<BluetoothDevice>(
         context: context,
         builder: (ctx) {
@@ -58,7 +125,7 @@ class PrinterController extends GetxController {
               width: double.maxFinite,
               child: StreamBuilder<List<BluetoothDevice>>(
                 stream: BluetoothPrintPlus.scanResults,
-                initialData: bonded, // show paired devices immediately
+                initialData: bonded,
                 builder: (context, snapshot) {
                   final devices = [
                     ...bonded,
@@ -66,19 +133,9 @@ class PrinterController extends GetxController {
                   ];
 
                   if (devices.isEmpty) {
-                    return SizedBox(
+                    return const SizedBox(
                       height: 80,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 12),
-                          Text(
-                            'Scanning... (make sure printer is on & discoverable)',
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
+                      child: Center(child: CircularProgressIndicator()),
                     );
                   }
 
@@ -107,14 +164,13 @@ class PrinterController extends GetxController {
         },
       );
 
-      // Stop scanning once dialog is closed
       try {
         await BluetoothPrintPlus.stopScan();
       } catch (_) {}
 
-      if (chosen == null) return; // user canceled
+      if (chosen == null) return;
 
-      // 🔗 5) Connect
+      // Try connect with retries
       await Future.delayed(const Duration(seconds: 1));
       bool connected = false;
       for (int i = 0; i < 2; i++) {
@@ -125,14 +181,18 @@ class PrinterController extends GetxController {
         } catch (_) {}
         await Future.delayed(const Duration(milliseconds: 500));
       }
+
       isConnected.value = connected;
 
       if (connected) {
+        selectedPrinter = chosen;
+        await _saveLastPrinter(chosen);
         Get.snackbar('Connected', 'Printer: ${chosen.name}');
       } else {
         Get.snackbar('Failed', 'Could not connect to printer');
       }
     } catch (e) {
+      isScanning.value = false;
       Get.snackbar('Error', e.toString());
     }
   }
