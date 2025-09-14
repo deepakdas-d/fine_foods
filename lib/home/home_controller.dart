@@ -1,3 +1,4 @@
+import 'package:fine_foods/SALES/billing/controller/billing_controller.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
@@ -8,6 +9,9 @@ class PrinterController extends GetxController with WidgetsBindingObserver {
   var isConnected = false.obs;
   var isScanning = false.obs;
   var printerName = ''.obs;
+  var selectedIndex = 0.obs;
+  final pageController = PageController();
+  final BillingController billingController = Get.put(BillingController());
 
   BluetoothDevice? selectedPrinter;
   final storage = GetStorage();
@@ -41,6 +45,11 @@ class PrinterController extends GetxController with WidgetsBindingObserver {
         connectToLastPrinter();
       }
     }
+  }
+
+  void changePage(int index) {
+    selectedIndex.value = index;
+    pageController.jumpToPage(index);
   }
 
   /// Request Bluetooth permissions
@@ -196,4 +205,6 @@ class PrinterController extends GetxController with WidgetsBindingObserver {
       Get.snackbar('Error', e.toString());
     }
   }
+
+  // Quick billing
 }
