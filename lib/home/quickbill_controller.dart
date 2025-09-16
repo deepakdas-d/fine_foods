@@ -31,7 +31,7 @@ class QuickbillController extends GetxController {
   void addProduct({
     required String name,
     required double price,
-    required int quantity,
+    required double quantity,
     required String type,
   }) {
     final product = {
@@ -151,8 +151,8 @@ class QuickbillController extends GetxController {
         'total': calculateTotal(),
         'discount': globalDiscount,
         'itemCount': newProducts.fold(
-          0,
-          (sum, product) => sum + (product['quantity'] as int),
+          0.0,
+          (sum, product) => sum + (product['quantity'] as double),
         ),
         'createdAt': DateTime.now().toIso8601String(),
         'status': 'completed',
@@ -240,8 +240,7 @@ class QuickbillController extends GetxController {
 
       esc.text(content: '--------------------------------\n');
       esc.text(
-        content:
-            '\x1B\x45\x01Item          Qty Type Price  Total\n\x1B\x45\x00',
+        content: '\x1B\x45\x01Item          Qty  Price  Total\n\x1B\x45\x00',
       );
       esc.text(content: '--------------------------------\n');
 
@@ -251,11 +250,10 @@ class QuickbillController extends GetxController {
         name = name.padRight(12);
 
         String qty = product['quantity'].toString().padLeft(3);
-        String type = product['type'].toString().padLeft(4);
         String price = product['price'].toStringAsFixed(2).padLeft(6);
         String total = product['total'].toStringAsFixed(2).padLeft(6);
 
-        esc.text(content: '$name $qty $type $price $total\n');
+        esc.text(content: '$name $qty $price $total\n');
       }
 
       esc.text(content: '--------------------------------\n');

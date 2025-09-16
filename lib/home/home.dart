@@ -213,7 +213,7 @@ class Home extends StatelessWidget {
     ),
     child: Column(
       children: [
-        TextField(
+        TextFormField(
           controller: TextEditingController(
             text: quickbillController.customerDiscount.value,
           ),
@@ -226,7 +226,26 @@ class Home extends StatelessWidget {
             prefixIcon: const Icon(Icons.discount_outlined),
             isDense: true,
           ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return null; // discount is optional
+            }
+
+            final discount = double.tryParse(value.trim());
+            if (discount == null || discount <= 0) {
+              return 'Enter a valid discount > 0';
+            }
+
+            final total = quickbillController
+                .calculateTotal(); // your total function
+            if (discount > total) {
+              return 'Discount cannot exceed total price ($total)';
+            }
+
+            return null;
+          },
         ),
+
         ExpansionTile(
           title: const Text(
             'Customer Details (Optional)',
@@ -620,7 +639,7 @@ class ProductInputForm extends StatelessWidget {
             ),
             validator: (value) {
               if (value!.isEmpty) return 'Quantity cannot be empty';
-              final qty = int.tryParse(value);
+              final qty = double.tryParse(value);
               return qty == null || qty <= 0 ? 'Enter a valid quantity' : null;
             },
             onChanged: (value) =>
@@ -672,7 +691,7 @@ class ProductInputForm extends StatelessWidget {
                   controller.addProduct(
                     name: nameController.text.trim(),
                     price: double.parse(priceController.text.trim()),
-                    quantity: int.parse(quantityController.text.trim()),
+                    quantity: double.parse(quantityController.text.trim()),
                     type: selectedType,
                   );
                   nameController.clear();
