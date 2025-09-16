@@ -1,81 +1,112 @@
 import 'dart:io';
+
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
-import 'package:fine_foods/ADMIN/dashboard/dashboard.dart';
-import 'package:fine_foods/SALES/billing/view/billing.dart';
 import 'package:fine_foods/home/home_controller.dart';
 import 'package:fine_foods/home/quickbill_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
-import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 class Home extends StatelessWidget {
   Home({super.key});
-  final PrinterController controller = Get.find();
-  final RxInt selectedIndex = 0.obs;
+
+  final PrinterController printerController = Get.find();
+  final QuickbillController quickbillController = Get.put(
+    QuickbillController(),
+  );
+
   final RxBool isLoading = false.obs;
-  final PageController pageController = PageController();
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => Scaffold(
-        appBar: selectedIndex.value == 1
-            ? AppBar(
-                backgroundColor: const Color(0xFFFFD700),
-                title: const Text(
-                  "Quick Bill",
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                foregroundColor: Colors.black,
+    return WillPopScope(
+      onWillPop: () async {
+        bool close =
+            await Get.dialog(
+              AlertDialog(
+                title: const Text('Confirm Exit'),
+                content: const Text('Do you want to exit the app?'),
                 actions: [
-                  Obx(() {
-                    return Row(
-                      children: [
-                        if (controller.printerName.value.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: Text(
-                              controller.printerName.value,
-                              style: const TextStyle(color: Colors.black),
-                            ),
-                          ),
-                        IconButton(
-                          icon: Icon(
-                            controller.isConnected.value
-                                ? Icons.bluetooth_connected
-                                : Icons.bluetooth,
-                            color: controller.isConnected.value
-                                ? Colors.green
-                                : null,
-                          ),
-                          tooltip: controller.isConnected.value
-                              ? 'Printer Connected'
-                              : 'Connect Printer',
-                          onPressed: () => controller.connectPrinter(context),
-                        ),
-                      ],
-                    );
-                  }),
+                  TextButton(
+                    onPressed: () => Get.back(result: false),
+                    child: const Text('No'),
+                  ),
+                  TextButton(
+                    onPressed: () => Get.back(result: true),
+                    child: const Text('Yes'),
+                  ),
                 ],
-              )
-            : null,
+              ),
+            ) ??
+            false;
+        return close;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFFFD700),
+          title: const Text(
+            "Quick Bill",
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          foregroundColor: Colors.black,
+          actions: [
+            Obx(() {
+              return Row(
+                children: [
+                  if (printerController.printerName.value.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: Text(
+                        printerController.printerName.value,
+                        style: const TextStyle(color: Colors.black),
+                      ),
+                    ),
+                  IconButton(
+                    icon: Icon(
+                      printerController.isConnected.value
+                          ? Icons.bluetooth_connected
+                          : Icons.bluetooth,
+                      color: printerController.isConnected.value
+                          ? Colors.green
+                          : null,
+                    ),
+                    tooltip: printerController.isConnected.value
+                        ? 'Printer Connected'
+                        : 'Connect Printer',
+                    onPressed: () => printerController.connectPrinter(context),
+                  ),
+                ],
+              );
+            }),
+          ],
+        ),
         body: Stack(
           children: [
-            PageView(
-              controller: pageController,
-              onPageChanged: (index) => selectedIndex.value = index,
-              children: [const Dashboard(), NewBillUI(), BillingScreen()],
+            /// ✅ Directly show Quick Bill screen
+            SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildProductInputSection(),
+                  _buildCartSection(),
+                  _buildCheckoutSection(context),
+                ],
+              ),
             ),
+
+            /// ✅ Loading overlay
             Obx(() {
               if (!isLoading.value) return const SizedBox.shrink();
               return _buildOverlay(child: const CircularProgressIndicator());
             }),
+
+            /// ✅ Bluetooth scanning overlay
             Obx(() {
-              if (!controller.isScanning.value) return const SizedBox.shrink();
+              if (!printerController.isScanning.value)
+                return const SizedBox.shrink();
               return _buildOverlay(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -99,7 +130,7 @@ class Home extends StatelessWidget {
                         try {
                           await BluetoothPrintPlus.stopScan();
                         } catch (_) {}
-                        controller.isScanning.value = false;
+                        printerController.isScanning.value = false;
                       },
                       child: const Text("Stop"),
                     ),
@@ -109,26 +140,6 @@ class Home extends StatelessWidget {
             }),
           ],
         ),
-        bottomNavigationBar: Obx(
-          () => BottomNavigationBar(
-            currentIndex: selectedIndex.value,
-            onTap: (index) {
-              selectedIndex.value = index;
-              pageController.jumpToPage(index);
-            },
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.dashboard),
-                label: "Admin",
-              ),
-              BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.point_of_sale),
-                label: "Sales",
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -137,28 +148,6 @@ class Home extends StatelessWidget {
     return Container(
       color: Colors.black54,
       child: Center(child: child),
-    );
-  }
-}
-
-class NewBillUI extends StatelessWidget {
-  final QuickbillController controller = Get.put(QuickbillController());
-
-  NewBillUI({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: null,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildProductInputSection(),
-            _buildCartSection(),
-            _buildCheckoutSection(context),
-          ],
-        ),
-      ),
     );
   }
 
@@ -172,13 +161,13 @@ class NewBillUI extends StatelessWidget {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
-        ProductInputForm(controller: controller),
+        ProductInputForm(controller: quickbillController),
       ],
     ),
   );
 
   Widget _buildCartSection() => Obx(
-    () => controller.newProducts.isNotEmpty
+    () => quickbillController.newProducts.isNotEmpty
         ? Container(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -192,9 +181,9 @@ class NewBillUI extends StatelessWidget {
                 ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: controller.newProducts.length,
+                  itemCount: quickbillController.newProducts.length,
                   itemBuilder: (context, index) {
-                    final product = controller.newProducts[index];
+                    final product = quickbillController.newProducts[index];
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       child: ListTile(
@@ -205,7 +194,7 @@ class NewBillUI extends StatelessWidget {
                         trailing: IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
                           onPressed: () =>
-                              controller.removeProduct(product['id']),
+                              quickbillController.removeProduct(product['id']),
                         ),
                       ),
                     );
@@ -216,7 +205,6 @@ class NewBillUI extends StatelessWidget {
           )
         : const SizedBox.shrink(),
   );
-
   Widget _buildCheckoutSection(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
@@ -227,9 +215,10 @@ class NewBillUI extends StatelessWidget {
       children: [
         TextField(
           controller: TextEditingController(
-            text: controller.customerDiscount.value,
+            text: quickbillController.customerDiscount.value,
           ),
-          onChanged: (value) => controller.customerDiscount.value = value,
+          onChanged: (value) =>
+              quickbillController.customerDiscount.value = value,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
             labelText: 'Discount',
@@ -246,9 +235,10 @@ class NewBillUI extends StatelessWidget {
           children: [
             TextField(
               controller: TextEditingController(
-                text: controller.customerName.value,
+                text: quickbillController.customerName.value,
               ),
-              onChanged: (value) => controller.customerName.value = value,
+              onChanged: (value) =>
+                  quickbillController.customerName.value = value,
               decoration: InputDecoration(
                 labelText: 'Customer Name',
                 border: OutlineInputBorder(
@@ -261,9 +251,10 @@ class NewBillUI extends StatelessWidget {
             const SizedBox(height: 12),
             TextField(
               controller: TextEditingController(
-                text: controller.customerPhone.value,
+                text: quickbillController.customerPhone.value,
               ),
-              onChanged: (value) => controller.customerPhone.value = value,
+              onChanged: (value) =>
+                  quickbillController.customerPhone.value = value,
               decoration: InputDecoration(
                 labelText: 'Phone Number',
                 border: OutlineInputBorder(
@@ -292,7 +283,7 @@ class NewBillUI extends StatelessWidget {
               ),
               Obx(
                 () => Text(
-                  '₹${controller.calculateTotal().toStringAsFixed(2)}',
+                  '₹${quickbillController.calculateTotal().toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -326,10 +317,9 @@ class NewBillUI extends StatelessWidget {
       ],
     ),
   );
-
   Future<void> _generateInvoice(BuildContext context) async {
     try {
-      final billData = await controller.createBill();
+      final billData = await quickbillController.createBill();
       if (billData != null) {
         final pdf = pw.Document();
         final fontData = await rootBundle.load(
@@ -388,7 +378,7 @@ class NewBillUI extends StatelessWidget {
                               return;
                             }
                             try {
-                              await controller.printInvoice(billData);
+                              await quickbillController.printInvoice(billData);
                               Get.snackbar(
                                 'Success',
                                 'Invoice printed successfully',
@@ -431,8 +421,8 @@ class NewBillUI extends StatelessWidget {
     Map<String, dynamic> billData,
     pw.Font robotoFont,
   ) {
-    final subtotal = controller.calculateBillSubtotal(billData);
-    final discount = controller.calculateBillDiscount(billData);
+    final subtotal = quickbillController.calculateBillSubtotal(billData);
+    final discount = quickbillController.calculateBillDiscount(billData);
     final finalTotal = (subtotal - discount).clamp(0, double.infinity);
     final createdAt = DateTime.parse(billData['createdAt']).toLocal();
     final formattedDate = DateFormat('yyyy-MM-dd HH:mm').format(createdAt);
