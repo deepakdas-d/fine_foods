@@ -1,6 +1,5 @@
 import 'dart:developer';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
@@ -19,19 +18,28 @@ class BillListController extends GetxController {
   final RxList<Map<String, dynamic>> bills = <Map<String, dynamic>>[].obs;
   final RxBool isLoading = false.obs;
 
+  /// Initializes the controller and fetches all bills on startup.
   @override
   void onInit() {
     super.onInit();
     fetchBills();
   }
 
-  void fetchBills() async {
+  /// Fetches all bills from Firestore, ordered by creation date (newest first).
+  ///
+  /// Populates the [bills] observable list with maps containing:
+  /// - `id`: Firestore document ID
+  /// - All fields from the document data
+  ///
+  /// Shows loading state and error snackbar on failure.
+  Future<void> fetchBills() async {
     isLoading.value = true;
     try {
       final snapshot = await _firestore
           .collection('bills')
           .orderBy('createdAt', descending: true)
           .get();
+
       bills.value = snapshot.docs
           .map((doc) => {'id': doc.id, ...doc.data()})
           .toList();
@@ -49,403 +57,429 @@ class BillListController extends GetxController {
     }
   }
 
+  /// Calculates the subtotal (sum of all product totals) for a given bill.
+  ///
+  /// [bill] - The bill map from Firestore.
+  ///
+  /// Handles legacy structure where `products` may be a Map with dynamic keys.
+  /// Uses `total` field from each product to avoid recalculation errors.
+  ///
+  /// Returns 0.0 if no products or invalid structure.
   double calculateBillSubtotal(Map<String, dynamic> bill) {
-    double subtotal = 0;
-    if (bill['products'] != null && bill['products'] is Map) {
-      final products = Map<String, dynamic>.from(bill['products']);
-      for (var product in products.values) {
-        if (product is Map) {
-          final total = (product['total'] ?? 0) as num; // use total directly
-          subtotal += total;
+    double subtotal = 0.0;
+
+    final products = bill['products'];
+    if (products == null) return subtotal;
+
+    // ---- Map format (new) ----
+    if (products is Map) {
+      for (var entry in products.values) {
+        if (entry is Map && entry['total'] is num) {
+          subtotal += (entry['total'] as num).toDouble();
         }
       }
     }
-    return subtotal.toDouble();
+    // ---- Array format (old) ----
+    else if (products is List) {
+      for (var item in products) {
+        if (item is Map && item['total'] is num) {
+          subtotal += (item['total'] as num).toDouble();
+        }
+      }
+    }
+
+    return subtotal;
   }
 
+  /// Extracts the global discount amount from the bill.
+  ///
+  /// [bill] - The bill map.
+  ///
+  /// Returns 0.0 if no discount is set.
   double calculateBillDiscount(Map<String, dynamic> bill) {
-    return ((bill['discount'] ?? 0) as num).toDouble(); // global discount
+    return (bill['discount'] as num?)?.toDouble() ?? 0.0;
   }
 
+  /// -----------------------------------------------------------------
+  /// 4. FINAL TOTAL (subtotal – discount, never < 0)
+  /// -----------------------------------------------------------------
+  double calculateBillFinalTotal(Map<String, dynamic> bill) {
+    final subtotal = calculateBillSubtotal(bill);
+    final discount = calculateBillDiscount(bill);
+    return (subtotal - discount).clamp(0, double.infinity);
+  }
+
+  /// -----------------------------------------------------------------
+  /// 5. LIST OF PRODUCT ROWS (for PDF table)
+  /// -----------------------------------------------------------------
+  List<Map<String, dynamic>> _extractProductRows(Map<String, dynamic> bill) {
+    final List<Map<String, dynamic>> rows = [];
+
+    final products = bill['products'];
+    if (products == null) return rows;
+
+    // ---- Map format ----
+    if (products is Map) {
+      for (var p in products.values) {
+        if (p is Map) {
+          rows.add({
+            'name': p['productName']?.toString() ?? '',
+            'quantity': (p['quantity'] as num?)?.toDouble() ?? 0.0,
+            'price': (p['price'] as num?)?.toDouble() ?? 0.0,
+            'total': (p['total'] as num?)?.toDouble() ?? 0.0,
+          });
+        }
+      }
+    }
+    // ---- Array format ----
+    else if (products is List) {
+      for (var p in products) {
+        if (p is Map) {
+          rows.add({
+            'name': p['productName']?.toString() ?? '',
+            'quantity': (p['quantity'] as num?)?.toDouble() ?? 0.0,
+            'price': (p['price'] as num?)?.toDouble() ?? 0.0,
+            'total': (p['total'] as num?)?.toDouble() ?? 0.0,
+          });
+        }
+      }
+    }
+
+    return rows;
+  }
+
+  /// Generates a professional PDF invoice for a single bill.
+  ///
+  /// [bill] - Complete bill data from Firestore.
+  ///
+  /// Features:
+  /// - Custom Roboto font for proper Rupee symbol support
+  /// - Clean layout with header, customer info, itemized table
+  /// - Subtotal, discount, and bold total
+  /// - Responsive column widths and padding
+  /// - Fallback for old bill structures (single product)
+  ///
+  /// Returns [Uint8List] of the generated PDF.
   Future<Uint8List> generateBillPdf(Map<String, dynamic> bill) async {
-    log('[PDF] Starting PDF generation...');
+    log('[PDF] Generating single bill PDF...');
 
     final pdf = pw.Document();
     final date = DateTime.parse(bill['createdAt']).toLocal();
 
     final subtotal = calculateBillSubtotal(bill);
     final discount = calculateBillDiscount(bill);
-    final total = (subtotal - discount).clamp(0, double.infinity);
-
+    final finalTotal = calculateBillFinalTotal(bill);
     final invoiceNumber = bill['invoiceNumber'] ?? 'INV-${bill['id']}';
 
-    log('[PDF] Invoice: $invoiceNumber');
-    log('[PDF] Bill date: $date');
-    log('[PDF] Subtotal: \$${subtotal.toStringAsFixed(2)}');
-    log('[PDF] Discount: \$${discount.toStringAsFixed(2)}');
-    log('[PDF] Final total: \$${total.toStringAsFixed(2)}');
-
-    // 1️⃣ Load Roboto font (supports ₹)
+    // Load font (Roboto supports Rupee symbol)
     final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
-    final robotoFont = pw.Font.ttf(fontData);
+    final roboto = pw.Font.ttf(fontData);
 
     pdf.addPage(
       pw.Page(
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Header
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'INVOICE',
-                        style: pw.TextStyle(
-                          font: robotoFont,
-                          fontSize: 28,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                      pw.SizedBox(height: 4),
-                      pw.Text(
-                        'Fine Foods POS System',
-                        style: pw.TextStyle(
-                          font: robotoFont,
-                          fontSize: 16,
-                          color: pw.PdfColor.fromInt(0xFF666666),
-                        ),
-                      ),
-                    ],
-                  ),
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      pw.Text(
-                        'Invoice #: $invoiceNumber',
-                        style: pw.TextStyle(
-                          font: robotoFont,
-                          fontSize: 14,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                      pw.SizedBox(height: 4),
-                      pw.Text(
-                        'Date: ${DateFormat('MMM dd, yyyy HH:mm').format(date)}',
-                        style: pw.TextStyle(font: robotoFont, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 30),
-
-              // Customer Info
-              pw.Container(
-                padding: const pw.EdgeInsets.all(16),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: pw.PdfColor.fromInt(0xFFE0E0E0)),
-                  borderRadius: const pw.BorderRadius.all(
-                    pw.Radius.circular(8),
-                  ),
-                ),
-                child: pw.Column(
+        build: (pw.Context context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            // ==== HEADER ====
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      'Bill To:',
+                      'INVOICE',
                       style: pw.TextStyle(
-                        font: robotoFont,
+                        font: roboto,
+                        fontSize: 28,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'Fine Foods POS System',
+                      style: pw.TextStyle(
+                        font: roboto,
+                        fontSize: 16,
+                        color: pw.PdfColor.fromInt(0xFF666666),
+                      ),
+                    ),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'Invoice #: $invoiceNumber',
+                      style: pw.TextStyle(
+                        font: roboto,
                         fontSize: 14,
                         fontWeight: pw.FontWeight.bold,
                       ),
                     ),
-                    pw.SizedBox(height: 8),
+                    pw.SizedBox(height: 4),
                     pw.Text(
-                      '${bill['customerName'] ?? 'Walk-in Customer'}',
-                      style: pw.TextStyle(font: robotoFont, fontSize: 16),
+                      'Date: ${DateFormat('MMM dd, yyyy HH:mm').format(date)}',
+                      style: pw.TextStyle(font: roboto, fontSize: 12),
                     ),
-                    if (bill['customerPhone'] != null &&
-                        bill['customerPhone'].toString().isNotEmpty)
-                      pw.Text(
-                        'Phone: ${bill['customerPhone']}',
-                        style: pw.TextStyle(font: robotoFont, fontSize: 12),
-                      ),
                   ],
                 ),
-              ),
-              pw.SizedBox(height: 30),
+              ],
+            ),
+            pw.SizedBox(height: 30),
 
-              // Items Table
-              pw.Text(
-                'Items:',
-                style: pw.TextStyle(
-                  font: robotoFont,
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
+            // ==== CUSTOMER INFO ====
+            pw.Container(
+              padding: const pw.EdgeInsets.all(16),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: pw.PdfColor.fromInt(0xFFE0E0E0)),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
               ),
-              pw.SizedBox(height: 10),
-              pw.Table(
-                border: pw.TableBorder.all(
-                  color: pw.PdfColor.fromInt(0xFFE0E0E0),
-                ),
-                columnWidths: const {
-                  0: pw.FlexColumnWidth(3),
-                  1: pw.FlexColumnWidth(1),
-                  2: pw.FlexColumnWidth(1.5),
-                  3: pw.FlexColumnWidth(1.5),
-                },
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  // Table Header
-                  pw.TableRow(
-                    decoration: pw.BoxDecoration(
-                      color: pw.PdfColor.fromInt(0xFFF5F5F5),
+                  pw.Text(
+                    'Bill To:',
+                    style: pw.TextStyle(
+                      font: roboto,
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
                     ),
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Text(
+                    bill['customerName']?.toString() ?? 'Walk-in Customer',
+                    style: pw.TextStyle(font: roboto, fontSize: 16),
+                  ),
+                  if ((bill['customerPhone']?.toString() ?? '').isNotEmpty)
+                    pw.Text(
+                      'Phone: ${bill['customerPhone']}',
+                      style: pw.TextStyle(font: roboto, fontSize: 12),
+                    ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 30),
+
+            // ==== ITEMS TABLE ====
+            pw.Text(
+              'Items:',
+              style: pw.TextStyle(
+                font: roboto,
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.SizedBox(height: 10),
+
+            pw.Table(
+              border: pw.TableBorder.all(
+                color: pw.PdfColor.fromInt(0xFFE0E0E0),
+              ),
+              columnWidths: const {
+                0: pw.FlexColumnWidth(3),
+                1: pw.FlexColumnWidth(1),
+                2: pw.FlexColumnWidth(1.5),
+                3: pw.FlexColumnWidth(1.5),
+              },
+              children: [
+                // Header
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(
+                    color: pw.PdfColor.fromInt(0xFFF5F5F5),
+                  ),
+                  children: [
+                    _tableHeaderCell('Product', roboto),
+                    _tableHeaderCell('Qty', roboto, align: pw.TextAlign.center),
+                    _tableHeaderCell(
+                      'Price',
+                      roboto,
+                      align: pw.TextAlign.right,
+                    ),
+                    _tableHeaderCell(
+                      'Total',
+                      roboto,
+                      align: pw.TextAlign.right,
+                    ),
+                  ],
+                ),
+                // Rows
+                ..._extractProductRows(bill).map(
+                  (p) => pw.TableRow(
                     children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(12),
-                        child: pw.Text(
-                          'Product',
-                          style: pw.TextStyle(
-                            font: robotoFont,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
+                      _tableCell(p['name'], roboto),
+                      _tableCell(
+                        p['quantity'].toStringAsFixed(0),
+                        roboto,
+                        align: pw.TextAlign.center,
                       ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(12),
-                        child: pw.Text(
-                          'Qty',
-                          style: pw.TextStyle(
-                            font: robotoFont,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                          textAlign: pw.TextAlign.center,
-                        ),
+                      _tableCell(
+                        'Rs${p['price'].toStringAsFixed(2)}',
+                        roboto,
+                        align: pw.TextAlign.right,
                       ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(12),
-                        child: pw.Text(
-                          'Price',
-                          style: pw.TextStyle(
-                            font: robotoFont,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                          textAlign: pw.TextAlign.right,
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(12),
-                        child: pw.Text(
-                          'Total',
-                          style: pw.TextStyle(
-                            font: robotoFont,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                          textAlign: pw.TextAlign.right,
-                        ),
+                      _tableCell(
+                        'Rs${p['total'].toStringAsFixed(2)}',
+                        roboto,
+                        align: pw.TextAlign.right,
                       ),
                     ],
                   ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 20),
 
-                  // Table Items
-                  if (bill['products'] != null && bill['products'] is Map)
-                    ...bill['products'].values.map<pw.TableRow>((product) {
-                      final price = (product['price'] ?? 0) as num;
-                      final qty = (product['quantity'] ?? 0) as num;
-                      return pw.TableRow(
-                        children: [
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(12),
-                            child: pw.Text(
-                              product['productName'] ?? '',
-                              style: pw.TextStyle(font: robotoFont),
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(12),
-                            child: pw.Text(
-                              '$qty',
-                              textAlign: pw.TextAlign.center,
-                              style: pw.TextStyle(font: robotoFont),
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(12),
-                            child: pw.Text(
-                              '₹${price.toStringAsFixed(2)}',
-                              textAlign: pw.TextAlign.right,
-                              style: pw.TextStyle(font: robotoFont),
-                            ),
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.all(12),
-                            child: pw.Text(
-                              '₹${(price * qty).toStringAsFixed(2)}',
-                              textAlign: pw.TextAlign.right,
-                              style: pw.TextStyle(font: robotoFont),
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList()
-                  else if (bill['productName'] != null) ...[
-                    pw.TableRow(
-                      children: [
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(12),
-                          child: pw.Text(
-                            bill['productName'],
-                            style: pw.TextStyle(font: robotoFont),
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(12),
-                          child: pw.Text(
-                            '1',
-                            textAlign: pw.TextAlign.center,
-                            style: pw.TextStyle(font: robotoFont),
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(12),
-                          child: pw.Text(
-                            '₹${(bill['price'] ?? 0).toStringAsFixed(2)}',
-                            textAlign: pw.TextAlign.right,
-                            style: pw.TextStyle(font: robotoFont),
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.all(12),
-                          child: pw.Text(
-                            '₹${(bill['price'] ?? 0).toStringAsFixed(2)}',
-                            textAlign: pw.TextAlign.right,
-                            style: pw.TextStyle(font: robotoFont),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-              pw.SizedBox(height: 20),
-
-              // Total Section
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.end,
-                children: [
-                  pw.Container(
-                    width: 200,
-                    padding: const pw.EdgeInsets.all(16),
-                    decoration: pw.BoxDecoration(
-                      color: pw.PdfColor.fromInt(0xFFFAFAFA),
-                      borderRadius: const pw.BorderRadius.all(
-                        pw.Radius.circular(8),
-                      ),
-                    ),
-                    child: pw.Column(
-                      children: [
-                        pw.Row(
-                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                          children: [
-                            pw.Text(
-                              'Subtotal:',
-                              style: pw.TextStyle(font: robotoFont),
-                            ),
-                            pw.Text(
-                              '₹${subtotal.toStringAsFixed(2)}',
-                              style: pw.TextStyle(font: robotoFont),
-                            ),
-                          ],
-                        ),
-                        if (discount > 0) ...[
-                          pw.SizedBox(height: 8),
-                          pw.Row(
-                            mainAxisAlignment:
-                                pw.MainAxisAlignment.spaceBetween,
-                            children: [
-                              pw.Text(
-                                'Discount:',
-                                style: pw.TextStyle(font: robotoFont),
-                              ),
-                              pw.Text(
-                                '-₹${discount.toStringAsFixed(2)}',
-                                style: pw.TextStyle(font: robotoFont),
-                              ),
-                            ],
-                          ),
-                        ],
-                        pw.SizedBox(height: 8),
-                        pw.Divider(),
-                        pw.SizedBox(height: 8),
-                        pw.Row(
-                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                          children: [
-                            pw.Text(
-                              'Total:',
-                              style: pw.TextStyle(
-                                font: robotoFont,
-                                fontSize: 16,
-                                fontWeight: pw.FontWeight.bold,
-                              ),
-                            ),
-                            pw.Text(
-                              '₹${total.toStringAsFixed(2)}',
-                              style: pw.TextStyle(
-                                font: robotoFont,
-                                fontSize: 16,
-                                fontWeight: pw.FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+            // ==== TOTAL SUMMARY ====
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.end,
+              children: [
+                pw.Container(
+                  width: 200,
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    color: pw.PdfColor.fromInt(0xFFFAFAFA),
+                    borderRadius: const pw.BorderRadius.all(
+                      pw.Radius.circular(8),
                     ),
                   ),
-                ],
-              ),
-              pw.SizedBox(height: 40),
-
-              // Footer
-              pw.Center(
-                child: pw.Text(
-                  'Thank you for your business!',
-                  style: pw.TextStyle(
-                    font: robotoFont,
-                    fontSize: 14,
-                    fontStyle: pw.FontStyle.italic,
-                    color: pw.PdfColor.fromInt(0xFF666666),
+                  child: pw.Column(
+                    children: [
+                      _summaryRow(
+                        'Subtotal:',
+                        'Rs${subtotal.toStringAsFixed(2)}',
+                        roboto,
+                      ),
+                      if (discount > 0)
+                        _summaryRow(
+                          'Discount:',
+                          '-Rs${discount.toStringAsFixed(2)}',
+                          roboto,
+                        ),
+                      pw.SizedBox(height: 8),
+                      pw.Divider(),
+                      pw.SizedBox(height: 8),
+                      _summaryRow(
+                        'Total:',
+                        'Rs${finalTotal.toStringAsFixed(2)}',
+                        roboto,
+                        bold: true,
+                        size: 16,
+                      ),
+                    ],
                   ),
                 ),
+              ],
+            ),
+            pw.SizedBox(height: 40),
+
+            // ==== FOOTER ====
+            pw.Center(
+              child: pw.Text(
+                'Thank you for your business!',
+                style: pw.TextStyle(
+                  font: roboto,
+                  fontSize: 14,
+                  fontStyle: pw.FontStyle.italic,
+                  color: pw.PdfColor.fromInt(0xFF666666),
+                ),
               ),
-            ],
-          );
-        },
+            ),
+          ],
+        ),
       ),
     );
 
-    log('[PDF] PDF generation completed.');
+    log('[PDF] Single bill PDF ready');
     return pdf.save();
   }
 
+  // -----------------------------------------------------------------
+  // Helper widgets for PDF
+  // -----------------------------------------------------------------
+  pw.Widget _tableHeaderCell(
+    String text,
+    pw.Font font, {
+    pw.TextAlign align = pw.TextAlign.left,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(12),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(font: font, fontWeight: pw.FontWeight.bold),
+        textAlign: align,
+      ),
+    );
+  }
+
+  pw.Widget _tableCell(
+    String text,
+    pw.Font font, {
+    pw.TextAlign align = pw.TextAlign.left,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(12),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(font: font),
+        textAlign: align,
+      ),
+    );
+  }
+
+  pw.Widget _summaryRow(
+    String label,
+    String value,
+    pw.Font font, {
+    bool bold = false,
+    double size = 14,
+  }) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            font: font,
+            fontWeight: bold ? pw.FontWeight.bold : null,
+            fontSize: size,
+          ),
+        ),
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            font: font,
+            fontWeight: bold ? pw.FontWeight.bold : null,
+            fontSize: size,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Saves PDF bytes to the device's Downloads folder and opens it.
+  ///
+  /// [pdfBytes] - Raw PDF data.
+  /// [fileName] - Desired filename (e.g., `INV-20231025-123045.pdf`).
+  ///
+  /// Handles Android 13+ scoped storage permissions.
+  /// Creates `/Download` directory if missing.
+  /// Uses [OpenFile] to launch the PDF after saving.
+  ///
+  /// Returns the full file path on success.
+  /// Throws exception on permission denial or file error.
   Future<String> saveBillPdfToDownloads(
     Uint8List pdfBytes,
     String fileName,
   ) async {
     final log = Logger('PDFSaver');
     log.info('[SAVE] Requesting storage permission...');
-    bool granted = false;
-    final deviceInfo = DeviceInfoPlugin();
-    int sdkInt = 0;
 
+    bool granted = false;
     if (Platform.isAndroid) {
-      final androidInfo = await deviceInfo.androidInfo;
-      sdkInt = androidInfo.version.sdkInt;
-      if (sdkInt >= 33) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdk = androidInfo.version.sdkInt;
+      if (sdk >= 33) {
         granted =
             await Permission.photos.request().isGranted ||
             await Permission.storage.request().isGranted;
@@ -457,49 +491,42 @@ class BillListController extends GetxController {
     }
 
     if (!granted) {
-      log.warning('[✗] Permission denied');
+      log.warning('[Failed] Permission denied');
       throw Exception('Storage permission denied');
     }
 
-    log.info('[SAVE] Permission granted.');
     String filePath;
-
     if (Platform.isAndroid) {
       final dir = Directory('/storage/emulated/0/Download');
-      if (!await dir.exists()) {
-        log.info('[SAVE] Creating Downloads directory...');
-        await dir.create(recursive: true);
-      }
+      if (!await dir.exists()) await dir.create(recursive: true);
       filePath = '${dir.path}/$fileName';
     } else {
       final dir = await getDownloadsDirectory();
-      if (dir == null) {
-        log.warning('[✗] Could not access Downloads directory');
-        throw Exception('Could not access Downloads directory');
-      }
+      if (dir == null) throw Exception('Cannot access Downloads folder');
       filePath = '${dir.path}/$fileName';
     }
 
     final file = File(filePath);
     await file.writeAsBytes(pdfBytes);
-    log.info('[✓] PDF saved successfully to: $filePath');
+    log.info('[Success] PDF saved: $filePath');
 
-    try {
-      final result = await OpenFile.open(filePath);
-      if (result.type == ResultType.done) {
-        log.info('[✓] PDF opened successfully');
-      } else {
-        log.warning('[✗] Failed to open PDF: ${result.message}');
-        throw Exception('Failed to open PDF: ${result.message}');
-      }
-    } catch (e) {
-      log.severe('[✗] Error opening PDF: $e');
-      throw Exception('Error opening PDF: $e');
+    final result = await OpenFile.open(filePath);
+    if (result.type != ResultType.done) {
+      throw Exception('Failed to open PDF: ${result.message}');
     }
 
     return filePath;
   }
 
+  /// Generates a consolidated monthly sales report PDF.
+  ///
+  /// [bills] - List of bills for the target month.
+  ///
+  /// Sorts bills by date, groups by invoice, includes:
+  /// - Per-invoice breakdown with items
+  /// - Grand total and invoice count
+  ///
+  /// Throws if [bills] is empty.
   Future<Uint8List> generateMonthlyBillPdf(
     List<Map<String, dynamic>> bills,
   ) async {
@@ -510,6 +537,7 @@ class BillListController extends GetxController {
       throw Exception('No bills to generate for the month.');
     }
 
+    // Sort bills chronologically
     bills.sort(
       (a, b) => DateTime.parse(
         a['createdAt'],
@@ -530,7 +558,7 @@ class BillListController extends GetxController {
             pw.SizedBox(height: 20),
             ...bills.map((bill) {
               final date = DateTime.parse(bill['createdAt']).toLocal();
-              final total = calculateBillSubtotal(bill);
+              final subtotal = calculateBillSubtotal(bill);
               final invoiceNumber =
                   bill['invoiceNumber'] ?? 'INV-${bill['id']}';
 
@@ -555,7 +583,7 @@ class BillListController extends GetxController {
                   pw.Table(
                     border: pw.TableBorder.all(
                       color: pw.PdfColor.fromInt(0xFFE0E0E0),
-                    ), // Grey300 equivalent
+                    ),
                     children: [
                       pw.TableRow(
                         children: [
@@ -592,13 +620,13 @@ class BillListController extends GetxController {
                               pw.Padding(
                                 padding: const pw.EdgeInsets.all(4),
                                 child: pw.Text(
-                                  '\$${product['price']?.toStringAsFixed(2) ?? '0.00'}',
+                                  '₹${product['price']?.toStringAsFixed(2) ?? '0.00'}',
                                 ),
                               ),
                               pw.Padding(
                                 padding: const pw.EdgeInsets.all(4),
                                 child: pw.Text(
-                                  '\$${((product['price'] ?? 0) * (product['quantity'] ?? 0)).toStringAsFixed(2)}',
+                                  '₹${((product['price'] ?? 0) * (product['quantity'] ?? 0)).toStringAsFixed(2)}',
                                 ),
                               ),
                             ],
@@ -618,13 +646,13 @@ class BillListController extends GetxController {
                             pw.Padding(
                               padding: const pw.EdgeInsets.all(4),
                               child: pw.Text(
-                                '\$${bill['price']?.toStringAsFixed(2) ?? '0.00'}',
+                                '₹${bill['price']?.toStringAsFixed(2) ?? '0.00'}',
                               ),
                             ),
                             pw.Padding(
                               padding: const pw.EdgeInsets.all(4),
                               child: pw.Text(
-                                '\$${bill['price']?.toStringAsFixed(2) ?? '0.00'}',
+                                '₹${bill['price']?.toStringAsFixed(2) ?? '0.00'}',
                               ),
                             ),
                           ],
@@ -632,7 +660,7 @@ class BillListController extends GetxController {
                     ],
                   ),
                   pw.SizedBox(height: 5),
-                  pw.Text('Subtotal: \$${total.toStringAsFixed(2)}'),
+                  pw.Text('Subtotal: ₹${subtotal.toStringAsFixed(2)}'),
                   pw.SizedBox(height: 10),
                 ],
               );
@@ -640,7 +668,7 @@ class BillListController extends GetxController {
             pw.SizedBox(height: 20),
             pw.Divider(),
             pw.Text(
-              'Grand Total: \$${bills.fold(0.0, (sum, bill) => sum + calculateBillSubtotal(bill)).toStringAsFixed(2)}',
+              'Grand Total: ₹${bills.fold(0.0, (sum, bill) => sum + calculateBillSubtotal(bill)).toStringAsFixed(2)}',
               style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
             pw.Text(
@@ -656,26 +684,27 @@ class BillListController extends GetxController {
     return pdf.save();
   }
 
-  // Helper method to download bill PDF
+  /// Downloads a single bill as PDF.
+  ///
+  /// Generates PDF → Saves to Downloads → Opens automatically.
+  /// Shows loading and success/error snackbars.
   Future<void> downloadBillPdf(Map<String, dynamic> bill) async {
     try {
       isLoading.value = true;
-      // Generate PDF
       final pdfBytes = await generateBillPdf(bill);
-      // Create filename
-      final invoiceNumber = bill['invoiceNumber'] ?? 'INV-${bill['id']}';
-      final fileName = '${invoiceNumber.replaceAll('/', '_')}.pdf';
-      // Save and open PDF
+      final inv = bill['invoiceNumber'] ?? 'INV-${bill['id']}';
+      final fileName = '${inv.replaceAll('/', '_')}.pdf';
       await saveBillPdfToDownloads(pdfBytes, fileName);
+
       Get.snackbar(
         'Success',
-        'PDF saved and opened successfully',
+        'Invoice PDF saved & opened',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.green,
         colorText: Colors.white,
       );
     } catch (e) {
-      log('Error downloading PDF: $e');
+      log('PDF download error: $e');
       Get.snackbar(
         'Error',
         'Failed to download PDF: $e',
@@ -688,7 +717,11 @@ class BillListController extends GetxController {
     }
   }
 
-  // Helper method to download monthly report
+  /// Downloads a monthly sales report as PDF.
+  ///
+  /// [monthlyBills] - List of bills for the selected month.
+  ///
+  /// Validates input, generates consolidated PDF, saves, and opens.
   Future<void> downloadMonthlyReport(
     List<Map<String, dynamic>> monthlyBills,
   ) async {
@@ -696,7 +729,7 @@ class BillListController extends GetxController {
       if (monthlyBills.isEmpty) {
         Get.snackbar(
           'Error',
-          'No bills found for the selected month',
+          'No bills found for the selected månad',
           snackPosition: SnackPosition.BOTTOM,
           backgroundColor: Colors.orange,
           colorText: Colors.white,
@@ -705,15 +738,12 @@ class BillListController extends GetxController {
       }
 
       isLoading.value = true;
-      // Generate monthly PDF
       final pdfBytes = await generateMonthlyBillPdf(monthlyBills);
-      // Create filename
       final monthDate = DateTime.parse(
         monthlyBills.first['createdAt'],
       ).toLocal();
       final monthLabel = DateFormat('MMMM_yyyy').format(monthDate);
       final fileName = 'Monthly_Sales_Report_$monthLabel.pdf';
-      // Save and open PDF
       await saveBillPdfToDownloads(pdfBytes, fileName);
       Get.snackbar(
         'Success',

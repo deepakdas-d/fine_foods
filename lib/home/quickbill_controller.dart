@@ -19,6 +19,8 @@ class QuickbillController extends GetxController {
   final productQuantityController = TextEditingController();
   final productTypeController = TextEditingController(text: 'unit');
 
+  /// Cleans up text controllers when the controller is disposed.
+  /// Prevents memory leaks by disposing of all manually created controllers.
   @override
   void onClose() {
     productNameController.dispose();
@@ -28,6 +30,16 @@ class QuickbillController extends GetxController {
     super.onClose();
   }
 
+  /// Adds a new product to the cart with calculated total.
+  ///
+  /// [name] - Name of the product (required).
+  /// [price] - Unit price of the product (required).
+  /// [quantity] - Quantity to be added (required).
+  /// [type] - Unit type (e.g., 'unit', 'kg', 'meter') (required).
+  ///
+  /// Generates a unique ID, computes `total = price × quantity`,
+  /// adds the product to [newProducts], clears input fields,
+  /// and shows a success snackbar.
   void addProduct({
     required String name,
     required double price,
@@ -53,6 +65,10 @@ class QuickbillController extends GetxController {
     );
   }
 
+  /// Clears all product input fields after adding a product.
+  ///
+  /// Resets the text controllers and sets the product type back to 'unit'.
+  /// Ensures clean state for the next product entry.
   void clearProductInputs() {
     productNameController.clear();
     productPriceController.clear();
@@ -60,10 +76,22 @@ class QuickbillController extends GetxController {
     productTypeController.text = 'unit';
   }
 
+  /// Removes a product from the cart by its unique [id].
+  ///
+  /// [id] - The UUID of the product to remove.
+  ///
+  /// Uses [removeWhere] to filter out the matching product from [newProducts].
   void removeProduct(String id) {
     newProducts.removeWhere((product) => product['id'] == id);
   }
 
+  /// Calculates the final bill total after applying global discount.
+  ///
+  /// Iterates through all products, sums their individual totals,
+  /// subtracts the customer discount (if valid), and ensures the result
+  /// is non-negative using `.clamp(0, double.infinity)`.
+  ///
+  /// Returns the final payable amount.
   double calculateTotal() {
     double total = 0;
     for (var product in newProducts) {
@@ -75,6 +103,12 @@ class QuickbillController extends GetxController {
     return (total - discount).clamp(0, double.infinity);
   }
 
+  /// Generates a unique invoice number based on current date and time.
+  ///
+  /// Format: `INV-YYYYMMDD-HHMMSS`
+  /// Example: `INV-20251025-143052`
+  ///
+  /// Ensures uniqueness and traceability of invoices.
   String generateInvoiceNumber() {
     final now = DateTime.now();
     final formatter = DateFormat('yyyyMMdd');
@@ -83,6 +117,21 @@ class QuickbillController extends GetxController {
     return 'INV-$dateString-$timeString';
   }
 
+  /// Creates a new bill in Firestore and returns the bill data.
+  ///
+  /// Performs validation:
+  /// - At least one product required.
+  /// - Phone number must be 10 digits if provided.
+  /// - Discount must be a valid positive number if provided.
+  ///
+  /// On success:
+  /// - Generates unique bill ID and invoice number.
+  /// - Saves bill data using a batch write.
+  /// - Shows success message.
+  /// - Clears the cart and closes bottom sheet.
+  ///
+  /// Returns [Map<String, dynamic>?] containing bill data on success,
+  /// or `null` on validation failure or error.
   Future<Map<String, dynamic>?> createBill() async {
     if (newProducts.isEmpty) {
       Get.snackbar(
@@ -191,6 +240,14 @@ class QuickbillController extends GetxController {
     }
   }
 
+  /// Clears the entire cart and customer information.
+  ///
+  /// Resets:
+  /// - Product list
+  /// - Customer name, phone, discount
+  /// - Input fields
+  ///
+  /// Used after successful bill creation or manual reset.
   void clearCart() {
     newProducts.clear();
     customerName.value = '';
@@ -199,6 +256,11 @@ class QuickbillController extends GetxController {
     clearProductInputs();
   }
 
+  /// Calculates the subtotal (sum of all product totals) from bill data.
+  ///
+  /// [billData] - The bill map containing list of products.
+  ///
+  /// Useful for printing or displaying breakdown.
   double calculateBillSubtotal(Map<String, dynamic> billData) {
     double subtotal = 0;
     for (var product in billData['products']) {
@@ -207,10 +269,27 @@ class QuickbillController extends GetxController {
     return subtotal;
   }
 
+  /// Extracts the discount amount from bill data.
+  ///
+  /// [billData] - The bill map.
+  ///
+  /// Returns 0.0 if no discount is present.
   double calculateBillDiscount(Map<String, dynamic> billData) {
     return billData['discount'] as double? ?? 0.0;
   }
 
+  /// Prints the invoice using a connected Bluetooth thermal printer.
+  ///
+  /// [billData] - The complete bill data (from [createBill]).
+  ///
+  /// Features:
+  /// - Formats header with shop name, address, phone.
+  /// - Prints invoice number, date, customer info.
+  /// - Lists products with aligned columns (name, qty, price, total).
+  /// - Shows subtotal, discount (if any), and bold final total.
+  /// - Uses ESC/POS commands via [EscCommand].
+  ///
+  /// Shows success/error snackbar based on print result.
   Future<void> printInvoice(Map<String, dynamic> billData) async {
     try {
       if (!BluetoothPrintPlus.isConnected) {
@@ -223,7 +302,10 @@ class QuickbillController extends GetxController {
       final esc = EscCommand();
       await esc.cleanCommand();
 
+      // Initialize printer
       esc.text(content: '\x1B\x40');
+
+      // Shop Header (Centered, Bold)
       esc.text(
         content:
             '\x1B\x61\x01\x1B\x45\x01\x1D\x21\x00WRAPPIE\nCRAFTS & GIFTS\n\x1B\x45\x00',
@@ -233,17 +315,20 @@ class QuickbillController extends GetxController {
         content: '\x1B\x61\x01Main Road Alathur\n7907609118\n\x1B\x61\x00',
       );
 
+      // Invoice Details
       esc.text(
         content:
             '\x1B\x61\x00\x1B\x4D\x01Invoice #${billData['invoiceNumber']}\nDate: $formattedDate\nCustomer: ${billData['customerName']}\n${billData['customerPhone'].isNotEmpty ? 'Phone: ${billData['customerPhone']}\n' : ''}\x1B\x4D\x00',
       );
 
+      // Table Header
       esc.text(content: '--------------------------------\n');
       esc.text(
         content: '\x1B\x45\x01Item          Qty  Price  Total\n\x1B\x45\x00',
       );
       esc.text(content: '--------------------------------\n');
 
+      // Product Rows
       for (var product in billData['products']) {
         String name = product['productName'].toString();
         if (name.length > 12) name = name.substring(0, 12);
@@ -256,6 +341,7 @@ class QuickbillController extends GetxController {
         esc.text(content: '$name $qty $price $total\n');
       }
 
+      // Summary
       esc.text(content: '--------------------------------\n');
 
       final subtotal = calculateBillSubtotal(billData);
@@ -275,6 +361,7 @@ class QuickbillController extends GetxController {
             '\x1B\x61\x02\x1B\x45\x01Total: Rs${finalTotal.toStringAsFixed(2)}\n\x1B\x45\x00',
       );
 
+      // Paper feed
       esc.text(content: '\n\n\n');
 
       final cmd = await esc.getCommand();
