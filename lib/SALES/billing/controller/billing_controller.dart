@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
-import 'package:fine_foods/SALES/billing/controller/billing_list_controller.dart';
+import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
@@ -14,7 +14,7 @@ class BillingController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final customerName = TextEditingController();
   final customerPhone = TextEditingController();
-  final customerDiscount = TextEditingController();
+  var customerDiscount = ''.obs;
 
   final RxList<Product> products = <Product>[].obs;
   final RxList<Product> filteredProducts = <Product>[].obs;
@@ -123,7 +123,6 @@ class BillingController extends GetxController {
     customPrices.clear();
     customerName.clear();
     customerPhone.clear();
-    customerDiscount.clear();
   }
 
   double calculateTotal() {
@@ -134,9 +133,9 @@ class BillingController extends GetxController {
         total += price * selectedProducts[product.id]!;
       }
     }
-    final discount = customerDiscount.text.trim().isEmpty
+    final discount = customerDiscount.trim().isEmpty
         ? 0.0
-        : double.tryParse(customerDiscount.text.trim()) ?? 0.0;
+        : double.tryParse(customerDiscount.trim()) ?? 0.0;
     return (total - discount).clamp(0, double.infinity);
   }
 
@@ -166,9 +165,9 @@ class BillingController extends GetxController {
       final invoiceNumber = generateInvoiceNumber();
       final batch = _firestore.batch();
 
-      final globalDiscount = customerDiscount.text.trim().isEmpty
+      final globalDiscount = customerDiscount.trim().isEmpty
           ? 0.0
-          : double.tryParse(customerDiscount.text.trim()) ?? 0.0;
+          : double.tryParse(customerDiscount.trim()) ?? 0.0;
 
       final billData = {
         'invoiceNumber': invoiceNumber,
@@ -375,7 +374,6 @@ class BillingController extends GetxController {
   void onClose() {
     customerName.dispose();
     customerPhone.dispose();
-    customerDiscount.dispose();
     super.onClose();
   }
 }

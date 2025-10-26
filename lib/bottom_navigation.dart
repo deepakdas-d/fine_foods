@@ -35,31 +35,55 @@ class BottomNavPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final itemWidth = screenWidth / bottomBarItems.length;
+
     return Obx(
       () => Scaffold(
         body: PageView(
           controller: pageController,
-          onPageChanged: (index) {
-            controller.currentIndex.value = index;
-          },
+          onPageChanged: (index) => controller.currentIndex.value = index,
           children: _pages,
         ),
-        bottomNavigationBar: AnimatedNotchBottomBar(
-          notchBottomBarController: NotchBottomBarController(
-            index: controller.currentIndex.value,
-          ),
-          bottomBarItems: bottomBarItems,
+        bottomNavigationBar: Container(
           color: Colors.amber,
-          notchColor: Colors.black,
-          showLabel: true,
-          showShadow: true,
-          itemLabelStyle: const TextStyle(color: Colors.black, fontSize: 17),
-          kIconSize: 24,
-          kBottomRadius: 16,
-          onTap: (index) {
-            controller.currentIndex.value = index;
-            pageController.jumpToPage(index);
-          },
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(bottomBarItems.length, (index) {
+              final item = bottomBarItems[index];
+              final isActive = controller.currentIndex.value == index;
+
+              return GestureDetector(
+                onTap: () {
+                  controller.currentIndex.value = index;
+                  pageController.jumpToPage(index);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  width: itemWidth,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isActive ? Colors.black : Colors.amber,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      isActive ? item.activeItem : item.inActiveItem,
+                      const SizedBox(height: 4),
+                      Text(
+                        item.itemLabel ?? '',
+                        style: TextStyle(
+                          color: isActive ? Colors.white : Colors.black,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
         ),
       ),
     );

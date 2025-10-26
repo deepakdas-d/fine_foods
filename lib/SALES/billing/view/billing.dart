@@ -1,6 +1,5 @@
 import 'package:fine_foods/SALES/billing/controller/billing_controller.dart';
-import 'package:fine_foods/SALES/billing/controller/billing_list_controller.dart';
-import 'package:fine_foods/SALES/billing/view/billing_list.dart';
+import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
 import 'package:fine_foods/bottom_navigation.dart';
 import 'package:fine_foods/home/home_controller.dart';
 import 'package:flutter/material.dart';
@@ -80,10 +79,6 @@ class BillingScreen extends StatelessWidget {
               ),
           ],
         ),
-      ),
-      IconButton(
-        onPressed: () => Get.to(() => BillingList()),
-        icon: const Icon(Icons.receipt_long_outlined),
       ),
     ],
   );
@@ -461,8 +456,11 @@ class BillingScreen extends StatelessWidget {
     ),
     child: Column(
       children: [
-        TextField(
-          controller: controller.customerDiscount,
+        TextFormField(
+          controller: TextEditingController(
+            text: controller.customerDiscount.value,
+          ),
+          onChanged: (value) => controller.customerDiscount.value = value,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
             labelText: 'Discount',
@@ -470,6 +468,23 @@ class BillingScreen extends StatelessWidget {
             prefixIcon: const Icon(Icons.discount_outlined),
             isDense: true,
           ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return null; // discount is optional
+            }
+
+            final discount = double.tryParse(value.trim());
+            if (discount == null || discount <= 0) {
+              return 'Enter a valid discount > 0';
+            }
+
+            final total = controller.calculateTotal(); // your total function
+            if (discount > total) {
+              return 'Discount cannot exceed total price ($total)';
+            }
+
+            return null;
+          },
         ),
         ExpansionTile(
           title: const Text(

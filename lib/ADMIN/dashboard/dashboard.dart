@@ -2,6 +2,7 @@ import 'package:fine_foods/ADMIN/Inventory/inventary.dart';
 import 'package:fine_foods/ADMIN/Stocks/stocks.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/invoice_generator.dart';
 import 'package:fine_foods/ADMIN/sales_data/Sales_Growth.dart';
+import 'package:fine_foods/ADMIN/Bills/billing_list.dart';
 import 'package:fine_foods/bottom_navigation.dart';
 import 'package:fine_foods/home/home.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +42,12 @@ class Dashboard extends StatelessWidget {
         icon: Icons.bar_chart_outlined,
         color: Colors.green.shade400,
         page: SalesGrowth(),
+      ),
+      _DashboardItem(
+        title: "Bills",
+        icon: Icons.receipt_long_outlined,
+        color: const Color.fromARGB(255, 149, 102, 187),
+        page: BillingList(),
       ),
     ];
 
