@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
+import 'package:fine_foods/bluetooth_list.dart';
 import 'package:fine_foods/home/home_controller.dart';
 import 'package:fine_foods/home/quickbill_controller.dart';
 import 'package:flutter/material.dart';
@@ -54,6 +54,7 @@ class Home extends StatelessWidget {
           ),
           foregroundColor: Colors.black,
           actions: [
+            /// ✅ Bluetooth connection indicator + navigation
             Obx(() {
               return Row(
                 children: [
@@ -77,77 +78,29 @@ class Home extends StatelessWidget {
                     tooltip: printerController.isConnected.value
                         ? 'Printer Connected'
                         : 'Connect Printer',
-                    onPressed: () => printerController.connectPrinter(context),
+
+                    /// 👉 Navigate to Bluetooth page
+                    onPressed: () async {
+                      await Get.to(() => const BluetoothList());
+                      // Optionally refresh connection state after returning
+                      printerController.checkPrinterConnection();
+                    },
                   ),
                 ],
               );
             }),
           ],
         ),
-        body: Stack(
-          children: [
-            /// ✅ Directly show Quick Bill screen
-            SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildProductInputSection(),
-                  _buildCartSection(),
-                  _buildCheckoutSection(context),
-                ],
-              ),
-            ),
-
-            /// ✅ Loading overlay
-            Obx(() {
-              if (!isLoading.value) return const SizedBox.shrink();
-              return _buildOverlay(child: const CircularProgressIndicator());
-            }),
-
-            /// ✅ Bluetooth scanning overlay
-            Obx(() {
-              if (!printerController.isScanning.value)
-                return const SizedBox.shrink();
-              return _buildOverlay(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "Scanning for Bluetooth printers...",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: () async {
-                        try {
-                          await BluetoothPrintPlus.stopScan();
-                        } catch (_) {}
-                        printerController.isScanning.value = false;
-                      },
-                      child: const Text("Stop"),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildProductInputSection(),
+              _buildCartSection(),
+              _buildCheckoutSection(context),
+            ],
+          ),
         ),
       ),
-    );
-  }
-
-  Widget _buildOverlay({required Widget child}) {
-    return Container(
-      color: Colors.black54,
-      child: Center(child: child),
     );
   }
 

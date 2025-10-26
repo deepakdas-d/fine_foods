@@ -9,19 +9,16 @@ class PrinterController extends GetxController with WidgetsBindingObserver {
   var isConnected = false.obs;
   var isScanning = false.obs;
   var printerName = ''.obs;
-  var selectedIndex = 0.obs;
-  final pageController = PageController();
-  final BillingController billingController = Get.put(BillingController());
+  var availablePrinters = <BluetoothDevice>[].obs;
 
-  BluetoothDevice? selectedPrinter;
+  final billingController = Get.put(BillingController());
   final storage = GetStorage();
+  BluetoothDevice? selectedPrinter;
 
   @override
   void onInit() {
     super.onInit();
     WidgetsBinding.instance.addObserver(this);
-
-    // Try reconnect on startup
     _restoreLastPrinter();
   }
 
@@ -33,41 +30,33 @@ class PrinterController extends GetxController with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      // When app resumes after call/background
-      if (!isConnected.value && selectedPrinter != null) {
-        Get.snackbar(
-          'Printer',
-          'Reconnecting to last printer...',
-          snackPosition: SnackPosition.BOTTOM,
-          duration: const Duration(seconds: 2),
-        );
-        connectToLastPrinter();
-      }
+    if (state == AppLifecycleState.resumed &&
+        !isConnected.value &&
+        selectedPrinter != null) {
+      Get.snackbar(
+        'Printer',
+        'Reconnecting to last printer...',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+      connectToLastPrinter();
     }
   }
 
-  void changePage(int index) {
-    selectedIndex.value = index;
-    pageController.jumpToPage(index);
-  }
-
-  /// Request Bluetooth permissions
+  /// ✅ Ask permissions for Bluetooth
   Future<bool> _requestPermissions() async {
     if (GetPlatform.isAndroid) {
       final status = await [
         Permission.bluetoothScan,
         Permission.bluetoothConnect,
-        Permission.location, // needed for Android < 12
+        Permission.location,
       ].request();
-
       return status.values.every((s) => s.isGranted);
     }
     return true;
   }
 
-  /// Save last printer in storage
-  /// Save last printer in storage
+  /// ✅ Save last printer info
   Future<void> _saveLastPrinter(BluetoothDevice device) async {
     await storage.write('last_printer', {
       'name': device.name,
@@ -75,8 +64,7 @@ class PrinterController extends GetxController with WidgetsBindingObserver {
     });
   }
 
-  /// Restore last printer on startup
-  /// Restore last printer on startup
+  /// ✅ Restore last printer and auto reconnect
   Future<void> _restoreLastPrinter() async {
     final data = storage.read('last_printer');
     if (data != null && data is Map) {
@@ -84,127 +72,148 @@ class PrinterController extends GetxController with WidgetsBindingObserver {
       final addr = data['address'];
       if (addr != null) {
         selectedPrinter = BluetoothDevice(name, addr);
-
         Get.snackbar(
           'Printer',
           'Restoring last printer: $name',
           snackPosition: SnackPosition.BOTTOM,
           duration: const Duration(seconds: 2),
         );
-
         await connectToLastPrinter();
       }
     }
   }
 
-  /// Connect to the previously saved printer
+  /// ✅ Connect to the saved printer
   Future<void> connectToLastPrinter() async {
     if (selectedPrinter == null) return;
     try {
       await BluetoothPrintPlus.connect(selectedPrinter!);
       isConnected.value = BluetoothPrintPlus.isConnected;
+      if (isConnected.value) printerName.value = selectedPrinter?.name ?? '';
     } catch (_) {
       isConnected.value = false;
+      printerName.value = '';
     }
   }
 
-  /// Scan, show list, connect
-  Future<void> connectPrinter(BuildContext context) async {
+  /// ✅ Start scanning for printers (used in PrinterSelectionPage)
+  Future<void> startScan() async {
+    final granted = await _requestPermissions();
+    if (!granted) {
+      Get.snackbar('Permission', 'Bluetooth permission required');
+      return;
+    }
+
     try {
-      final granted = await _requestPermissions();
-      if (!granted) return;
-
       isScanning.value = true;
-      await BluetoothPrintPlus.startScan(timeout: const Duration(seconds: 5));
-      await Future.delayed(const Duration(seconds: 1));
+      availablePrinters.clear();
 
-      final bonded = await BluetoothPrintPlus.scanResults.firstWhere(
-        (list) => list.isNotEmpty,
-        orElse: () => [],
-      );
-
+      await BluetoothPrintPlus.startScan(timeout: const Duration(seconds: 4));
+      BluetoothPrintPlus.scanResults.listen((devices) {
+        availablePrinters.value = devices;
+      });
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to scan: $e');
+    } finally {
       isScanning.value = false;
+    }
+  }
 
-      final chosen = await showDialog<BluetoothDevice>(
-        context: context,
-        builder: (ctx) {
-          return AlertDialog(
-            title: const Text('Select Bluetooth Printer'),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: StreamBuilder<List<BluetoothDevice>>(
-                stream: BluetoothPrintPlus.scanResults,
-                initialData: bonded,
-                builder: (context, snapshot) {
-                  final devices = [
-                    ...bonded,
-                    ...snapshot.data!.where((d) => !bonded.contains(d)),
-                  ];
+  /// ✅ Stop scanning manually
+  Future<void> stopScan() async {
+    try {
+      await BluetoothPrintPlus.stopScan();
+    } catch (_) {}
+    isScanning.value = false;
+  }
 
-                  if (devices.isEmpty) {
-                    return const SizedBox(
-                      height: 80,
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: devices.length,
-                    itemBuilder: (context, i) {
-                      final d = devices[i];
-                      return ListTile(
-                        title: Text(d.name),
-                        subtitle: Text(d.address),
-                        onTap: () => Navigator.pop(ctx, d),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-
-      try {
-        await BluetoothPrintPlus.stopScan();
-      } catch (_) {}
-
-      if (chosen == null) return;
-
-      // Try connect with retries
-      await Future.delayed(const Duration(seconds: 1));
-      bool connected = false;
-      for (int i = 0; i < 2; i++) {
-        try {
-          await BluetoothPrintPlus.connect(chosen);
-          connected = BluetoothPrintPlus.isConnected;
-          if (connected) break;
-        } catch (_) {}
-        await Future.delayed(const Duration(milliseconds: 500));
-      }
-
+  /// ✅ Connect to a selected printer from list
+  Future<void> connectPrinter(BluetoothDevice device) async {
+    try {
+      await BluetoothPrintPlus.connect(device);
+      final connected = BluetoothPrintPlus.isConnected;
       isConnected.value = connected;
 
       if (connected) {
-        selectedPrinter = chosen;
-        await _saveLastPrinter(chosen);
-        Get.snackbar('Connected', 'Printer: ${chosen.name}');
+        selectedPrinter = device;
+        printerName.value = device.name;
+        await _saveLastPrinter(device);
+        Get.snackbar('Connected', 'Printer: ${device.name}');
       } else {
-        Get.snackbar('Failed', 'Could not connect to printer');
+        Get.snackbar('Failed', 'Could not connect to ${device.name}');
       }
     } catch (e) {
-      isScanning.value = false;
-      Get.snackbar('Error', e.toString());
+      Get.snackbar('Error', 'Connection failed: $e');
     }
   }
 
-  // Quick billing
+  /// ✅ Disconnect printer
+  Future<void> disconnectPrinter() async {
+    try {
+      await BluetoothPrintPlus.disconnect();
+    } catch (_) {}
+    isConnected.value = false;
+    printerName.value = '';
+  }
+
+  /// === NEW ===
+  /// Check the current printer connection state and update observables.
+  /// If [tryReconnect] is true and there's a saved `selectedPrinter`, this will
+  /// attempt a couple of quick reconnect tries.
+  Future<void> checkPrinterConnection({bool tryReconnect = false}) async {
+    try {
+      // Query the underlying library for connection status
+      final connected = BluetoothPrintPlus.isConnected;
+      isConnected.value = connected;
+
+      if (connected) {
+        // If we are connected but don't have a name set, try to set it
+        if (printerName.value.isEmpty) {
+          printerName.value =
+              selectedPrinter?.name ??
+              storage.read('last_printer')?['name'] ??
+              'Printer';
+        }
+        return;
+      }
+
+      // Not connected
+      printerName.value = '';
+
+      if (tryReconnect && selectedPrinter != null) {
+        Get.snackbar(
+          'Printer',
+          'Attempting quick reconnect...',
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 1),
+        );
+
+        bool reconnected = false;
+        for (int i = 0; i < 2; i++) {
+          try {
+            await BluetoothPrintPlus.connect(selectedPrinter!);
+            reconnected = BluetoothPrintPlus.isConnected;
+            if (reconnected) break;
+          } catch (_) {}
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+
+        isConnected.value = reconnected;
+        if (reconnected) {
+          printerName.value =
+              selectedPrinter?.name ??
+              storage.read('last_printer')?['name'] ??
+              'Printer';
+          Get.snackbar('Connected', 'Reconnected to ${printerName.value}');
+        } else {
+          Get.snackbar('Printer', 'Not connected');
+        }
+      }
+    } catch (e) {
+      // On error, ensure state is consistent
+      isConnected.value = false;
+      printerName.value = '';
+      Get.snackbar('Error', 'Failed to check printer state: $e');
+    }
+  }
 }
