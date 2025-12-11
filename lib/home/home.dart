@@ -36,7 +36,8 @@ class Home extends StatelessWidget {
           Obx(() {
             return Row(
               children: [
-                if (printerController.printerName.value.isNotEmpty)
+                if (printerController.isConnected.value &&
+                    printerController.printerName.value.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(right: 8.0),
                     child: Text(
@@ -44,6 +45,7 @@ class Home extends StatelessWidget {
                       style: const TextStyle(color: Colors.black),
                     ),
                   ),
+
                 IconButton(
                   icon: Icon(
                     printerController.isConnected.value
@@ -57,7 +59,7 @@ class Home extends StatelessWidget {
                       ? 'Printer Connected'
                       : 'Connect Printer',
 
-                  /// 👉 Navigate to Bluetooth page
+                  ///  Navigate to Bluetooth page
                   onPressed: () async {
                     await Get.to(() => const BluetoothList());
                     // Optionally refresh connection state after returning

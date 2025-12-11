@@ -14,6 +14,12 @@ class BluetoothList extends StatelessWidget {
         title: const Text('Select Bluetooth Printer'),
         backgroundColor: const Color(0xFFFFD700),
         foregroundColor: Colors.black,
+        actions: [
+          IconButton(
+            onPressed: controller.disconnectPrinter,
+            icon: Icon(Icons.bluetooth_disabled_outlined),
+          ),
+        ],
       ),
       body: Obx(() {
         if (controller.isScanning.value) {
