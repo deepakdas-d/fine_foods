@@ -14,7 +14,7 @@ import 'package:pdf/widgets.dart' as pw;
 class Home extends StatelessWidget {
   Home({super.key});
 
-  final PrinterController printerController = Get.find();
+  final printerController = Get.find<PrinterController>();
   final QuickbillController quickbillController = Get.put(
     QuickbillController(),
   );
@@ -83,7 +83,7 @@ class Home extends StatelessWidget {
                     onPressed: () async {
                       await Get.to(() => const BluetoothList());
                       // Optionally refresh connection state after returning
-                      printerController.checkPrinterConnection();
+                      printerController.refreshConnection();
                     },
                   ),
                 ],

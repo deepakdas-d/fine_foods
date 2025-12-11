@@ -35,7 +35,7 @@ class QuickbillController extends GetxController {
   /// [name] - Name of the product (required).
   /// [price] - Unit price of the product (required).
   /// [quantity] - Quantity to be added (required).
-  /// [type] - Unit type (e.g., 'unit', 'kg', 'meter') (required).
+  /// [type] - Unit type (e.g., 'unit', 'kg', 'meter').
   ///
   /// Generates a unique ID, computes `total = price × quantity`,
   /// adds the product to [newProducts], clears input fields,
