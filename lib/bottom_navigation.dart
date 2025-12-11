@@ -39,50 +39,73 @@ class BottomNavPage extends StatelessWidget {
     final itemWidth = screenWidth / bottomBarItems.length;
 
     return Obx(
-      () => Scaffold(
-        body: PageView(
-          controller: pageController,
-          onPageChanged: (index) => controller.currentIndex.value = index,
-          children: _pages,
-        ),
-        bottomNavigationBar: Container(
-          color: Colors.amber,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(bottomBarItems.length, (index) {
-              final item = bottomBarItems[index];
-              final isActive = controller.currentIndex.value == index;
-
-              return GestureDetector(
-                onTap: () {
-                  controller.currentIndex.value = index;
-                  pageController.jumpToPage(index);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  width: itemWidth,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isActive ? Colors.black : Colors.amber,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      isActive ? item.activeItem : item.inActiveItem,
-                      const SizedBox(height: 4),
-                      Text(
-                        item.itemLabel ?? '',
-                        style: TextStyle(
-                          color: isActive ? Colors.white : Colors.black,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
+      () => WillPopScope(
+        onWillPop: () async {
+          bool close =
+              await Get.dialog(
+                AlertDialog(
+                  title: const Text('Confirm Exit'),
+                  content: const Text('Do you want to exit the app?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Get.back(result: false),
+                      child: const Text('No'),
+                    ),
+                    TextButton(
+                      onPressed: () => Get.back(result: true),
+                      child: const Text('Yes'),
+                    ),
+                  ],
                 ),
-              );
-            }),
+              ) ??
+              false;
+          return close;
+        },
+        child: Scaffold(
+          body: PageView(
+            controller: pageController,
+            onPageChanged: (index) => controller.currentIndex.value = index,
+            children: _pages,
+          ),
+          bottomNavigationBar: Container(
+            color: Colors.amber,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(bottomBarItems.length, (index) {
+                final item = bottomBarItems[index];
+                final isActive = controller.currentIndex.value == index;
+
+                return GestureDetector(
+                  onTap: () {
+                    controller.currentIndex.value = index;
+                    pageController.jumpToPage(index);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    width: itemWidth,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isActive ? Colors.black : Colors.amber,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        isActive ? item.activeItem : item.inActiveItem,
+                        const SizedBox(height: 4),
+                        Text(
+                          item.itemLabel ?? '',
+                          style: TextStyle(
+                            color: isActive ? Colors.white : Colors.black,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
           ),
         ),
       ),

@@ -1,6 +1,5 @@
 import 'package:fine_foods/SALES/billing/controller/billing_controller.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
-import 'package:fine_foods/bottom_navigation.dart';
 import 'package:fine_foods/home/home_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,26 +21,20 @@ class BillingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLargeScreen = MediaQuery.of(context).size.width > 800;
 
-    return WillPopScope(
-      onWillPop: () async {
-        Get.to(() => BottomNavPage());
-        return false;
-      },
-      child: Scaffold(
-        backgroundColor: Colors.grey[50],
-        appBar: _buildAppBar(),
-        body: Obx(
-          () => controller.isLoading.value
-              ? const Center(child: CircularProgressIndicator())
-              : Row(
-                  children: [
-                    _buildProductsArea(),
-                    if (isLargeScreen) _buildCartSidebar(),
-                  ],
-                ),
-        ),
-        floatingActionButton: !isLargeScreen ? _buildFAB(context) : null,
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      appBar: _buildAppBar(),
+      body: Obx(
+        () => controller.isLoading.value
+            ? const Center(child: CircularProgressIndicator())
+            : Row(
+                children: [
+                  _buildProductsArea(),
+                  if (isLargeScreen) _buildCartSidebar(),
+                ],
+              ),
       ),
+      floatingActionButton: !isLargeScreen ? _buildFAB(context) : null,
     );
   }
 

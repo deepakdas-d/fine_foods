@@ -23,82 +23,59 @@ class Home extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        bool close =
-            await Get.dialog(
-              AlertDialog(
-                title: const Text('Confirm Exit'),
-                content: const Text('Do you want to exit the app?'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Get.back(result: false),
-                    child: const Text('No'),
-                  ),
-                  TextButton(
-                    onPressed: () => Get.back(result: true),
-                    child: const Text('Yes'),
-                  ),
-                ],
-              ),
-            ) ??
-            false;
-        return close;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: const Color(0xFFFFD700),
-          title: const Text(
-            "Quick Bill",
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          foregroundColor: Colors.black,
-          actions: [
-            /// ✅ Bluetooth connection indicator + navigation
-            Obx(() {
-              return Row(
-                children: [
-                  if (printerController.printerName.value.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: Text(
-                        printerController.printerName.value,
-                        style: const TextStyle(color: Colors.black),
-                      ),
-                    ),
-                  IconButton(
-                    icon: Icon(
-                      printerController.isConnected.value
-                          ? Icons.bluetooth_connected
-                          : Icons.bluetooth,
-                      color: printerController.isConnected.value
-                          ? Colors.green
-                          : null,
-                    ),
-                    tooltip: printerController.isConnected.value
-                        ? 'Printer Connected'
-                        : 'Connect Printer',
-
-                    /// 👉 Navigate to Bluetooth page
-                    onPressed: () async {
-                      await Get.to(() => const BluetoothList());
-                      // Optionally refresh connection state after returning
-                      printerController.refreshConnection();
-                    },
-                  ),
-                ],
-              );
-            }),
-          ],
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFFD700),
+        title: const Text(
+          "Quick Bill",
+          style: TextStyle(fontWeight: FontWeight.w600),
         ),
-        body: SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildProductInputSection(),
-              _buildCartSection(),
-              _buildCheckoutSection(context),
-            ],
-          ),
+        foregroundColor: Colors.black,
+        actions: [
+          /// ✅ Bluetooth connection indicator + navigation
+          Obx(() {
+            return Row(
+              children: [
+                if (printerController.printerName.value.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: Text(
+                      printerController.printerName.value,
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                  ),
+                IconButton(
+                  icon: Icon(
+                    printerController.isConnected.value
+                        ? Icons.bluetooth_connected
+                        : Icons.bluetooth,
+                    color: printerController.isConnected.value
+                        ? Colors.green
+                        : null,
+                  ),
+                  tooltip: printerController.isConnected.value
+                      ? 'Printer Connected'
+                      : 'Connect Printer',
+
+                  /// 👉 Navigate to Bluetooth page
+                  onPressed: () async {
+                    await Get.to(() => const BluetoothList());
+                    // Optionally refresh connection state after returning
+                    printerController.refreshConnection();
+                  },
+                ),
+              ],
+            );
+          }),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildProductInputSection(),
+            _buildCartSection(),
+            _buildCheckoutSection(context),
+          ],
         ),
       ),
     );
