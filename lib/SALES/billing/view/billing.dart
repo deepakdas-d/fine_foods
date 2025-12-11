@@ -1,6 +1,6 @@
 import 'package:fine_foods/SALES/billing/controller/billing_controller.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
-import 'package:fine_foods/home/home_controller.dart';
+import 'package:fine_foods/home/printer_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';

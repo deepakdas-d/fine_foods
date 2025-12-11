@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:fine_foods/bluetooth_list.dart';
-import 'package:fine_foods/home/home_controller.dart';
+import 'package:fine_foods/home/printer_controller.dart';
 import 'package:fine_foods/home/quickbill_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';

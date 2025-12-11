@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:fine_foods/home/home_controller.dart';
+import 'package:fine_foods/home/printer_controller.dart';
 
 class BluetoothList extends StatelessWidget {
   const BluetoothList({super.key});

@@ -1,6 +1,6 @@
 import 'package:fine_foods/bottom_navigation.dart';
 import 'package:fine_foods/firebase_options.dart';
-import 'package:fine_foods/home/home_controller.dart';
+import 'package:fine_foods/home/printer_controller.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';

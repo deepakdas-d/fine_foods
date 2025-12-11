@@ -74,6 +74,7 @@ class QuickbillController extends GetxController {
     productPriceController.clear();
     productQuantityController.clear();
     productTypeController.text = 'unit';
+    customerDiscount.value;
   }
 
   /// Removes a product from the cart by its unique [id].
