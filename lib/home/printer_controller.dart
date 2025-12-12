@@ -17,6 +17,10 @@ class PrinterController extends GetxController {
 
   @override
   void onInit() {
+    if (GetPlatform.isWeb) {
+      log("PrinterController disabled on web");
+      return;
+    }
     super.onInit();
     log('[PrinterController] onInit called');
     startScan();

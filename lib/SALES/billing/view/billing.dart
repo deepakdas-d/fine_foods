@@ -1,6 +1,7 @@
 import 'package:fine_foods/SALES/billing/controller/billing_controller.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
 import 'package:fine_foods/home/printer_controller.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -650,15 +651,25 @@ class BillingScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         TextButton(
-                          onPressed: () => Get.back(),
+                          onPressed: () => Get.back(closeOverlays: true),
                           child: const Text('Close'),
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: () async {
-                            final printerController = Get.put(
-                              PrinterController(),
-                            );
+                            final printerController =
+                                Get.find<PrinterController>();
+
+                            if (kIsWeb) {
+                              // ----------- WEB MODE -----------
+                              Get.snackbar(
+                                'Web Mode',
+                                'Bluetooth printers are not supported on Web. Please download the invoice instead.',
+                                backgroundColor: Colors.orange,
+                                colorText: Colors.white,
+                              );
+                              return;
+                            }
                             if (!printerController.isConnected.value) {
                               Get.snackbar(
                                 'Error',
@@ -676,7 +687,7 @@ class BillingScreen extends StatelessWidget {
                                 backgroundColor: Colors.green,
                                 colorText: Colors.white,
                               );
-                              Get.back();
+                              Get.back(closeOverlays: true);
                             } catch (e) {
                               Get.snackbar(
                                 'Error',

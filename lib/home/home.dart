@@ -10,6 +10,7 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class Home extends StatelessWidget {
   Home({super.key});
@@ -32,43 +33,41 @@ class Home extends StatelessWidget {
         ),
         foregroundColor: Colors.black,
         actions: [
-          /// ✅ Bluetooth connection indicator + navigation
-          Obx(() {
-            return Row(
-              children: [
-                if (printerController.isConnected.value &&
-                    printerController.printerName.value.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: Text(
-                      printerController.printerName.value,
-                      style: const TextStyle(color: Colors.black),
+          if (!kIsWeb) // Hides everything on Web
+            Obx(() {
+              return Row(
+                children: [
+                  if (printerController.isConnected.value &&
+                      printerController.printerName.value.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: Text(
+                        printerController.printerName.value,
+                        style: const TextStyle(color: Colors.black),
+                      ),
                     ),
-                  ),
 
-                IconButton(
-                  icon: Icon(
-                    printerController.isConnected.value
-                        ? Icons.bluetooth_connected
-                        : Icons.bluetooth,
-                    color: printerController.isConnected.value
-                        ? Colors.green
-                        : null,
-                  ),
-                  tooltip: printerController.isConnected.value
-                      ? 'Printer Connected'
-                      : 'Connect Printer',
+                  IconButton(
+                    icon: Icon(
+                      printerController.isConnected.value
+                          ? Icons.bluetooth_connected
+                          : Icons.bluetooth,
+                      color: printerController.isConnected.value
+                          ? Colors.green
+                          : null,
+                    ),
+                    tooltip: printerController.isConnected.value
+                        ? 'Printer Connected'
+                        : 'Connect Printer',
 
-                  ///  Navigate to Bluetooth page
-                  onPressed: () async {
-                    await Get.to(() => const BluetoothList());
-                    // Optionally refresh connection state after returning
-                    printerController.refreshConnection();
-                  },
-                ),
-              ],
-            );
-          }),
+                    onPressed: () async {
+                      await Get.to(() => const BluetoothList());
+                      printerController.refreshConnection();
+                    },
+                  ),
+                ],
+              );
+            }),
         ],
       ),
       body: SingleChildScrollView(
@@ -310,15 +309,24 @@ class Home extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         TextButton(
-                          onPressed: () => Get.back(),
+                          onPressed: () => Get.back(closeOverlays: true),
                           child: const Text('Close'),
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: () async {
-                            final printerController = Get.put(
-                              PrinterController(),
-                            );
+                            if (kIsWeb) {
+                              // ----------- WEB MODE -----------
+                              Get.snackbar(
+                                'Web Mode',
+                                'Bluetooth printers are not supported on Web. Please download the invoice instead.',
+                                backgroundColor: Colors.orange,
+                                colorText: Colors.white,
+                              );
+                              return;
+                            }
+
+                            // ----------- ANDROID / iOS MODE -----------
                             if (!printerController.isConnected.value) {
                               Get.snackbar(
                                 'Error',
@@ -328,6 +336,7 @@ class Home extends StatelessWidget {
                               );
                               return;
                             }
+
                             try {
                               await quickbillController.printInvoice(billData);
                               Get.snackbar(
@@ -336,7 +345,7 @@ class Home extends StatelessWidget {
                                 backgroundColor: Colors.green,
                                 colorText: Colors.white,
                               );
-                              Get.back();
+                              Get.back(closeOverlays: true);
                             } catch (e) {
                               Get.snackbar(
                                 'Error',
