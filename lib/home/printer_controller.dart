@@ -22,9 +22,9 @@ class PrinterController extends GetxController {
       return;
     }
     super.onInit();
+    restoreLastPrinter();
     log('[PrinterController] onInit called');
     startScan();
-    restoreLastPrinter();
   }
 
   /// Request Bluetooth permissions
@@ -58,13 +58,21 @@ class PrinterController extends GetxController {
   /// Restore last printer (only load, no auto-connect)
   Future<void> restoreLastPrinter() async {
     final data = storage.read('last_printer');
+    log('[PrinterController] Restore check: $data');
+
     if (data != null) {
       selectedPrinter = BluetoothDevice(data['name'], data['address']);
       printerName.value = data['name'];
-      isConnected.value = BluetoothPrintPlus.isConnected;
-      log(
-        '[PrinterController] Restored printer: ${data['name']}, connected=${isConnected.value}',
-      );
+
+      log('[PrinterController] Restored printer: ${data['name']}');
+
+      // Try auto reconnect (if not connected)
+      Future.delayed(const Duration(seconds: 1), () {
+        if (!BluetoothPrintPlus.isConnected) {
+          log('[PrinterController] Trying auto reconnect...');
+          connectPrinter(selectedPrinter!);
+        }
+      });
     } else {
       log('[PrinterController] No saved printer found');
     }
