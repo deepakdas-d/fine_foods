@@ -451,9 +451,7 @@ class BillingScreen extends StatelessWidget {
     child: Column(
       children: [
         TextFormField(
-          controller: TextEditingController(
-            text: controller.customerDiscount.value,
-          ),
+          initialValue: controller.customerDiscount.value,
           onChanged: (value) => controller.customerDiscount.value = value,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
