@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   bluetooth_print_plus
+  file_saver
   open_file_linux
   printing
   url_launcher_linux

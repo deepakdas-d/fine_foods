@@ -9,46 +9,171 @@ class BillingList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final BillListController controller = Get.put(BillListController());
+    final controller = Get.put(BillListController());
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bill History'),
-        elevation: 0,
+        title: Obx(() {
+          final month = controller.selectedMonth.value;
+          return Text(
+            month != null
+                ? 'Bills - ${DateFormat('MMMM yyyy').format(month)}'
+                : 'All Bills History',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          );
+        }),
         backgroundColor: const Color(0xFFFFD700),
+        foregroundColor: Colors.black,
+        elevation: 2,
         actions: [
-          IconButton(
-            onPressed: () async {
-              final bills = controller.bills;
-              if (bills.isEmpty) {
-                Get.snackbar(
-                  'Error',
-                  'No bills available to generate PDF',
-                  snackPosition: SnackPosition.BOTTOM,
-                  backgroundColor: Colors.red,
-                  colorText: Colors.white,
-                );
-                return;
-              }
-              await controller.downloadMonthlyReport(bills.toList());
-            },
-            icon: const Icon(Icons.download),
+          // Month Dropdown Filter
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            // child: Center(
+            //   child: Obx(
+            //     () => DropdownButton<DateTime?>(
+            //       value: controller.selectedMonth.value,
+            //       hint: const Text(
+            //         'All Time',
+            //         style: TextStyle(color: Colors.black87),
+            //       ),
+            //       icon: const Icon(Icons.calendar_month, color: Colors.black87),
+            //       underline: const SizedBox(),
+            //       style: const TextStyle(
+            //         color: Colors.black87,
+            //         fontSize: 16,
+            //         fontWeight: FontWeight.w600,
+            //       ),
+            //       dropdownColor: Colors.amber.shade50,
+            //       borderRadius: BorderRadius.circular(12),
+            //       items: [
+            //         const DropdownMenuItem(
+            //           value: null,
+            //           child: Text('All Time'),
+            //         ),
+            //         ...controller.getMonthOptions().map(
+            //           (date) => DropdownMenuItem(
+            //             value: date,
+            //             child: Text(DateFormat('MMMM yyyy').format(date)),
+            //           ),
+            //         ),
+            //       ],
+            //       onChanged: (DateTime? newValue) {
+            //         controller.selectedMonth.value = newValue;
+            //         controller.fetchBills(reset: true);
+            //       },
+            //     ),
+            //   ),
+            // ),
           ),
+
+          // Download Button
+          IconButton(
+            onPressed: controller.downloadCurrentReport,
+            icon: const Icon(Icons.download_rounded),
+            tooltip: 'Download Report',
+          ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: Obx(
-        () => controller.isLoading.value
-            ? const Center(child: CircularProgressIndicator())
-            : controller.bills.isEmpty
-            ? const Center(child: Text('No bills found'))
-            : ListView.builder(
-                padding: const EdgeInsets.all(16.0),
-                itemCount: controller.bills.length,
-                itemBuilder: (context, index) {
-                  final bill = controller.bills[index];
-                  return BillCard(bill: bill, controller: controller);
-                },
+
+      body: Column(
+        children: [
+          // Total Sales Card (only when month selected)
+          Obx(() {
+            if (controller.selectedMonth.value == null)
+              return const SizedBox(height: 8);
+            final total = controller.bills.fold<double>(
+              0.0,
+              (sum, bill) => sum + controller.calculateBillFinalTotal(bill),
+            );
+            return Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              decoration: BoxDecoration(
+                color: Colors.teal.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.teal.shade300, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
+                  ),
+                ],
               ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total Sales',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Rs${total.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+
+          // Bills List
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => controller.fetchBills(reset: true),
+              child: Obx(() {
+                if (controller.isLoading.value && controller.bills.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (controller.bills.isEmpty) {
+                  return Center(
+                    child: Text(
+                      controller.selectedMonth.value == null
+                          ? 'No bills found'
+                          : 'No bills in ${DateFormat('MMMM yyyy').format(controller.selectedMonth.value!)}',
+                      style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  itemCount:
+                      controller.bills.length +
+                      (controller.hasMore.value ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    // Load more
+                    if (index >= controller.bills.length - 5 &&
+                        controller.hasMore.value) {
+                      controller.loadMore();
+                    }
+
+                    if (index == controller.bills.length) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    }
+
+                    final bill = controller.bills[index];
+                    return BillCard(bill: bill, controller: controller);
+                  },
+                );
+              }),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -60,81 +185,84 @@ class BillCard extends StatelessWidget {
 
   const BillCard({super.key, required this.bill, required this.controller});
 
-  @override
-  Widget build(BuildContext context) {
-    // -----------------------------------------------------------------
-    // 1. Parse date & invoice number
-    // -----------------------------------------------------------------
-    final date = DateTime.parse(bill['createdAt']).toLocal();
-    final invoiceNumber =
-        bill['invoiceNumber'] ?? 'INV-${bill['id'].substring(0, 8)}';
+  // Helper to safely extract product rows (supports both old array & new map format)
+  List<Map<String, dynamic>> _getProductRows() {
+    final List<Map<String, dynamic>> rows = [];
 
-    // -----------------------------------------------------------------
-    // 2. Totals (subtotal, discount, final total)
-    // -----------------------------------------------------------------
-    // ignore: unused_local_variable
-    final subtotal = controller.calculateBillSubtotal(bill);
-    final discount = controller.calculateBillDiscount(bill);
-    final finalTotal = controller.calculateBillFinalTotal(bill);
+    final products = bill['products'];
+    if (products == null) return rows;
 
-    // -----------------------------------------------------------------
-    // 3. Helper to extract product rows (same logic as PDF)
-    // -----------------------------------------------------------------
-    List<Map<String, dynamic>> _productRows() {
-      final List<Map<String, dynamic>> rows = [];
+    Iterable<MapEntry<String, dynamic>> entries;
 
-      final products = bill['products'];
-      if (products == null) return rows;
-
-      // ---- Map format (new) ----
-      if (products is Map) {
-        for (var p in products.values) {
-          if (p is Map) {
-            rows.add({
-              'name': p['productName']?.toString() ?? '',
-              'qty': (p['quantity'] as num?)?.toDouble() ?? 0.0,
-              'price': (p['price'] as num?)?.toDouble() ?? 0.0,
-              'total': (p['total'] as num?)?.toDouble() ?? 0.0,
-            });
-          }
-        }
-      }
-      // ---- Array format (old) ----
-      else if (products is List) {
-        for (var p in products) {
-          if (p is Map) {
-            rows.add({
-              'name': p['productName']?.toString() ?? '',
-              'qty': (p['quantity'] as num?)?.toDouble() ?? 0.0,
-              'price': (p['price'] as num?)?.toDouble() ?? 0.0,
-              'total': (p['total'] as num?)?.toDouble() ?? 0.0,
-            });
-          }
-        }
-      }
+    if (products is Map) {
+      entries = (products).entries.map((e) => MapEntry(e.key, e.value));
+    } else if (products is List) {
+      entries = products.asMap().entries.map(
+        (e) => MapEntry(e.key.toString(), e.value),
+      );
+    } else {
       return rows;
     }
 
-    final productRows = _productRows();
+    for (var entry in entries) {
+      final p = entry.value;
+      if (p is Map<String, dynamic>) {
+        final qty = (p['quantity'] as num?)?.toDouble() ?? 0.0;
+        final price = (p['price'] as num?)?.toDouble() ?? 0.0;
+        final total = (p['total'] as num?)?.toDouble() ?? (qty * price);
 
-    // -----------------------------------------------------------------
-    // 4. UI
-    // -----------------------------------------------------------------
+        rows.add({
+          'name': p['productName']?.toString().trim().isNotEmpty == true
+              ? p['productName'].toString()
+              : 'Unknown Item',
+          'qty': qty,
+          'price': price,
+          'total': total,
+        });
+      }
+    }
+
+    return rows;
+  }
+
+  // Format quantity: show as int if whole number
+  String _formatQty(double qty) {
+    return qty % 1 == 0 ? qty.toInt().toString() : qty.toStringAsFixed(1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Safely parse date
+    DateTime date;
+    try {
+      date = DateTime.parse(bill['createdAt'] as String).toLocal();
+    } catch (e) {
+      date = DateTime.now();
+    }
+
+    final invoiceNumber = bill['invoiceNumber']?.toString().isNotEmpty == true
+        ? bill['invoiceNumber'].toString()
+        : 'INV-${bill['id'].toString().substring(0, 8).toUpperCase()}';
+
+    final discount = controller.calculateBillDiscount(bill);
+    final finalTotal = controller.calculateBillFinalTotal(bill);
+    final productRows = _getProductRows();
+
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ----- Header (Invoice + Final Total) -----
+            // Header: Invoice + Total
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Invoice: $invoiceNumber',
+                  invoiceNumber,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
@@ -144,117 +272,127 @@ class BillCard extends StatelessWidget {
                   'Rs${finalTotal.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 17,
                     color: Colors.teal,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
 
-            // ----- Customer & Date -----
+            // Customer info
             Text(
-              'Customer: ${bill['customerName'] ?? 'Walk-in Customer'}',
+              'Customer: ${bill['customerName']?.toString().trim().isNotEmpty == true ? bill['customerName'] : 'Walk-in Customer'}',
               style: const TextStyle(fontSize: 14),
             ),
             Text(
-              'Phone: ${bill['customerPhone']?.toString().isNotEmpty == true ? bill['customerPhone'] : 'N/A'}',
+              'Phone: ${bill['customerPhone']?.toString().trim().isNotEmpty == true ? bill['customerPhone'] : 'N/A'}',
               style: const TextStyle(fontSize: 14),
             ),
             Text(
-              'Date: ${DateFormat('MMM dd, yyyy HH:mm').format(date)}',
+              'Date: ${DateFormat('MMM dd, yyyy • HH:mm').format(date)}',
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 12),
 
-            // ----- Products -----
+            // Products title
             const Text(
-              'Products:',
+              'Items:',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
 
+            // Product list
             if (productRows.isEmpty)
               const Padding(
-                padding: EdgeInsets.only(left: 8.0),
-                child: Text('No items', style: TextStyle(color: Colors.grey)),
+                padding: EdgeInsets.only(left: 8),
+                child: Text(
+                  'No items found',
+                  style: TextStyle(color: Colors.grey),
+                ),
               )
             else
               ...productRows.map(
                 (p) => Padding(
-                  padding: const EdgeInsets.only(
-                    left: 8.0,
-                    top: 2.0,
-                    bottom: 2.0,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 3,
+                    horizontal: 8,
                   ),
-                  child: RichText(
-                    text: TextSpan(
-                      style: const TextStyle(color: Colors.black87),
-                      children: [
-                        TextSpan(
-                          text: '${p['name']} ',
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          p['name'],
                           style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
-                        TextSpan(
-                          text:
-                              '(x${p['qty'].toStringAsFixed(p['qty'] % 1 == 0 ? 0 : 1)}) ',
+                      ),
+                      Text(
+                        '×${_formatQty(p['qty'])} @ Rs${p['price'].toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Colors.blueGrey,
+                          fontSize: 13,
                         ),
-                        TextSpan(
-                          text:
-                              '- Rs${p['price'].toStringAsFixed(2)}  →  Rs${p['total'].toStringAsFixed(2)}',
-                          style: const TextStyle(color: Colors.blueGrey),
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Rs${p['total'].toStringAsFixed(2)}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
                   ),
                 ),
               ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
-            // ----- Discount (if any) -----
+            // Discount line
             if (discount > 0)
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
                   'Discount: -Rs${discount.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 13, color: Colors.redAccent),
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
 
             const SizedBox(height: 12),
 
-            // ----- Download Button -----
+            // Download PDF button
             Align(
               alignment: Alignment.centerRight,
               child: ElevatedButton.icon(
                 onPressed: () async {
                   try {
-                    log('[LOG] Downloading PDF for ${bill['id']}...');
+                    log('[PDF] Starting download for bill ${bill['id']}');
                     await controller.downloadBillPdf(bill);
-                  } catch (e, stack) {
-                    log('[ERROR] PDF download failed: $e');
-                    log('[STACK] $stack');
+                  } catch (e, s) {
+                    log('[PDF ERROR] $e\n$s');
                     Get.snackbar(
-                      'Error',
-                      'Failed to download PDF: $e',
+                      'Download Failed',
+                      'Could not download PDF. Please try again.',
                       snackPosition: SnackPosition.BOTTOM,
-                      backgroundColor: Colors.red,
+                      backgroundColor: Colors.red.shade600,
                       colorText: Colors.white,
+                      duration: const Duration(seconds: 4),
                     );
                   }
                 },
-                icon: const Icon(Icons.download, size: 20),
-                label: const Text('Download PDF'),
+                icon: const Icon(Icons.picture_as_pdf, size: 18),
+                label: const Text('PDF'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.yellow,
-                  foregroundColor: Colors.black87,
+                  backgroundColor: Colors.amber.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 2,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                    horizontal: 16,
+                    vertical: 10,
                   ),
                 ),
               ),
