@@ -144,6 +144,7 @@ class Home extends StatelessWidget {
     ),
     child: Column(
       children: [
+        // Discount
         TextFormField(
           controller: TextEditingController(
             text: quickbillController.customerDiscount.value,
@@ -167,8 +168,7 @@ class Home extends StatelessWidget {
               return 'Enter a valid discount > 0';
             }
 
-            final total = quickbillController
-                .calculateTotal(); // your total function
+            final total = quickbillController.calculateTotal();
             if (discount > total) {
               return 'Discount cannot exceed total price ($total)';
             }
@@ -176,7 +176,9 @@ class Home extends StatelessWidget {
             return null;
           },
         ),
+        const SizedBox(height: 16),
 
+        // Customer Details
         ExpansionTile(
           title: const Text(
             'Customer Details (Optional)',
@@ -218,6 +220,142 @@ class Home extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
+
+        // Payment Method
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Payment Method',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<String>(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Cash'),
+                        value: 'Cash',
+                        groupValue: quickbillController.paymentMethod.value,
+                        onChanged: (val) =>
+                            quickbillController.paymentMethod.value = val!,
+                      ),
+                    ),
+                    Expanded(
+                      child: RadioListTile<String>(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Online'),
+                        value: 'Online',
+                        groupValue: quickbillController.paymentMethod.value,
+                        onChanged: (val) =>
+                            quickbillController.paymentMethod.value = val!,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Payment Type
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Payment Type',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<String>(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Full Payment'),
+                        value: 'Full Payment',
+                        groupValue:
+                            quickbillController.selectedPaymentType.value,
+                        onChanged: (val) {
+                          quickbillController.selectedPaymentType.value = val!;
+                          final total = quickbillController.calculateTotal();
+                          quickbillController.paidAmount.value = total
+                              .toStringAsFixed(2);
+                          quickbillController.dueAmount.value = 0;
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: RadioListTile<String>(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Partial'),
+                        value: 'Partial',
+                        groupValue:
+                            quickbillController.selectedPaymentType.value,
+                        onChanged: (val) {
+                          quickbillController.selectedPaymentType.value = val!;
+                          quickbillController.paidAmount.value = '';
+                          quickbillController.dueAmount.value =
+                              quickbillController.calculateTotal();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                if (quickbillController.selectedPaymentType.value ==
+                    'Partial') ...[
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    initialValue: quickbillController.paidAmount.value,
+                    onChanged: (v) {
+                      quickbillController.paidAmount.value = v;
+                      final paid = double.tryParse(v) ?? 0;
+                      quickbillController.dueAmount.value =
+                          (quickbillController.calculateTotal() - paid).clamp(
+                            0,
+                            quickbillController.calculateTotal(),
+                          );
+                    },
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Paid Amount',
+                      prefixIcon: const Icon(Icons.payment),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Obx(
+                    () => Text(
+                      'Due Amount: ₹${quickbillController.dueAmount.value.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Total Display
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -244,7 +382,9 @@ class Home extends StatelessWidget {
             ],
           ),
         ),
+
         const SizedBox(height: 16),
+
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
@@ -267,6 +407,7 @@ class Home extends StatelessWidget {
       ],
     ),
   );
+
   Future<void> _generateInvoice(BuildContext context) async {
     try {
       final billData = await quickbillController.createBill();
