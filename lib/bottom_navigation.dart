@@ -1,4 +1,5 @@
 import 'package:animated_notch_bottom_bar/animated_notch_bottom_bar/animated_notch_bottom_bar.dart';
+import 'package:fine_foods/appcolor.dart';
 import 'package:fine_foods/bottom_navigation_controller.dart';
 import 'package:fine_foods/login.dart';
 import 'package:flutter/material.dart';
@@ -17,18 +18,18 @@ class BottomNavPage extends StatelessWidget {
 
   final List<BottomBarItem> bottomBarItems = const [
     BottomBarItem(
-      inActiveItem: Icon(Icons.dashboard, color: Colors.grey),
-      activeItem: Icon(Icons.dashboard, color: Colors.white),
+      inActiveItem: Icon(Icons.dashboard, color: AppColor.textSecondary),
+      activeItem: Icon(Icons.dashboard, color: AppColor.textOnPrimary),
       itemLabel: 'Admin',
     ),
     BottomBarItem(
-      inActiveItem: Icon(Icons.home, color: Colors.grey),
-      activeItem: Icon(Icons.home, color: Colors.white),
+      inActiveItem: Icon(Icons.home, color: AppColor.textSecondary),
+      activeItem: Icon(Icons.home, color: AppColor.textOnPrimary),
       itemLabel: 'Home',
     ),
     BottomBarItem(
-      inActiveItem: Icon(Icons.point_of_sale, color: Colors.grey),
-      activeItem: Icon(Icons.point_of_sale, color: Colors.white),
+      inActiveItem: Icon(Icons.point_of_sale, color: AppColor.textSecondary),
+      activeItem: Icon(Icons.point_of_sale, color: AppColor.textOnPrimary),
       itemLabel: 'Sales',
     ),
   ];
@@ -68,7 +69,7 @@ class BottomNavPage extends StatelessWidget {
             children: _pages,
           ),
           bottomNavigationBar: Container(
-            color: Colors.amber,
+            color: AppColor.primary,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: List.generate(bottomBarItems.length, (index) {
@@ -85,7 +86,7 @@ class BottomNavPage extends StatelessWidget {
                     width: itemWidth,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: isActive ? Colors.black : Colors.amber,
+                      color: isActive ? AppColor.textOnPrimary : AppColor.primary,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
@@ -96,7 +97,7 @@ class BottomNavPage extends StatelessWidget {
                         Text(
                           item.itemLabel ?? '',
                           style: TextStyle(
-                            color: isActive ? Colors.white : Colors.black,
+                            color: isActive ? AppColor.primary : AppColor.textOnPrimary,
                             fontSize: 14,
                           ),
                         ),

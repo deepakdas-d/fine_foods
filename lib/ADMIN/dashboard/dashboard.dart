@@ -5,6 +5,7 @@ import 'package:fine_foods/ADMIN/sales_data/Sales_Growth.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list.dart';
 import 'package:fine_foods/bottom_navigation.dart';
 import 'package:fine_foods/home/home.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -85,6 +86,15 @@ class Dashboard extends StatelessWidget {
           centerTitle: true,
           backgroundColor: const Color(0xFFFFD700),
           elevation: 4,
+          actions: [
+            if (kIsWeb)
+              IconButton(
+                icon: const Icon(Icons.logout_outlined),
+                onPressed: () {
+                  Get.offAll(() => BottomNavPage());
+                },
+              ),
+          ],
         ),
         body: SingleChildScrollView(
           child: Padding(

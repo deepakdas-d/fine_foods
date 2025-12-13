@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fine_foods/home/printer_controller.dart';
-
+import 'package:fine_foods/appcolor.dart';
 class BluetoothList extends StatelessWidget {
   const BluetoothList({super.key});
 
@@ -12,31 +12,31 @@ class BluetoothList extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Select Bluetooth Printer'),
-        backgroundColor: const Color(0xFFFFD700),
-        foregroundColor: Colors.black,
+        backgroundColor: AppColor.background,
+        foregroundColor: AppColor.textPrimary,
         actions: [
           IconButton(
             onPressed: controller.disconnectPrinter,
-            icon: Icon(Icons.bluetooth_disabled_outlined),
+            icon: Icon(Icons.bluetooth_disabled_outlined, color: AppColor.textPrimary),
           ),
         ],
       ),
       body: Obx(() {
         if (controller.isScanning.value) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(),
+                CircularProgressIndicator(color: AppColor.primary),
                 SizedBox(height: 12),
-                Text("Scanning for Bluetooth printers..."),
+                Text("Scanning for Bluetooth printers...", style: TextStyle(color: AppColor.textPrimary)),
               ],
             ),
           );
         }
 
         if (controller.availablePrinters.isEmpty) {
-          return const Center(child: Text("No printers found"));
+          return Center(child: Text("No printers found", style: TextStyle(color: AppColor.textPrimary)));
         }
 
         return ListView.builder(
@@ -45,24 +45,25 @@ class BluetoothList extends StatelessWidget {
             final printer = controller.availablePrinters[index];
 
             return Card(
+              color: AppColor.surface,
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Obx(
                 () => ListTile(
                   leading:
                       controller.isConnecting.value &&
                           controller.connectingAddress == printer.address
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColor.primary),
                         )
-                      : const Icon(Icons.print),
-                  title: Text(printer.name),
-                  subtitle: Text(printer.address),
+                      : Icon(Icons.print, color: AppColor.textPrimary),
+                  title: Text(printer.name, style: TextStyle(color: AppColor.textPrimary)),
+                  subtitle: Text(printer.address, style: TextStyle(color: AppColor.textSecondary)),
                   trailing:
                       controller.selectedPrinter?.address == printer.address &&
                           controller.isConnected.value
-                      ? const Icon(Icons.check, color: Colors.green)
+                      ? Icon(Icons.check, color: AppColor.success)
                       : null,
                   onTap: () async {
                     await controller.connectPrinter(printer);
@@ -75,8 +76,8 @@ class BluetoothList extends StatelessWidget {
         );
       }),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFFFFD700),
-        foregroundColor: Colors.black,
+        backgroundColor: AppColor.primary,
+        foregroundColor: AppColor.textOnPrimary,
         onPressed: controller.startScan,
         child: const Icon(Icons.refresh),
       ),

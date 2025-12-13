@@ -11,6 +11,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'package:fine_foods/appcolor.dart';
 
 class BillingScreen extends StatelessWidget {
   final controller = Get.put(BillingController());
@@ -22,8 +23,9 @@ class BillingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLargeScreen = MediaQuery.of(context).size.width > 800;
 
+   
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppColor.background,
       appBar: _buildAppBar(),
       body: Obx(
         () => controller.isLoading.value
@@ -41,19 +43,19 @@ class BillingScreen extends StatelessWidget {
 
   AppBar _buildAppBar() => AppBar(
     elevation: 0,
-    backgroundColor: const Color(0xFFFFD700),
+    backgroundColor: AppColor.background,
     title: const Text(
       "Point of Sale",
-      style: TextStyle(fontWeight: FontWeight.w600),
+      style: TextStyle(fontWeight: FontWeight.w600, color: AppColor.textPrimary),
     ),
-    foregroundColor: Colors.black,
+    foregroundColor: AppColor.textPrimary,
     actions: [
       Obx(
         () => Stack(
           children: [
             IconButton(
               onPressed: () => _showCartSheet(Get.context!),
-              icon: const Icon(Icons.shopping_cart_outlined),
+              icon: const Icon(Icons.shopping_cart_outlined, color: AppColor.textPrimary),
             ),
             if (controller.selectedProducts.isNotEmpty)
               Positioned(
@@ -110,7 +112,7 @@ class BillingScreen extends StatelessWidget {
   Widget _buildSearchBar() => Container(
     margin: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: AppColor.surface,
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
@@ -136,12 +138,12 @@ class BillingScreen extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColor.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isSelected
-              ? const Color(0xFFFFD700)
-              : Colors.grey.withOpacity(0.2),
+              ? AppColor.primary
+              : AppColor.textSecondary.withOpacity(0.2),
         ),
       ),
       child: InkWell(
@@ -173,7 +175,7 @@ class BillingScreen extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 16,
-                  color: isOutOfStock ? Colors.grey : Colors.black87,
+                  color: isOutOfStock ? AppColor.textSecondary : AppColor.textPrimary,
                 ),
                 maxLines: 2,
               ),
@@ -277,7 +279,7 @@ class BillingScreen extends StatelessWidget {
   Widget _buildCartSidebar() => Container(
     width: 350,
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: AppColor.surface,
       boxShadow: [
         BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10),
       ],
@@ -297,7 +299,7 @@ class BillingScreen extends StatelessWidget {
             const Text(
               'Shopping Cart',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColor.textOnPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -358,9 +360,9 @@ class BillingScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColor.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        border: Border.all(color: AppColor.textSecondary.withOpacity(0.2)),
       ),
       child: Row(
         children: [
@@ -445,8 +447,8 @@ class BillingScreen extends StatelessWidget {
   Widget _buildCheckoutSection() => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.grey[50],
-      border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
+      color: AppColor.background,
+      border: Border(top: BorderSide(color: AppColor.textSecondary.withOpacity(0.2))),
     ),
     child: Column(
       children: [
@@ -581,7 +583,7 @@ class BillingScreen extends StatelessWidget {
       minChildSize: 0.5,
       builder: (context, scrollController) => Container(
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: AppColor.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(

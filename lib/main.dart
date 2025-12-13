@@ -1,3 +1,5 @@
+import 'package:fine_foods/appcolor.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:fine_foods/bottom_navigation.dart';
 import 'package:fine_foods/firebase_options.dart';
 import 'package:fine_foods/home/printer_controller.dart';
@@ -29,7 +31,68 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'FINE FOODS',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFFFFD700)),
+        scaffoldBackgroundColor: AppColor.background,
+        primaryColor: AppColor.primary,
+        fontFamily: GoogleFonts.poppins().fontFamily,
+        textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme).apply(
+          bodyColor: AppColor.textPrimary,
+          displayColor: AppColor.textPrimary,
+        ),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColor.primary,
+          brightness: Brightness.dark,
+          surface: AppColor.surface,
+          primary: AppColor.primary,
+          onPrimary: AppColor.textOnPrimary,
+          background: AppColor.background,
+          error: AppColor.error,
+        ),
+        appBarTheme: AppBarTheme(
+          backgroundColor: AppColor.background,
+          elevation: 0,
+          titleTextStyle: GoogleFonts.poppins(
+            color: AppColor.textPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+          iconTheme: IconThemeData(color: AppColor.textPrimary),
+        ),
+        cardTheme: CardThemeData(
+          color: AppColor.surface,
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: AppColor.surface,
+          labelStyle: TextStyle(color: AppColor.textSecondary),
+          hintStyle: TextStyle(color: AppColor.textSecondary),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: AppColor.textSecondary),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: AppColor.textSecondary),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: AppColor.primary),
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColor.primary,
+            foregroundColor: AppColor.textOnPrimary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            textStyle: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        iconTheme: IconThemeData(color: AppColor.textPrimary),
       ),
       home: BottomNavPage(),
     );

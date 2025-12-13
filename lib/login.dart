@@ -1,4 +1,5 @@
 import 'package:fine_foods/ADMIN/Auth/login_controller.dart';
+import 'package:fine_foods/appcolor.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -18,10 +19,9 @@ class LoginPage extends StatelessWidget {
               children: [
                 Text(
                   "Login",
-                  style: TextStyle(
-                    fontSize: 32,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                    color: AppColor.primary,
                   ),
                 ),
                 SizedBox(height: 40),
@@ -29,9 +29,10 @@ class LoginPage extends StatelessWidget {
                   controller: controller.emailController,
                   decoration: InputDecoration(
                     labelText: "Email",
-                    border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.email),
                   ),
+                  style: TextStyle(color: AppColor.textPrimary),
+                  cursorColor: AppColor.primary,
                   keyboardType: TextInputType.emailAddress,
                 ),
                 SizedBox(height: 20),
@@ -41,9 +42,10 @@ class LoginPage extends StatelessWidget {
                   obscureText: true,
                   decoration: InputDecoration(
                     labelText: "Password",
-                    border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.lock),
                   ),
+                  style: TextStyle(color: AppColor.textPrimary),
+                  cursorColor: AppColor.primary,
                 ),
 
                 SizedBox(height: 30),

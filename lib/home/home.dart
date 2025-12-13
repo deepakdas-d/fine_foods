@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:fine_foods/appcolor.dart';
 
 class Home extends StatelessWidget {
   Home({super.key});
@@ -26,12 +27,12 @@ class Home extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFD700),
+        backgroundColor: AppColor.background,
         title: const Text(
           "Quick Bill",
-          style: TextStyle(fontWeight: FontWeight.w600),
+          style: TextStyle(fontWeight: FontWeight.w600, color: AppColor.textPrimary),
         ),
-        foregroundColor: Colors.black,
+        foregroundColor: AppColor.textPrimary,
         actions: [
           if (!kIsWeb) // Hides everything on Web
             Obx(() {
@@ -43,7 +44,7 @@ class Home extends StatelessWidget {
                       padding: const EdgeInsets.only(right: 8.0),
                       child: Text(
                         printerController.printerName.value,
-                        style: const TextStyle(color: Colors.black),
+                        style: const TextStyle(color: AppColor.textPrimary),
                       ),
                     ),
 
@@ -53,7 +54,7 @@ class Home extends StatelessWidget {
                           ? Icons.bluetooth_connected
                           : Icons.bluetooth,
                       color: printerController.isConnected.value
-                          ? Colors.green
+                          ? AppColor.success
                           : null,
                     ),
                     tooltip: printerController.isConnected.value
@@ -139,8 +140,8 @@ class Home extends StatelessWidget {
   Widget _buildCheckoutSection(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.grey[50],
-      border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
+      color: AppColor.background,
+      border: Border(top: BorderSide(color: AppColor.textSecondary.withOpacity(0.2))),
     ),
     child: Column(
       children: [
@@ -246,7 +247,7 @@ class Home extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.green,
+                          color: AppColor.success,
                         ),
                       ),
                     )
@@ -395,8 +396,8 @@ class Home extends StatelessWidget {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: (cash + online) == total
-                              ? Colors.green
-                              : Colors.red,
+                              ? AppColor.success
+                              : AppColor.error,
                         ),
                       );
                     }),
@@ -412,7 +413,7 @@ class Home extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFD700).withOpacity(0.1),
+            color: AppColor.surface,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -428,7 +429,7 @@ class Home extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFFFD700),
+                    color: AppColor.primary,
                   ),
                 ),
               ),
