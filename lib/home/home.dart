@@ -222,137 +222,190 @@ class Home extends StatelessWidget {
         const SizedBox(height: 16),
 
         // Payment Method
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Payment Method',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: RadioListTile<String>(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Cash'),
-                        value: 'Cash',
-                        groupValue: quickbillController.paymentMethod.value,
-                        onChanged: (val) =>
-                            quickbillController.paymentMethod.value = val!,
+        Obx(() {
+          final isSplit =
+              quickbillController.selectedPaymentType.value == 'Split';
+
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Payment Method',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+
+                  /// SPLIT → SHOW BOTH
+                  if (isSplit)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Cash + Online',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
                       ),
+                    )
+                  /// FULL → USER SELECTS
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: RadioListTile<String>(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Cash'),
+                            value: 'Cash',
+                            groupValue: quickbillController.paymentMethod.value,
+                            onChanged: (val) =>
+                                quickbillController.paymentMethod.value = val!,
+                          ),
+                        ),
+                        Expanded(
+                          child: RadioListTile<String>(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Online'),
+                            value: 'Online',
+                            groupValue: quickbillController.paymentMethod.value,
+                            onChanged: (val) =>
+                                quickbillController.paymentMethod.value = val!,
+                          ),
+                        ),
+                      ],
                     ),
-                    Expanded(
-                      child: RadioListTile<String>(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Online'),
-                        value: 'Online',
-                        groupValue: quickbillController.paymentMethod.value,
-                        onChanged: (val) =>
-                            quickbillController.paymentMethod.value = val!,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        }),
         const SizedBox(height: 12),
 
         // Payment Type
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Payment Type',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: RadioListTile<String>(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Full Payment'),
-                        value: 'Full Payment',
-                        groupValue:
-                            quickbillController.selectedPaymentType.value,
-                        onChanged: (val) {
-                          quickbillController.selectedPaymentType.value = val!;
-                          final total = quickbillController.calculateTotal();
-                          quickbillController.paidAmount.value = total
-                              .toStringAsFixed(2);
-                          quickbillController.dueAmount.value = 0;
-                        },
+        Obx(
+          () => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Payment Type',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: RadioListTile<String>(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Full'),
+                          value: 'Full',
+                          groupValue:
+                              quickbillController.selectedPaymentType.value,
+                          onChanged: (val) {
+                            quickbillController.selectedPaymentType.value =
+                                val!;
+                            quickbillController.paymentMethod.value =
+                                'Cash'; // default
+                            final total = quickbillController.calculateTotal();
+                            quickbillController.cashReceived.value = total
+                                .toStringAsFixed(2);
+                            quickbillController.onlineReceived.value = '0';
+                          },
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      child: RadioListTile<String>(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Partial'),
-                        value: 'Partial',
-                        groupValue:
-                            quickbillController.selectedPaymentType.value,
-                        onChanged: (val) {
-                          quickbillController.selectedPaymentType.value = val!;
-                          quickbillController.paidAmount.value = '';
-                          quickbillController.dueAmount.value =
-                              quickbillController.calculateTotal();
-                        },
+                      Expanded(
+                        child: RadioListTile<String>(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Split'),
+                          value: 'Split',
+                          groupValue:
+                              quickbillController.selectedPaymentType.value,
+                          onChanged: (val) {
+                            quickbillController.selectedPaymentType.value =
+                                val!;
+                            quickbillController.paymentMethod.value =
+                                'Both'; // 🔥 IMPORTANT
+                            quickbillController.cashReceived.value = '';
+                            quickbillController.onlineReceived.value = '';
+                          },
+                        ),
                       ),
+                    ],
+                  ),
+
+                  /// SPLIT PAYMENT FIELDS
+                  if (quickbillController.selectedPaymentType.value ==
+                      'Split') ...[
+                    const SizedBox(height: 8),
+
+                    TextFormField(
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Cash Received',
+                        prefixIcon: const Icon(Icons.money),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        isDense: true,
+                      ),
+                      onChanged: (v) =>
+                          quickbillController.cashReceived.value = v,
                     ),
+
+                    const SizedBox(height: 8),
+
+                    TextFormField(
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Online Received',
+                        prefixIcon: const Icon(Icons.qr_code),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        isDense: true,
+                      ),
+                      onChanged: (v) =>
+                          quickbillController.onlineReceived.value = v,
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    Obx(() {
+                      final cash =
+                          double.tryParse(
+                            quickbillController.cashReceived.value,
+                          ) ??
+                          0;
+                      final online =
+                          double.tryParse(
+                            quickbillController.onlineReceived.value,
+                          ) ??
+                          0;
+                      final total = quickbillController.calculateTotal();
+
+                      return Text(
+                        'Total Received: ₹${(cash + online).toStringAsFixed(2)} / ₹${total.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: (cash + online) == total
+                              ? Colors.green
+                              : Colors.red,
+                        ),
+                      );
+                    }),
                   ],
-                ),
-                if (quickbillController.selectedPaymentType.value ==
-                    'Partial') ...[
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    initialValue: quickbillController.paidAmount.value,
-                    onChanged: (v) {
-                      quickbillController.paidAmount.value = v;
-                      final paid = double.tryParse(v) ?? 0;
-                      quickbillController.dueAmount.value =
-                          (quickbillController.calculateTotal() - paid).clamp(
-                            0,
-                            quickbillController.calculateTotal(),
-                          );
-                    },
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Paid Amount',
-                      prefixIcon: const Icon(Icons.payment),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Obx(
-                    () => Text(
-                      'Due Amount: ₹${quickbillController.dueAmount.value.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red,
-                      ),
-                    ),
-                  ),
                 ],
-              ],
+              ),
             ),
           ),
         ),
-
         const SizedBox(height: 16),
 
         // Total Display
@@ -687,7 +740,6 @@ class ProductInputForm extends StatelessWidget {
     final priceController = TextEditingController(
       text: controller.productPriceController.text,
     );
-    String selectedType = controller.productTypeController.text;
 
     return Form(
       key: formKey,
@@ -748,22 +800,28 @@ class ProductInputForm extends StatelessWidget {
                 controller.productPriceController.text = value,
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            value: selectedType,
-            decoration: InputDecoration(
-              labelText: 'Type',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+          Obx(
+            () => DropdownButtonFormField<String>(
+              value: controller.selectedType.value,
+              decoration: InputDecoration(
+                labelText: 'Type',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                isDense: true,
               ),
-              isDense: true,
+              items: ['unit', 'kg', 'meter', 'pack']
+                  .map(
+                    (type) => DropdownMenuItem(value: type, child: Text(type)),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                controller.selectedType.value = value!;
+              },
+              validator: (value) => value == null ? 'Select a type' : null,
             ),
-            items: ['unit', 'kg', 'meter', 'pack']
-                .map((type) => DropdownMenuItem(value: type, child: Text(type)))
-                .toList(),
-            onChanged: (value) =>
-                controller.productTypeController.text = value!,
-            validator: (value) => value == null ? 'Select a type' : null,
           ),
+
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -774,12 +832,13 @@ class ProductInputForm extends StatelessWidget {
                     name: nameController.text.trim(),
                     price: double.parse(priceController.text.trim()),
                     quantity: double.parse(quantityController.text.trim()),
-                    type: selectedType,
+                    type: controller.selectedType.value, // ✅ always latest
                   );
+
                   nameController.clear();
                   quantityController.clear();
                   priceController.clear();
-                  controller.productTypeController.text = 'unit';
+
                   controller.clearProductInputs();
                 } else {
                   Get.snackbar(

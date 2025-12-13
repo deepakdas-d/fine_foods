@@ -12,23 +12,24 @@ class QuickbillController extends GetxController {
   var customerName = ''.obs;
   var customerPhone = ''.obs;
   var customerDiscount = ''.obs;
-  var paymentMethod = 'cash'.obs; // cash / card / upi
+  var paymentMethod = 'Cash'.obs; // cash / card / upi
   var paidAmount = ''.obs;
   var paymentStatus = 'paid'.obs; // paid / pending
   var newProducts = <Map<String, dynamic>>[].obs;
-  var dueAmount = 0.0.obs;
-  var selectedPaymentType = 'Full Payment'.obs;
+  var selectedPaymentType = 'Full'.obs; // Full / Split
+  var cashReceived = ''.obs;
+  var onlineReceived = ''.obs;
+
   final productNameController = TextEditingController();
   final productPriceController = TextEditingController();
   final productQuantityController = TextEditingController();
-  final productTypeController = TextEditingController(text: 'unit');
+  final selectedType = 'unit'.obs;
 
   @override
   void onClose() {
     productNameController.dispose();
     productPriceController.dispose();
     productQuantityController.dispose();
-    productTypeController.dispose();
     super.onClose();
   }
 
@@ -61,7 +62,7 @@ class QuickbillController extends GetxController {
     productNameController.clear();
     productPriceController.clear();
     productQuantityController.clear();
-    productTypeController.text = 'unit';
+    selectedType.value = 'unit';
   }
 
   void removeProduct(String id) {
@@ -125,18 +126,59 @@ class QuickbillController extends GetxController {
     }
 
     isLoading.value = true;
+
     try {
       final billId = const Uuid().v4();
       final invoiceNumber = generateInvoiceNumber();
       final batch = _firestore.batch();
 
-      final globalDiscount = customerDiscount.value.trim().isEmpty
+      final totalAmount = calculateTotal();
+      final discount = customerDiscount.value.trim().isEmpty
           ? 0.0
           : double.parse(customerDiscount.value.trim());
-      final totalAmount = calculateTotal();
-      final paid = paidAmount.value.trim().isEmpty
-          ? totalAmount
-          : double.tryParse(paidAmount.value.trim()) ?? totalAmount;
+
+      /// 🔴 EDGE CASE: TOTAL MUST BE > 0
+      if (totalAmount <= 0) {
+        Get.snackbar(
+          'Error',
+          'Total amount must be greater than 0',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return null;
+      }
+
+      double cash = 0;
+      double online = 0;
+
+      /// ✅ FULL PAYMENT (Cash OR Online)
+      if (selectedPaymentType.value == 'Full') {
+        if (paymentMethod.value == 'Cash') {
+          cash = totalAmount;
+          online = 0;
+        } else if (paymentMethod.value == 'Online') {
+          cash = 0;
+          online = totalAmount;
+        }
+      }
+
+      /// ✅ SPLIT PAYMENT (Cash + Online)
+      if (selectedPaymentType.value == 'Split') {
+        cash = double.tryParse(cashReceived.value) ?? 0;
+        online = double.tryParse(onlineReceived.value) ?? 0;
+
+        if ((cash + online) != totalAmount) {
+          Get.snackbar(
+            'Error',
+            'Cash + Online must equal total amount',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+          return null;
+        }
+      }
 
       final billData = {
         'invoiceNumber': invoiceNumber,
@@ -144,6 +186,7 @@ class QuickbillController extends GetxController {
             ? 'Walk-in Customer'
             : customerName.value.trim(),
         'customerPhone': customerPhone.value.trim(),
+
         'products': newProducts
             .map(
               (product) => {
@@ -156,15 +199,29 @@ class QuickbillController extends GetxController {
               },
             )
             .toList(),
+
+        'subtotal': newProducts.fold(
+          0.0,
+          (sum, p) => sum + (p['total'] as double),
+        ),
+
+        'discount': discount,
         'total': totalAmount,
-        'discount': globalDiscount,
         'itemCount': newProducts.fold(
           0.0,
-          (sum, product) => sum + (product['quantity'] as double),
+          (sum, p) => sum + (p['quantity'] as double),
         ),
-        'paymentMethod': paymentMethod.value,
-        'paidAmount': paid,
-        'paymentStatus': paymentStatus.value,
+
+        /// 💳 PAYMENT INFO
+        'paymentType': selectedPaymentType.value, // Full / Split
+        'paymentMethod': selectedPaymentType.value == 'Split'
+            ? 'Both'
+            : paymentMethod.value,
+        'cashReceived': cash,
+        'onlineReceived': online,
+        'totalPaid': cash + online,
+        'paymentStatus': 'paid',
+
         'createdAt': DateTime.now().toIso8601String(),
         'status': 'completed',
       };
@@ -182,6 +239,7 @@ class QuickbillController extends GetxController {
       );
 
       clearCart();
+
       if (Get.isBottomSheetOpen == true) {
         Navigator.of(Get.overlayContext!, rootNavigator: true).pop();
       }
@@ -191,7 +249,7 @@ class QuickbillController extends GetxController {
       developer.log('Failed to create bill: $e');
       Get.snackbar(
         'Error',
-        'Failed to create invoice: $e',
+        'Failed to create invoice',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -210,6 +268,9 @@ class QuickbillController extends GetxController {
     paidAmount.value = '';
     paymentMethod.value = 'cash';
     paymentStatus.value = 'paid';
+    onlineReceived.value = '';
+    cashReceived.value = '';
+    selectedPaymentType.value = 'Full';
     clearProductInputs();
   }
 
