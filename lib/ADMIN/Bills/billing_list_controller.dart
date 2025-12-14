@@ -181,12 +181,44 @@ class BillListController extends GetxController {
     return rows;
   }
 
+  String getPaymentMode(Map<String, dynamic> bill) {
+    return bill['paymentMethod']?.toString() ??
+        bill['paymentType']?.toString() ??
+        'N/A';
+  }
+
+  double getReceivedAmount(Map<String, dynamic> bill) {
+    if (bill['totalPaid'] != null) {
+      return (bill['totalPaid'] as num).toDouble();
+    }
+
+    final cash = (bill['cashReceived'] as num?)?.toDouble() ?? 0.0;
+    final online = (bill['onlineReceived'] as num?)?.toDouble() ?? 0.0;
+
+    if (cash > 0 || online > 0) {
+      return cash + online;
+    }
+
+    // fallback for version-2
+    return (bill['total'] as num?)?.toDouble() ?? calculateBillFinalTotal(bill);
+  }
+
+  DateTime parseCreatedAt(dynamic createdAt) {
+    if (createdAt is Timestamp) {
+      return createdAt.toDate().toLocal();
+    }
+    if (createdAt is String) {
+      return DateTime.parse(createdAt).toLocal();
+    }
+    return DateTime.now();
+  }
+
   // ────────────────────────────────
   // PDF GENERATION
   // ────────────────────────────────
   Future<Uint8List> generateBillPdf(Map<String, dynamic> bill) async {
     final pdf = pw.Document();
-    final date = (bill['createdAt'] as Timestamp).toDate().toLocal();
+    final date = parseCreatedAt(bill['createdAt']);
     final invoice = bill['invoiceNumber']?.toString().isNotEmpty == true
         ? bill['invoiceNumber']
         : 'INV-${bill['id'].substring(0, 8).toUpperCase()}';
@@ -312,7 +344,58 @@ class BillListController extends GetxController {
                 ),
               ],
             ),
+            pw.SizedBox(height: 20),
 
+            pw.Container(
+              width: 250,
+              padding: const pw.EdgeInsets.all(12),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.grey),
+                borderRadius: pw.BorderRadius.circular(6),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    "Payment",
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 14,
+                      font: font,
+                    ),
+                  ),
+                  pw.SizedBox(height: 6),
+
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text("Mode", style: pw.TextStyle(font: font)),
+                      pw.Text(
+                        getPaymentMode(bill),
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          font: font,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text("Received", style: pw.TextStyle(font: font)),
+                      pw.Text(
+                        "Rs${getReceivedAmount(bill).toStringAsFixed(2)}",
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          font: font,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
             pw.Spacer(),
             pw.Align(
               alignment: pw.Alignment.centerRight,
@@ -405,21 +488,40 @@ class BillListController extends GetxController {
   Future<void> downloadBillPdf(Map<String, dynamic> bill) async {
     try {
       isLoading.value = true;
+
+      log('[PDF] Starting download for bill ${bill['id']}');
+
+      // 1️⃣ Generate PDF
       final bytes = await generateBillPdf(bill);
+      log('[PDF] PDF generated successfully (${bytes.length} bytes)');
+
+      // 2️⃣ File name
       final name =
-          (bill['invoiceNumber'] ?? bill['id'].substring(0, 8))
-              .toString()
-              .replaceAll('/', '_') +
-          '.pdf';
+          '${(bill['invoiceNumber'] ?? bill['id'].substring(0, 8)).toString().replaceAll('/', '_')}.pdf';
+      log('[PDF] File name: $name');
+
+      // 3️⃣ Save PDF
       final path = await savePdf(bytes, name);
+      log('[PDF] Saved at path: "$path"');
+
+      // 4️⃣ Notify user
       Get.snackbar(
         "Success",
         "PDF saved: $name",
         backgroundColor: Colors.green,
         colorText: Colors.white,
       );
-      OpenFile.open(path);
-    } catch (e) {
+
+      // 5️⃣ Open file only if path exists
+      if (path.isNotEmpty) {
+        log('[PDF] Opening file...');
+        await OpenFile.open(path);
+      } else {
+        log('[PDF] File saved but path not returned (Android 10+)');
+      }
+    } catch (e, s) {
+      log('[PDF] Error while downloading PDF', error: e, stackTrace: s);
+
       Get.snackbar(
         "Error",
         "Failed to generate PDF",
@@ -428,6 +530,7 @@ class BillListController extends GetxController {
       );
     } finally {
       isLoading.value = false;
+      log('[PDF] Download flow completed');
     }
   }
 
@@ -474,7 +577,7 @@ class BillListController extends GetxController {
             ),
             pw.SizedBox(height: 20),
             ...bills.map((bill) {
-              final date = (bill['createdAt'] as Timestamp).toDate().toLocal();
+              final date = parseCreatedAt(bill['createdAt']);
               final inv =
                   bill['invoiceNumber'] ?? 'INV-${bill['id'].substring(0, 8)}';
               return pw.Column(

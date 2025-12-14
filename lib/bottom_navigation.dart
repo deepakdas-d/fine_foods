@@ -19,17 +19,17 @@ class BottomNavPage extends StatelessWidget {
   final List<BottomBarItem> bottomBarItems = const [
     BottomBarItem(
       inActiveItem: Icon(Icons.dashboard, color: AppColor.textSecondary),
-      activeItem: Icon(Icons.dashboard, color: AppColor.textOnPrimary),
+      activeItem: Icon(Icons.dashboard, color: AppColor.primary),
       itemLabel: 'Admin',
     ),
     BottomBarItem(
       inActiveItem: Icon(Icons.home, color: AppColor.textSecondary),
-      activeItem: Icon(Icons.home, color: AppColor.textOnPrimary),
+      activeItem: Icon(Icons.home, color: AppColor.primary),
       itemLabel: 'Home',
     ),
     BottomBarItem(
       inActiveItem: Icon(Icons.point_of_sale, color: AppColor.textSecondary),
-      activeItem: Icon(Icons.point_of_sale, color: AppColor.textOnPrimary),
+      activeItem: Icon(Icons.point_of_sale, color: AppColor.primary),
       itemLabel: 'Sales',
     ),
   ];
@@ -86,7 +86,9 @@ class BottomNavPage extends StatelessWidget {
                     width: itemWidth,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: isActive ? AppColor.textOnPrimary : AppColor.primary,
+                      color: isActive
+                          ? AppColor.textOnPrimary
+                          : AppColor.primary,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
@@ -97,7 +99,9 @@ class BottomNavPage extends StatelessWidget {
                         Text(
                           item.itemLabel ?? '',
                           style: TextStyle(
-                            color: isActive ? AppColor.primary : AppColor.textOnPrimary,
+                            color: isActive
+                                ? AppColor.primary
+                                : AppColor.textOnPrimary,
                             fontSize: 14,
                           ),
                         ),

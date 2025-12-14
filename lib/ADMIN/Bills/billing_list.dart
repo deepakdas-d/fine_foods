@@ -367,7 +367,6 @@ class BillCard extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: () async {
                   try {
-                    log('[PDF] Starting download for bill ${bill['id']}');
                     await controller.downloadBillPdf(bill);
                   } catch (e, s) {
                     log('[PDF ERROR] $e\n$s');
