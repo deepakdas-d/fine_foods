@@ -1,6 +1,7 @@
 // ignore_for_file: unused_local_variable
 
 import 'package:fine_foods/ADMIN/invoice_generator/invoice_controller.dart';
+import 'package:fine_foods/appcolor.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,14 +16,15 @@ class InvoiceGenerator extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
+      backgroundColor: AppColor.background,
       appBar: AppBar(
         title: Text(
           'Invoice Generator',
-          style: GoogleFonts.oswald(fontWeight: FontWeight.bold, fontSize: 24),
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 24, color: AppColor.background),
         ),
-        backgroundColor: const Color(0xFFFFD700),
+        backgroundColor: AppColor.primary,
         centerTitle: true,
-        foregroundColor: Colors.black87,
+        foregroundColor: AppColor.background,
         elevation: 4,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
@@ -39,6 +41,7 @@ class InvoiceGenerator extends StatelessWidget {
                     // Collection Selector
                     Card(
                       elevation: 4,
+                      color: AppColor.surface,
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
@@ -46,10 +49,10 @@ class InvoiceGenerator extends StatelessWidget {
                           children: [
                             Text(
                               'Select Source',
-                              style: GoogleFonts.k2d(
+                              style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 20,
-                                color: Colors.blue[800],
+                                color: AppColor.primary,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -57,16 +60,28 @@ class InvoiceGenerator extends StatelessWidget {
                               value: controller.selectedCollection.value,
                               decoration: InputDecoration(
                                 labelText: 'Collection',
+                                labelStyle: GoogleFonts.poppins(color: AppColor.textSecondary),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: AppColor.textSecondary),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: AppColor.textSecondary),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: AppColor.primary),
                                 ),
                                 prefixIcon: const Icon(
                                   Icons.category,
-                                  color: Color(0xFFFFD700),
+                                  color: AppColor.primary,
                                 ),
                                 filled: true,
-                                fillColor: Colors.blue[50],
+                                fillColor: AppColor.background,
                               ),
+                              dropdownColor: AppColor.surface,
+                              style: GoogleFonts.poppins(color: AppColor.textPrimary),
                               items: ['inventory', 'products'].map((
                                 String collection,
                               ) {
@@ -74,7 +89,7 @@ class InvoiceGenerator extends StatelessWidget {
                                   value: collection,
                                   child: Text(
                                     collection.capitalizeFirst!,
-                                    style: GoogleFonts.k2d(fontSize: 14),
+                                    style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary),
                                   ),
                                 );
                               }).toList(),
@@ -94,6 +109,7 @@ class InvoiceGenerator extends StatelessWidget {
                     // Products List
                     Card(
                       elevation: 4,
+                      color: AppColor.surface,
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
@@ -104,10 +120,10 @@ class InvoiceGenerator extends StatelessWidget {
                               children: [
                                 Text(
                                   'Products (${controller.products.length})',
-                                  style: GoogleFonts.k2d(
+                                  style: GoogleFonts.poppins(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 20,
-                                    color: Colors.blue[800],
+                                    color: AppColor.primary,
                                   ),
                                 ),
                                 if (controller.products.isNotEmpty)
@@ -115,8 +131,8 @@ class InvoiceGenerator extends StatelessWidget {
                                     onPressed: controller.clearAllProducts,
                                     child: Text(
                                       'Clear All',
-                                      style: GoogleFonts.k2d(
-                                        color: Colors.red,
+                                      style: GoogleFonts.poppins(
+                                        color: AppColor.error,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -130,9 +146,9 @@ class InvoiceGenerator extends StatelessWidget {
                                       padding: const EdgeInsets.all(32.0),
                                       child: Text(
                                         'No products available',
-                                        style: GoogleFonts.k2d(
+                                        style: GoogleFonts.poppins(
                                           fontSize: 16,
-                                          color: Colors.grey,
+                                          color: AppColor.textSecondary,
                                         ),
                                       ),
                                     ),
@@ -149,35 +165,39 @@ class InvoiceGenerator extends StatelessWidget {
                                         margin: const EdgeInsets.symmetric(
                                           vertical: 4,
                                         ),
+                                        color: AppColor.background,
                                         child: ListTile(
                                           leading: CircleAvatar(
-                                            backgroundColor: Colors.blue[100],
+                                            backgroundColor: AppColor.primary.withOpacity(0.2),
                                             child: Text(
                                               product.name[0].toUpperCase(),
-                                              style: TextStyle(
-                                                color: Colors.blue[700],
+                                              style: GoogleFonts.poppins(
+                                                color: AppColor.primary,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
                                           ),
                                           title: Text(
                                             product.name,
-                                            style: GoogleFonts.k2d(
+                                            style: GoogleFonts.poppins(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 16,
+                                              color: AppColor.textPrimary,
                                             ),
                                           ),
                                           subtitle: Text(
                                             'Qty: ${product.count} ${product.quantityType} × ₹${product.price.toStringAsFixed(2)}',
-                                            style: GoogleFonts.k2d(
+                                            style: GoogleFonts.poppins(
                                               fontSize: 14,
+                                              color: AppColor.textSecondary,
                                             ),
                                           ),
                                           trailing: Text(
                                             '₹${product.totalPrice.toStringAsFixed(2)}',
-                                            style: GoogleFonts.k2d(
+                                            style: GoogleFonts.poppins(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 16,
+                                              color: AppColor.textPrimary,
                                             ),
                                           ),
                                         ),
@@ -193,7 +213,7 @@ class InvoiceGenerator extends StatelessWidget {
                     // Total and Generate Invoice Buttons
                     Card(
                       elevation: 4,
-                      color: Colors.blue[50],
+                      color: AppColor.surface,
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
@@ -203,17 +223,18 @@ class InvoiceGenerator extends StatelessWidget {
                               children: [
                                 Text(
                                   'Total Amount:',
-                                  style: GoogleFonts.k2d(
+                                  style: GoogleFonts.poppins(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18,
+                                    color: AppColor.textPrimary,
                                   ),
                                 ),
                                 Text(
                                   '₹${controller.totalAmount.value.toStringAsFixed(2)}',
-                                  style: GoogleFonts.k2d(
+                                  style: GoogleFonts.poppins(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18,
-                                    color: Colors.green[700],
+                                    color: AppColor.success,
                                   ),
                                 ),
                               ],
@@ -234,20 +255,22 @@ class InvoiceGenerator extends StatelessWidget {
                                             'inventory',
                                           ),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green[700],
-                                      foregroundColor: Colors.white,
+                                      backgroundColor: AppColor.success,
+                                      foregroundColor: AppColor.textPrimary,
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 12,
                                       ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
+                                      disabledBackgroundColor: AppColor.success.withOpacity(0.3),
                                     ),
                                     child: Text(
                                       'Generate from Inventory',
-                                      style: GoogleFonts.k2d(
+                                      style: GoogleFonts.poppins(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
+                                        color: AppColor.textOnPrimary, // Assuming white/black on success? white is safe
                                       ),
                                     ),
                                   ),
@@ -266,20 +289,22 @@ class InvoiceGenerator extends StatelessWidget {
                                             'products',
                                           ),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue[700],
-                                      foregroundColor: Colors.white,
+                                      backgroundColor: AppColor.primary,
+                                      foregroundColor: AppColor.background,
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 12,
                                       ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
+                                      disabledBackgroundColor: AppColor.primary.withOpacity(0.3),
                                     ),
                                     child: Text(
                                       'Generate from Products',
-                                      style: GoogleFonts.k2d(
+                                      style: GoogleFonts.poppins(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
+                                        color: AppColor.background,
                                       ),
                                     ),
                                   ),

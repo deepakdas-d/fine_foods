@@ -3,6 +3,7 @@ import 'package:fine_foods/ADMIN/Stocks/stocks.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/invoice_generator.dart';
 import 'package:fine_foods/ADMIN/sales_data/Sales_Growth.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list.dart';
+import 'package:fine_foods/appcolor.dart'; // Import AppColor
 import 'package:fine_foods/bottom_navigation.dart';
 import 'package:fine_foods/home/home.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -16,39 +17,37 @@ class Dashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    // ignore: unused_local_variable
-    final screenWidth = MediaQuery.of(context).size.width;
 
     final List<_DashboardItem> menuItems = [
       _DashboardItem(
         title: "Inventory",
         icon: Icons.inventory_2_rounded,
-        color: Colors.blue.shade400,
-        page: Inventory(),
+        color: AppColor.primary, // Yellow
+        page: const Inventory(),
       ),
       _DashboardItem(
         title: "Stocks",
         icon: Icons.store_rounded,
-        color: Colors.red.shade400,
-        page: Stocks(),
+        color: const Color(0xFFFF9800), // Orange (Warning/Action)
+        page: const Stocks(),
       ),
       _DashboardItem(
         title: "Invoice",
         icon: Icons.receipt_long_rounded,
-        color: Colors.orange.shade400,
-        page: InvoiceGenerator(),
+        color: Colors.blueAccent, // Keep distinct color for invoice
+        page: const InvoiceGenerator(),
       ),
       _DashboardItem(
         title: "Sales Data",
         icon: Icons.bar_chart_outlined,
-        color: Colors.green.shade400,
-        page: SalesGrowth(),
+        color: AppColor.success, // Green
+        page: const SalesGrowth(),
       ),
       _DashboardItem(
         title: "Bills",
         icon: Icons.receipt_long_outlined,
-        color: const Color.fromARGB(255, 149, 102, 187),
-        page: BillingList(),
+        color: const Color(0xFF9C27B0), // Purple for Bills
+        page: const BillingList(),
       ),
     ];
 
@@ -57,35 +56,44 @@ class Dashboard extends StatelessWidget {
         bool goHome = await showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text("Go to Home"),
-            content: const Text("Do you want to return to the Home screen?"),
+            backgroundColor: AppColor.surface,
+            title: Text(
+              "Go to Home",
+              style: GoogleFonts.poppins(color: AppColor.textPrimary, fontWeight: FontWeight.bold),
+            ),
+            content: Text(
+              "Do you want to return to the Home screen?",
+              style: GoogleFonts.poppins(color: AppColor.textSecondary),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text("No"),
+                child: Text("No", style: GoogleFonts.poppins(color: AppColor.error)),
               ),
               TextButton(
                 onPressed: () => Get.offAll(() => BottomNavPage()),
-                child: const Text("Yes"),
+                child: Text("Yes", style: GoogleFonts.poppins(color: AppColor.primary)),
               ),
             ],
           ),
         );
 
         if (goHome) {
-          Get.offAll(() => Home()); // Navigate to Home and clear stack
+          Get.offAll(() => BottomNavPage());
         }
-        return false; // prevent default back action
+        return false;
       },
       child: Scaffold(
+        backgroundColor: AppColor.background, // Dark Background
         appBar: AppBar(
           title: Text(
             "Admin Dashboard",
-            style: GoogleFonts.oswald(fontWeight: FontWeight.w600),
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: AppColor.background),
           ),
           centerTitle: true,
-          backgroundColor: const Color(0xFFFFD700),
-          elevation: 4,
+          backgroundColor: AppColor.primary, // Yellow Header
+          elevation: 0,
+          foregroundColor: AppColor.background, // Black icons/text on yellow
           actions: [
             if (kIsWeb)
               IconButton(
@@ -100,80 +108,90 @@ class Dashboard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
-              vertical: 12.0,
+              vertical: 20.0,
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 /// 🔹 Logo Card
-                Card(
-                  elevation: 8,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Container(
-                    height: screenHeight * 0.22,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.asset(
-                        "assets/images/logo.png",
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: screenHeight * 0.02),
+                // Card(
+                //   elevation: 8,
+                //   color: AppColor.surface,
+                //   shape: RoundedRectangleBorder(
+                //     borderRadius: BorderRadius.circular(16),
+                //   ),
+                //   child: Container(
+                //     height: screenHeight * 0.22,
+                //     width: double.infinity,
+                //     padding: const EdgeInsets.all(16),
+                //     decoration: BoxDecoration(
+                //       borderRadius: BorderRadius.circular(16),
+                //       color: AppColor.surface,
+                //     ),
+                //     child: Center(
+                //       child: Image.asset(
+                //         "assets/images/logo.png",
+                //         fit: BoxFit.contain,
+                //       ),
+                //     ),
+                //   ),
+                // ),
+                // SizedBox(height: screenHeight * 0.03),
 
                 /// 🔹 Welcome Text
                 Text(
                   "Welcome, Admin!",
                   style: GoogleFonts.poppins(
-                    fontSize: 26,
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
+                    color: AppColor.textPrimary, // White
                   ),
                 ),
                 Text(
                   "Manage your business efficiently",
                   style: GoogleFonts.poppins(
                     fontSize: 16,
-                    color: Colors.grey[600],
+                    color: AppColor.textSecondary, // Grey
                   ),
                 ),
                 SizedBox(height: screenHeight * 0.03),
 
                 /// 🔹 Dashboard Menu Grid
-                /// 🔹 Dashboard Menu List
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: menuItems.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2, // number of columns
-                    crossAxisSpacing: 12, // horizontal spacing
-                    mainAxisSpacing: 12, // vertical spacing
-                    childAspectRatio: 1.2, // width/height ratio
+                    crossAxisSpacing: 16, // horizontal spacing
+                    mainAxisSpacing: 16, // vertical spacing
+                    childAspectRatio: 1.1, // width/height ratio
                   ),
                   itemBuilder: (context, index) {
                     final item = menuItems[index];
                     return Card(
-                      elevation: 6,
+                      elevation: 4,
+                      color: AppColor.surface, // Dark Card Background
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(color: Colors.white.withOpacity(0.05), width: 1),
                       ),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
                         onTap: () => Get.to(() => item.page),
+                        splashColor: item.color.withOpacity(0.1),
+                        highlightColor: item.color.withOpacity(0.05),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              CircleAvatar(
-                                radius: 28,
-                                backgroundColor: item.color.withOpacity(0.2),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: item.color.withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                ),
                                 child: Icon(
                                   item.icon,
                                   size: 32,
@@ -187,6 +205,7 @@ class Dashboard extends StatelessWidget {
                                 style: GoogleFonts.poppins(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
+                                  color: AppColor.textPrimary, // White text
                                 ),
                               ),
                             ],

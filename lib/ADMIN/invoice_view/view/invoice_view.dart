@@ -1,8 +1,9 @@
 import 'package:fine_foods/ADMIN/invoice_generator/invoice_models.dart';
 import 'package:fine_foods/ADMIN/invoice_view/controller/invoice_view_controller.dart';
-import 'package:fine_foods/widgets/appbar_widget.dart';
+import 'package:fine_foods/appcolor.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class InvoiceViewPage extends StatelessWidget {
   final Invoice invoice;
@@ -17,10 +18,18 @@ class InvoiceViewPage extends StatelessWidget {
     final padding = screenWidth * 0.04;
 
     return Scaffold(
-      appBar: buildAppbar(
-        title: Text('Invoice View'),
-        color: Color(0xFFFFD700),
-        forecolor: Colors.black,
+      backgroundColor: AppColor.background,
+      appBar: AppBar(
+        title: Text(
+          'Invoice View',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            color: AppColor.background,
+          ),
+        ),
+        backgroundColor: AppColor.primary,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: AppColor.background),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -39,26 +48,40 @@ class InvoiceViewPage extends StatelessWidget {
                       children: [
                         Text(
                           'INVOICE',
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue[700],
-                              ),
+                          style: GoogleFonts.poppins(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: AppColor.primary,
+                          ),
                         ),
                         SizedBox(height: screenHeight * 0.01),
-                        Text('Invoice ID: ${invoice.id.substring(0, 8)}'),
+                        Text(
+                          'Invoice ID: ${invoice.id.substring(0, 8)}',
+                          style: GoogleFonts.poppins(
+                            color: AppColor.textPrimary,
+                            fontSize: 14,
+                          ),
+                        ),
                         Text(
                           'Date: ${invoice.createdAt.toString().split(' ')[0]}',
+                          style: GoogleFonts.poppins(
+                            color: AppColor.textSecondary,
+                            fontSize: 14,
+                          ),
                         ),
                         Text(
                           'Time: ${invoice.createdAt.toString().split(' ')[1].substring(0, 8)}',
+                          style: GoogleFonts.poppins(
+                            color: AppColor.textSecondary,
+                            fontSize: 14,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   SizedBox(width: screenWidth * 0.02),
                   ConstrainedBox(
-                    constraints: BoxConstraints(
+                    constraints: const BoxConstraints(
                       maxWidth: 150,
                       maxHeight: 150,
                       minWidth: 100,
@@ -73,90 +96,108 @@ class InvoiceViewPage extends StatelessWidget {
               // Products Table
               Text(
                 'Products',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
+                  color: AppColor.textPrimary,
                 ),
               ),
               SizedBox(height: screenHeight * 0.01),
 
               Card(
                 elevation: 4,
+                color: AppColor.surface,
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Product Table
-                      DataTable(
-                        columns: const [
-                          DataColumn(label: Text('Product Name')),
-                          DataColumn(label: Text('Quantity')),
-                          DataColumn(label: Text('Price')),
-                          DataColumn(label: Text('Total')),
-                        ],
-                        rows: invoice.products.map((product) {
-                          return DataRow(
-                            cells: [
-                              DataCell(Text(product.name)),
-                              DataCell(Text('${product.count}')),
-                              DataCell(
-                                Text('₹${product.price.toStringAsFixed(2)}'),
-                              ),
-                              DataCell(
-                                Text(
-                                  '₹${product.totalPrice.toStringAsFixed(2)}',
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      dividerColor: AppColor.background,
+                      dataTableTheme: DataTableThemeData(
+                        headingTextStyle: GoogleFonts.poppins(
+                          fontWeight: FontWeight.bold,
+                          color: AppColor.primary,
+                        ),
+                        dataTextStyle: GoogleFonts.poppins(
+                          color: AppColor.textPrimary,
+                        ),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Product Table
+                        DataTable(
+                          columns: const [
+                            DataColumn(label: Text('Product Name')),
+                            DataColumn(label: Text('Quantity')),
+                            DataColumn(label: Text('Price')),
+                            DataColumn(label: Text('Total')),
+                          ],
+                          rows: invoice.products.map((product) {
+                            return DataRow(
+                              cells: [
+                                DataCell(Text(product.name)),
+                                DataCell(Text('${product.count}')),
+                                DataCell(
+                                  Text('₹${product.price.toStringAsFixed(2)}'),
+                                ),
+                                DataCell(
+                                  Text(
+                                    '₹${product.totalPrice.toStringAsFixed(2)}',
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+
+                        // Total Aligned to Table Width
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12.0),
+                          child: Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.end, // aligns with last column
+                            children: [
+                              Card(
+                                elevation: 0,
+                                color: AppColor.surface,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  side: BorderSide(color: AppColor.primary.withOpacity(0.5)),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12.0,
+                                    horizontal: 24.0,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        'TOTAL: ',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColor.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        '₹${invoice.totalAmount.toStringAsFixed(2)}',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColor.success,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
-                          );
-                        }).toList(),
-                      ),
-
-                      // Total Aligned to Table Width
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12.0),
-                        child: Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.end, // aligns with last column
-                          children: [
-                            Card(
-                              elevation: 4,
-                              color: Colors.green[50],
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12.0,
-                                  horizontal: 24.0,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      'TOTAL: ',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Text(
-                                      '₹${invoice.totalAmount.toStringAsFixed(2)}',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.green[700],
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -178,9 +219,18 @@ class InvoiceViewPage extends StatelessWidget {
                       Get.snackbar(
                         'Download Complete',
                         'Invoice saved to Downloads folder',
+                        backgroundColor: AppColor.success,
+                        colorText: AppColor.textOnPrimary,
                       );
                     },
-                    child: Text('Download Invoice'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColor.primary,
+                      foregroundColor: AppColor.background,
+                    ),
+                    child: Text(
+                      'Download Invoice',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    ),
                   ),
 
                   SizedBox(width: screenWidth * 0.03),

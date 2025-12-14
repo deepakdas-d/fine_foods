@@ -1,4 +1,5 @@
 import 'package:fine_foods/ADMIN/Inventory/inventory_controller.dart';
+import 'package:fine_foods/appcolor.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,14 +12,15 @@ class Inventory extends StatelessWidget {
     final controller = Get.put(InventoryController());
 
     return Scaffold(
+      backgroundColor: AppColor.background, // Dark Background
       appBar: AppBar(
         title: Text(
           'Inventory Management',
-          style: GoogleFonts.oswald(fontWeight: FontWeight.bold, fontSize: 24),
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 24, color: AppColor.background),
         ),
-        backgroundColor: const Color(0xFFFFD700),
+        backgroundColor: AppColor.primary, // Yellow
         centerTitle: true,
-        foregroundColor: Colors.black87,
+        foregroundColor: AppColor.background,
         elevation: 4,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
@@ -30,16 +32,9 @@ class Inventory extends StatelessWidget {
             : Container(
                 margin: const EdgeInsets.all(16.0),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!, width: 1),
+                  border: Border.all(color: AppColor.surface, width: 1), // Darker border
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      spreadRadius: 2,
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  // Removed shadow for flat dark design
                 ),
                 child: SingleChildScrollView(
                   child: Padding(
@@ -50,214 +45,237 @@ class Inventory extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.blue[50],
+                            color: AppColor.surface,
                             borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColor.primary.withOpacity(0.5)),
                           ),
                           child: Text(
                             'Total Value: ₹${controller.total.value.toStringAsFixed(2)}',
-                            style: GoogleFonts.k2d(
+                            style: GoogleFonts.poppins(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Colors.blue[800],
+                              color: AppColor.primary, // Yellow Text
                             ),
                           ),
                         ),
                         const SizedBox(height: 16),
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            columnSpacing: 25,
-                            dataRowMaxHeight: 66,
-                            headingRowHeight: 66,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey[300]!),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            columns: [
-                              DataColumn(
-                                label: Text(
-                                  'Name',
-                                  style: GoogleFonts.k2d(
+                          child: Theme(
+                              data: Theme.of(context).copyWith(
+                                dividerColor: Colors.grey[800],
+                                dataTableTheme: DataTableThemeData(
+                                  headingTextStyle: GoogleFonts.poppins(
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.blue[800],
+                                    color: AppColor.primary,
+                                  ),
+                                  dataTextStyle: GoogleFonts.poppins(
+                                    color: AppColor.textPrimary,
                                   ),
                                 ),
                               ),
-                              DataColumn(
-                                label: Text(
-                                  'Barcode',
-                                  style: GoogleFonts.k2d(
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.blue[800],
-                                  ),
+                              child: DataTable(
+                                columnSpacing: 25,
+                                dataRowMaxHeight: 66,
+                                headingRowHeight: 66,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey[800]!),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                              ),
-                              DataColumn(
-                                label: Expanded(
-                                  child: Text(
-                                    'Quantity',
-                                    style: GoogleFonts.k2d(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.blue[800],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              DataColumn(
-                                label: Expanded(
-                                  child: Text(
-                                    'Unit',
-                                    style: GoogleFonts.k2d(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.blue[800],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              DataColumn(
-                                label: Expanded(
-                                  child: Text(
-                                    'Price (₹)',
-                                    style: GoogleFonts.k2d(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.blue[800],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              DataColumn(
-                                label: Expanded(
-                                  child: Text(
-                                    'Total',
-                                    style: GoogleFonts.k2d(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.blue[800],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              DataColumn(
-                                label: Expanded(
-                                  child: Text(
-                                    'Actions',
-                                    style: GoogleFonts.k2d(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.blue[800],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                            rows: controller.products.map((product) {
-                              return DataRow(
-                                cells: [
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
+                                columns: [
+                                  DataColumn(
+                                    label: Text(
+                                      'Name',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColor.primary,
                                       ),
+                                    ),
+                                  ),
+                                  DataColumn(
+                                    label: Text(
+                                      'Barcode',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColor.primary,
+                                      ),
+                                    ),
+                                  ),
+                                  DataColumn(
+                                    label: Expanded(
                                       child: Text(
-                                        product.name,
-                                        style: GoogleFonts.k2d(fontSize: 14),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: Text(
-                                        product.productId,
-                                        style: GoogleFonts.k2d(fontSize: 14),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: Text(
-                                        product.count.toString(),
-                                        style: GoogleFonts.k2d(fontSize: 14),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: Text(
-                                        product.quantityType,
-                                        style: GoogleFonts.k2d(fontSize: 14),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: Text(
-                                        product.price.toStringAsFixed(2),
-                                        style: GoogleFonts.k2d(fontSize: 14),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: Text(
-                                        product.totalPrice.toStringAsFixed(2),
-                                        style: GoogleFonts.k2d(fontSize: 14),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: IconButton(
-                                        icon: const Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
-                                          size: 20,
+                                        'Quantity',
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColor.primary,
                                         ),
-                                        onPressed: () {
-                                          Get.defaultDialog(
-                                            title: "Delete Product",
-                                            middleText:
-                                                "Are you sure you want to delete this product?",
-                                            titleStyle: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            middleTextStyle: const TextStyle(
-                                              color: Colors.black87,
-                                            ),
-                                            textCancel: "Cancel",
-                                            textConfirm: "Delete",
-                                            confirmTextColor: Colors.white,
-                                            buttonColor: Colors.red,
-                                            onConfirm: () {
-                                              controller.removeProduct(
-                                                product.id,
-                                              );
-                                              Get.back();
-                                            },
-                                          );
-                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  DataColumn(
+                                    label: Expanded(
+                                      child: Text(
+                                        'Unit',
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColor.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  DataColumn(
+                                    label: Expanded(
+                                      child: Text(
+                                        'Price (₹)',
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColor.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  DataColumn(
+                                    label: Expanded(
+                                      child: Text(
+                                        'Total',
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColor.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  DataColumn(
+                                    label: Expanded(
+                                      child: Text(
+                                        'Actions',
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColor.primary,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ],
-                              );
-                            }).toList(),
-                          ),
+                                rows: controller.products.map((product) {
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                          child: Text(
+                                            product.name,
+                                            style: GoogleFonts.poppins(
+                                                fontSize: 14, color: AppColor.textPrimary),
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                          child: Text(
+                                            product.productId,
+                                            style: GoogleFonts.poppins(
+                                                fontSize: 14, color: AppColor.textPrimary),
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                          child: Text(
+                                            product.count.toString(),
+                                            style: GoogleFonts.poppins(
+                                                fontSize: 14, color: AppColor.textPrimary),
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                          child: Text(
+                                            product.quantityType,
+                                            style: GoogleFonts.poppins(
+                                                fontSize: 14, color: AppColor.textPrimary),
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                          child: Text(
+                                            product.price.toStringAsFixed(2),
+                                            style: GoogleFonts.poppins(
+                                                fontSize: 14, color: AppColor.textPrimary),
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                          child: Text(
+                                            product.totalPrice.toStringAsFixed(2),
+                                            style: GoogleFonts.poppins(
+                                                fontSize: 14, color: AppColor.textPrimary),
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 8,
+                                          ),
+                                          child: IconButton(
+                                            icon: const Icon(
+                                              Icons.delete,
+                                              color: AppColor.error, // Red
+                                              size: 20,
+                                            ),
+                                            onPressed: () {
+                                              Get.defaultDialog(
+                                                backgroundColor: AppColor.surface,
+                                                title: "Delete Product",
+                                                middleText:
+                                                    "Are you sure you want to delete this product?",
+                                                titleStyle: GoogleFonts.poppins(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppColor.textPrimary,
+                                                ),
+                                                middleTextStyle: GoogleFonts.poppins(
+                                                  color: AppColor.textSecondary,
+                                                ),
+                                                textCancel: "Cancel",
+                                                textConfirm: "Delete",
+                                                confirmTextColor: AppColor.textOnPrimary,
+                                                cancelTextColor: AppColor.textPrimary,
+                                                buttonColor: AppColor.error,
+                                                onConfirm: () {
+                                                  controller.removeProduct(
+                                                    product.id,
+                                                  );
+                                                  Get.back();
+                                                },
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
+                              )),
                         ),
                       ],
                     ),
@@ -267,9 +285,9 @@ class Inventory extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddProductModal(context, controller),
-        backgroundColor: const Color(0xFFFFD700),
+        backgroundColor: AppColor.primary,
         elevation: 6,
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
+        child: const Icon(Icons.add, color: Colors.black, size: 28),
       ),
     );
   }
@@ -292,11 +310,11 @@ class Inventory extends StatelessWidget {
             return Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: AppColor.surface, // Dark modal bg
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black12,
+                    color: Colors.black26,
                     blurRadius: 10,
                     spreadRadius: 2,
                   ),
@@ -313,49 +331,61 @@ class Inventory extends StatelessWidget {
                         height: 5,
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: Colors.grey[300],
+                          color: Colors.grey[700],
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                     ),
                     Text(
                       'Add Product',
-                      style: GoogleFonts.k2d(
+                      style: GoogleFonts.poppins(
                         fontWeight: FontWeight.bold,
                         fontSize: 20,
-                        color: const Color(0xFFFFD700),
+                        color: AppColor.primary, // Yellow
                       ),
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: controller.productNameController,
+                      style: GoogleFonts.poppins(color: AppColor.textPrimary),
                       decoration: InputDecoration(
                         labelText: 'Product Name',
+                        labelStyle: TextStyle(color: AppColor.textSecondary),
                         border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey[700]!),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         prefixIcon: const Icon(
                           Icons.shopping_bag,
-                          color: Color(0xFFFFD700),
+                          color: AppColor.primary,
                         ),
                         filled: true,
-                        fillColor: Colors.blue[50],
+                        fillColor: AppColor.background, // Darker input bg
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: controller.productIdController,
+                      style: GoogleFonts.poppins(color: AppColor.textPrimary),
                       decoration: InputDecoration(
                         labelText: 'Product Barcode',
+                        labelStyle: TextStyle(color: AppColor.textSecondary),
                         border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey[700]!),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         prefixIcon: const Icon(
                           Icons.qr_code,
-                          color: Color(0xFFFFD700),
+                          color: AppColor.primary,
                         ),
                         filled: true,
-                        fillColor: Colors.blue[50],
+                        fillColor: AppColor.background,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -387,24 +417,31 @@ class Inventory extends StatelessWidget {
                           Obx(
                             () => DropdownButtonFormField<String>(
                               value: controller.quantityType.value,
+                              dropdownColor: AppColor.surface,
+                              style: GoogleFonts.poppins(color: AppColor.textPrimary),
                               decoration: InputDecoration(
                                 labelText: 'Quantity Type',
+                                labelStyle: TextStyle(color: AppColor.textSecondary),
                                 border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey[700]!),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 prefixIcon: const Icon(
                                   Icons.category,
-                                  color: Color(0xFFFFD700),
+                                  color: AppColor.primary,
                                 ),
                                 filled: true,
-                                fillColor: Colors.blue[50],
+                                fillColor: AppColor.background,
                               ),
                               items: ['Nos', 'Meter'].map((String type) {
                                 return DropdownMenuItem<String>(
                                   value: type,
                                   child: Text(
                                     type,
-                                    style: GoogleFonts.k2d(fontSize: 14),
+                                    style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary),
                                   ),
                                 );
                               }).toList(),
@@ -430,14 +467,14 @@ class Inventory extends StatelessWidget {
                             Get.snackbar(
                               'Oops!',
                               'Please fill all required fields correctly',
-                              backgroundColor: Colors.white,
-                              colorText: const Color(0xFFFFD700),
+                              backgroundColor: AppColor.surface,
+                              colorText: AppColor.primary,
                             );
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFD700),
-                          foregroundColor: Colors.white,
+                          backgroundColor: AppColor.primary,
+                          foregroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -446,7 +483,7 @@ class Inventory extends StatelessWidget {
                         ),
                         child: Text(
                           'Add Product',
-                          style: GoogleFonts.k2d(
+                          style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -478,28 +515,32 @@ class Inventory extends StatelessWidget {
         controller: controller,
         validator: validator,
         textInputAction: textInputAction ?? TextInputAction.next,
-        style: GoogleFonts.k2d(
+        style: GoogleFonts.poppins(
           fontSize: MediaQuery.of(context).size.height * 0.016,
-          color: const Color(0xFF111827),
+          color: AppColor.textPrimary,
         ),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: GoogleFonts.k2d(
+          labelStyle: GoogleFonts.poppins(
             fontSize: 14,
-            color: const Color(0xFF6B7280),
+            color: AppColor.textSecondary,
           ),
           prefixIcon: const Icon(
             Icons.numbers_outlined,
             size: 20,
-            color: Color(0xFFFFD700),
+            color: AppColor.primary,
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 12,
           ),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: Colors.grey[700]!),
+            borderRadius: BorderRadius.circular(8),
+          ),
           filled: true,
-          fillColor: Colors.blue[50],
+          fillColor: AppColor.background,
         ),
       ),
     );
