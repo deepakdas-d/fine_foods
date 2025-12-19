@@ -571,7 +571,7 @@ class Home extends StatelessWidget {
                                   backgroundColor: Colors.green,
                                   colorText: Colors.white,
                                 );
-                                Get.back();
+                                Get.back(closeOverlays: true);
                               } catch (e) {
                                 developer.log(
                                   '[Home] Print from preview failed: $e',

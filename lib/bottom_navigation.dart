@@ -3,6 +3,7 @@ import 'package:fine_foods/appcolor.dart';
 import 'package:fine_foods/bottom_navigation_controller.dart';
 import 'package:fine_foods/login.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Added for SystemNavigator
 import 'package:get/get.dart';
 import 'package:fine_foods/SALES/billing/view/billing.dart';
 import 'package:fine_foods/home/home.dart';
@@ -40,27 +41,38 @@ class BottomNavPage extends StatelessWidget {
     final itemWidth = screenWidth / bottomBarItems.length;
 
     return Obx(
-      () => WillPopScope(
-        onWillPop: () async {
-          bool close =
-              await Get.dialog(
-                AlertDialog(
-                  title: const Text('Confirm Exit'),
-                  content: const Text('Do you want to exit the app?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Get.back(result: false),
-                      child: const Text('No'),
-                    ),
-                    TextButton(
-                      onPressed: () => Get.back(result: true),
-                      child: const Text('Yes'),
-                    ),
-                  ],
+      () => PopScope(
+        canPop:
+            false, // Prevent automatic pop (back button won't exit immediately)
+        onPopInvokedWithResult: (bool didPop, Object? result) async {
+          if (didPop)
+            return; // Already popped (unlikely here due to canPop: false)
+
+          // Show confirmation dialog
+          final bool? shouldExit = await Get.dialog<bool>(
+            AlertDialog(
+              title: const Text('Confirm Exit'),
+              content: const Text('Do you want to exit the app?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Get.back(result: false), // "No"
+                  child: const Text('No'),
                 ),
-              ) ??
-              false;
-          return close;
+                TextButton(
+                  onPressed: () {
+                    Get.closeCurrentSnackbar(); // Your previous workaround
+                    Get.back(result: true); // "Yes"
+                  },
+                  child: const Text('Yes'),
+                ),
+              ],
+            ),
+          );
+
+          if (shouldExit == true) {
+            SystemNavigator.pop(); // Actually exit the app
+          }
+          // If false or null, do nothing (stay in app)
         },
         child: Scaffold(
           body: PageView(

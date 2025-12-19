@@ -292,171 +292,134 @@ class QuickbillController extends GetxController {
     return billData['discount'] as double? ?? 0.0;
   }
 
-  /// Printing remains the same (no payment info)
   Future<void> printInvoice(Map<String, dynamic> billData) async {
     developer.log(
       '[QuickbillController] Starting printInvoice for invoice #${billData['invoiceNumber']}',
     );
+
     try {
       final PrinterController printerController = Get.find<PrinterController>();
-      developer.log(
-        '[QuickbillController] PrinterController found. Is connected: ${printerController.isConnected.value}',
-      );
+
       if (!printerController.isConnected.value) {
         throw Exception('Printer not connected');
       }
 
       final createdAt = DateTime.parse(billData['createdAt']);
-      final formattedDate = DateFormat('yyyy-MM-dd HH:mm').format(createdAt);
+      final formattedDate = DateFormat('yyyy-MM-dd').format(createdAt);
 
-      Uint8List printBytes; // Non-final, assigned in both branches
+      Uint8List printBytes;
 
+      // ================= WINDOWS / WEB =================
       if (GetPlatform.isWindows || kIsWeb) {
-        developer.log(
-          '[QuickbillController] Generating ESC/POS bytes for Windows using flutter_esc_pos_utils',
-        );
+        developer.log('[QuickbillController] Windows ESC/POS (pixel-stable)');
 
         final profile = await CapabilityProfile.load();
-        final generator = Generator(
-          PaperSize.mm80,
-          profile,
-        ); // Change to mm58 if needed
+        final generator = Generator(PaperSize.mm58, profile);
 
-        List<int> bytesList = []; // ← Removed 'final' — now mutable
+        List<int> bytes = [];
+        bytes += generator.reset();
 
-        // Initialize printer
-        bytesList += generator.reset();
-        bytesList += generator.text('\x1B\x40'); // ESC @
-
-        // Header - Large centered bold
-        bytesList += generator.text(
-          'WRAPPIE CRAFTS & GIFTS',
-          styles: const PosStyles(
-            align: PosAlign.center,
-            bold: true,
-            height: PosTextSize.size2,
-            width: PosTextSize.size2,
-          ),
-        );
-        bytesList += generator.text(
-          'Main Road Alathur, 7907609118',
-          styles: const PosStyles(align: PosAlign.center),
+        // -------- STYLES --------
+        const centerBold = PosStyles(
+          align: PosAlign.center,
+          bold: true,
+          fontType: PosFontType.fontA,
         );
 
-        bytesList += generator.emptyLines(1);
+        const center = PosStyles(
+          align: PosAlign.center,
+          fontType: PosFontType.fontA,
+        );
 
-        // Invoice info
-        bytesList += generator.text(
+        const normal = PosStyles(fontType: PosFontType.fontA);
+
+        const bold = PosStyles(bold: true, fontType: PosFontType.fontA);
+
+        // -------- HEADER (NO size2 = NO pixel jump) --------
+        bytes += generator.text('WRAPPIE', styles: centerBold);
+        bytes += generator.text('CRAFTS & GIFTS', styles: centerBold);
+        bytes += generator.text('Main Road Alathur', styles: center);
+        bytes += generator.text('7907609118', styles: center);
+        bytes += generator.feed(1);
+
+        // -------- INVOICE INFO --------
+        bytes += generator.text(
           'Invoice #${billData['invoiceNumber']}',
-          styles: const PosStyles(bold: true),
+          styles: normal,
         );
-        bytesList += generator.text('Date: $formattedDate');
-        bytesList += generator.text('Customer: ${billData['customerName']}');
+
+        bytes += generator.text('Date: $formattedDate', styles: normal);
+
         if (billData['customerPhone'].isNotEmpty) {
-          bytesList += generator.text('Phone: ${billData['customerPhone']}');
+          bytes += generator.text(
+            'Phone: ${billData['customerPhone']}',
+            styles: normal,
+          );
         }
 
-        bytesList += generator.hr(ch: '-');
+        // -------- TABLE HEADER (TEXT BASED) --------
+        bytes += generator.text('--------------------------------');
+        bytes += generator.text(
+          'Item          Qty  Price  Total',
+          styles: bold,
+        );
+        bytes += generator.text('--------------------------------');
 
-        // Table header
-        bytesList += generator.row([
-          PosColumn(
-            text: 'Item',
-            width: 6,
-            styles: const PosStyles(bold: true),
-          ),
-          PosColumn(
-            text: 'Qty',
-            width: 2,
-            styles: const PosStyles(bold: true, align: PosAlign.center),
-          ),
-          PosColumn(
-            text: 'Price',
-            width: 2,
-            styles: const PosStyles(bold: true, align: PosAlign.right),
-          ),
-          PosColumn(
-            text: 'Total',
-            width: 2,
-            styles: const PosStyles(bold: true, align: PosAlign.right),
-          ),
-        ]);
-        bytesList += generator.hr(ch: '-');
-
-        // Product rows
+        // -------- PRODUCTS (MONOSPACE SAFE) --------
         for (var product in billData['products']) {
           String name = product['productName'].toString();
-          if (name.length > 18) name = name.substring(0, 18);
+          if (name.length > 12) name = name.substring(0, 12);
+          name = name.padRight(12);
 
-          bytesList += generator.row([
-            PosColumn(text: name, width: 6),
-            PosColumn(
-              text: product['quantity'].toString(),
-              width: 2,
-              styles: const PosStyles(align: PosAlign.center),
-            ),
-            PosColumn(
-              text: 'Rs${product['price'].toStringAsFixed(2)}',
-              width: 2,
-              styles: const PosStyles(align: PosAlign.right),
-            ),
-            PosColumn(
-              text: 'Rs${product['total'].toStringAsFixed(2)}',
-              width: 2,
-              styles: const PosStyles(align: PosAlign.right),
-            ),
-          ]);
+          String qty = product['quantity'].toString().padLeft(3);
+
+          String price = product['price'].toStringAsFixed(2).padLeft(7);
+
+          String total = product['total'].toStringAsFixed(2).padLeft(7);
+
+          bytes += generator.text('$name $qty $price $total', styles: normal);
         }
 
-        bytesList += generator.hr(ch: '-');
+        bytes += generator.text('--------------------------------');
 
-        // Totals
+        // -------- TOTALS (NO size2) --------
         final subtotal = calculateBillSubtotal(billData);
         final discount = calculateBillDiscount(billData);
         final finalTotal = (subtotal - discount).clamp(0, double.infinity);
 
-        bytesList += generator.text(
-          'Subtotal: Rs${subtotal.toStringAsFixed(2)}',
-          styles: const PosStyles(align: PosAlign.right),
+        bytes += generator.text(
+          'Subtotal: Rs${subtotal.toStringAsFixed(2).padLeft(8)}',
+          styles: normal,
         );
+
         if (discount > 0) {
-          bytesList += generator.text(
-            'Discount: Rs${discount.toStringAsFixed(2)}',
-            styles: const PosStyles(align: PosAlign.right),
+          bytes += generator.text(
+            'Discount: Rs${discount.toStringAsFixed(2).padLeft(8)}',
+            styles: normal,
           );
         }
-        bytesList += generator.text(
-          'Total: Rs${finalTotal.toStringAsFixed(2)}',
-          styles: const PosStyles(
-            align: PosAlign.right,
-            bold: true,
-            height: PosTextSize.size2,
-            width: PosTextSize.size2,
-          ),
+
+        bytes += generator.text(
+          'Total:    Rs${finalTotal.toStringAsFixed(2).padLeft(8)}',
+          styles: bold,
         );
 
-        bytesList += generator.feed(3);
-        bytesList += generator.cut();
+        bytes += generator.feed(1);
+        bytes += generator.cut();
 
-        developer.log(
-          '[QuickbillController] Generated ${bytesList.length} bytes for Windows',
-        );
-
-        printBytes = Uint8List.fromList(bytesList);
-      } else {
-        // Android: Keep using bluetooth_print_plus
-        developer.log(
-          '[QuickbillController] Generating ESC/POS bytes for Android using bluetooth_print_plus',
-        );
+        printBytes = Uint8List.fromList(bytes);
+      }
+      // ================= ANDROID =================
+      else {
+        developer.log('[QuickbillController] Android ESC/POS');
 
         final esc = EscCommand();
         await esc.cleanCommand();
         esc.text(content: '\x1B\x40');
 
-        // Your original manual ESC/POS formatting
         esc.text(
           content:
-              '\x1B\x61\x01\x1B\x45\x01\x1D\x21\x00WRAPPIE\nCRAFTS & GIFTS\n\x1B\x45\x00',
+              '\x1B\x61\x01\x1B\x45\x01WRAPPIE\nCRAFTS & GIFTS\n\x1B\x45\x00',
         );
         esc.text(content: '\n');
         esc.text(
@@ -465,13 +428,12 @@ class QuickbillController extends GetxController {
 
         esc.text(
           content:
-              '\x1B\x61\x00\x1B\x4D\x01Invoice #${billData['invoiceNumber']}\nDate: $formattedDate\nCustomer: ${billData['customerName']}\n${billData['customerPhone'].isNotEmpty ? 'Phone: ${billData['customerPhone']}\n' : ''}\x1B\x4D\x00',
+              'Invoice #${billData['invoiceNumber']}\nDate: $formattedDate\n'
+              '${billData['customerPhone'].isNotEmpty ? 'Phone: ${billData['customerPhone']}\n' : ''}',
         );
 
         esc.text(content: '--------------------------------\n');
-        esc.text(
-          content: '\x1B\x45\x01Item          Qty  Price  Total\n\x1B\x45\x00',
-        );
+        esc.text(content: 'Item          Qty  Price  Total\n');
         esc.text(content: '--------------------------------\n');
 
         for (var product in billData['products']) {
@@ -492,17 +454,15 @@ class QuickbillController extends GetxController {
         final discount = calculateBillDiscount(billData);
         final finalTotal = (subtotal - discount).clamp(0, double.infinity);
 
-        esc.text(
-          content: '\x1B\x61\x02Subtotal: Rs${subtotal.toStringAsFixed(2)}\n',
-        );
+        esc.text(content: 'Subtotal: Rs${subtotal.toStringAsFixed(2)}\n');
+
         if (discount > 0) {
-          esc.text(
-            content: '\x1B\x61\x02Discount: Rs${discount.toStringAsFixed(2)}\n',
-          );
+          esc.text(content: 'Discount: Rs${discount.toStringAsFixed(2)}\n');
         }
+
         esc.text(
           content:
-              '\x1B\x61\x02\x1B\x45\x01Total: Rs${finalTotal.toStringAsFixed(2)}\n\x1B\x45\x00',
+              '\x1B\x45\x01Total: Rs${finalTotal.toStringAsFixed(2)}\n\x1B\x45\x00',
         );
 
         esc.text(content: '\n\n\n');
@@ -511,17 +471,10 @@ class QuickbillController extends GetxController {
         if (cmd == null) throw Exception('Failed to generate print command');
 
         printBytes = Uint8List.fromList(cmd);
-        developer.log(
-          '[QuickbillController] Generated ${cmd.length} bytes for Android',
-        );
       }
 
-      // Common: Send to printer
-      developer.log(
-        '[QuickbillController] Sending ${printBytes.length} bytes to printer',
-      );
+      // ================= SEND TO PRINTER =================
       await printerController.print(printBytes);
-      developer.log('[QuickbillController] Print job sent successfully');
 
       Get.snackbar(
         'Success',
@@ -531,13 +484,11 @@ class QuickbillController extends GetxController {
         colorText: Colors.white,
       );
     } catch (e) {
-      developer.log(
-        '[QuickbillController] PrintInvoice failed: $e',
-        level: 1000,
-      );
+      developer.log('[QuickbillController] Print failed: $e', level: 1000);
+
       Get.snackbar(
         'Error',
-        'Failed to print invoice: $e',
+        'Failed to print invoice',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,
