@@ -7,6 +7,7 @@ import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
+import 'package:fine_foods/home/printer_controller.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 
@@ -253,8 +254,25 @@ class BillingController extends GetxController {
     final createdAt = DateTime.parse(billData['createdAt']);
     final formattedDate = DateFormat('yyyy-MM-dd HH:mm').format(createdAt);
 
-    if (!BluetoothPrintPlus.isConnected) {
+    // Get PrinterController
+    PrinterController printerController;
+    try {
+      printerController = Get.find<PrinterController>();
+    } catch (e) {
+       // If not found, try put
+       // ideally it should be put in binding
+       // assuming it is available or we put it
+       // For safety in this specific refactor:
+       // printerController = Get.put(PrinterController());
+       // But PrinterController is likely put in HomeBinding.
+       // We can try find.
+       print('PrinterController not found, assumes it is not initialized?');
+       return;
+    }
+
+    if (!printerController.isConnected.value) {
       print('DEBUG: Printer not connected');
+      Get.snackbar('Error', 'Printer not connected');
       return;
     }
 
@@ -340,7 +358,7 @@ class BillingController extends GetxController {
     final cmd = await esc.getCommand();
     if (cmd != null) {
       print('DEBUG: Sending print command (${cmd.length} bytes)');
-      await BluetoothPrintPlus.write(cmd);
+      await printerController.print(cmd);
       print('DEBUG: Print command sent successfully');
     } else {
       print('DEBUG: Failed to generate command bytes');

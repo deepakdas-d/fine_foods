@@ -6,17 +6,20 @@ import 'package:fine_foods/home/quickbill_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter/services.dart';
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:fine_foods/appcolor.dart';
+import 'dart:developer' as developer;
 
 class Home extends StatelessWidget {
   Home({super.key});
 
-  final printerController = Get.find<PrinterController>();
+  PrinterController get printerController => Get.find<PrinterController>();
   final QuickbillController quickbillController = Get.put(
     QuickbillController(),
   );
@@ -30,11 +33,14 @@ class Home extends StatelessWidget {
         backgroundColor: AppColor.background,
         title: const Text(
           "Quick Bill",
-          style: TextStyle(fontWeight: FontWeight.w600, color: AppColor.textPrimary),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: AppColor.textPrimary,
+          ),
         ),
         foregroundColor: AppColor.textPrimary,
         actions: [
-          if (!kIsWeb) // Hides everything on Web
+          if (!kIsWeb) // Hide on Web & Windows
             Obx(() {
               return Row(
                 children: [
@@ -60,7 +66,6 @@ class Home extends StatelessWidget {
                     tooltip: printerController.isConnected.value
                         ? 'Printer Connected'
                         : 'Connect Printer',
-
                     onPressed: () async {
                       await Get.to(() => const BluetoothList());
                       printerController.refreshConnection();
@@ -141,7 +146,9 @@ class Home extends StatelessWidget {
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       color: AppColor.background,
-      border: Border(top: BorderSide(color: AppColor.textSecondary.withOpacity(0.2))),
+      border: Border(
+        top: BorderSide(color: AppColor.textSecondary.withOpacity(0.2)),
+      ),
     ),
     child: Column(
       children: [
@@ -474,93 +481,212 @@ class Home extends StatelessWidget {
         pdf.addPage(
           pw.Page(build: (context) => _buildPDFContent(billData, robotoFont)),
         );
-        final dir = await getTemporaryDirectory();
-        final file = File(
-          '${dir.path}/invoice_${billData['invoiceNumber']}.pdf',
-        );
-        await file.writeAsBytes(await pdf.save());
-        await Get.dialog(
-          Dialog(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      'Invoice #${billData['invoiceNumber']} Preview',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+
+        // Platform specific preview logic
+        if (Platform.isWindows) {
+          // --- WINDOWS PREVIEW (using printing package) ---
+          await Get.dialog(
+            Dialog(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 800,
+                  maxHeight: 800,
+                ),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Invoice #${billData['invoiceNumber']} Preview',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Get.back(),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: PDFView(filePath: file.path, enableSwipe: true),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Get.back(closeOverlays: true),
-                          child: const Text('Close'),
+                    Expanded(
+                      child: PdfPreview(
+                        build: (format) => pdf.save(),
+                        allowPrinting: false,
+                        allowSharing: false, // Cleaner UI
+                        canChangeOrientation: false,
+                        canChangePageFormat: false,
+                        // Removed custom action from toolbar\
+                        initialPageFormat: PdfPageFormat(
+                          80 * PdfPageFormat.mm,
+                          double.infinity,
+                          marginAll: 5 * PdfPageFormat.mm,
                         ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () async {
-                            if (kIsWeb) {
-                              // ----------- WEB MODE -----------
-                              Get.snackbar(
-                                'Web Mode',
-                                'Bluetooth printers are not supported on Web. Please download the invoice instead.',
-                                backgroundColor: Colors.orange,
-                                colorText: Colors.white,
-                              );
-                              return;
-                            }
-
-                            // ----------- ANDROID / iOS MODE -----------
-                            if (!printerController.isConnected.value) {
-                              Get.snackbar(
-                                'Error',
-                                'No printer connected',
-                                backgroundColor: Colors.red,
-                                colorText: Colors.white,
-                              );
-                              return;
-                            }
-
-                            try {
-                              await quickbillController.printInvoice(billData);
-                              Get.snackbar(
-                                'Success',
-                                'Invoice printed successfully',
-                                backgroundColor: Colors.green,
-                                colorText: Colors.white,
-                              );
-                              Get.back(closeOverlays: true);
-                            } catch (e) {
-                              Get.snackbar(
-                                'Error',
-                                'Failed to print: $e',
-                                backgroundColor: Colors.red,
-                                colorText: Colors.white,
-                              );
-                            }
-                          },
-                          child: const Text('Print'),
-                        ),
-                      ],
+                        actions:
+                            const [], // Explicitly remove any other actions
+                      ),
                     ),
-                  ),
-                ],
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Get.back(closeOverlays: true),
+                            child: const Text('Close'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () async {
+                              if (kIsWeb) {
+                                Get.snackbar(
+                                  'Web Mode',
+                                  'Not supported on Web',
+                                  backgroundColor: Colors.orange,
+                                  colorText: Colors.white,
+                                );
+                                return;
+                              }
+                              if (!printerController.isConnected.value) {
+                                Get.snackbar(
+                                  'Error',
+                                  'No printer connected',
+                                  backgroundColor: Colors.red,
+                                  colorText: Colors.white,
+                                );
+                                return;
+                              }
+                              try {
+                                await quickbillController.printInvoice(
+                                  billData,
+                                );
+                                developer.log('[Home] PrintInvoice completed');
+                                Get.snackbar(
+                                  'Success',
+                                  'Invoice printed successfully',
+                                  backgroundColor: Colors.green,
+                                  colorText: Colors.white,
+                                );
+                                Get.back();
+                              } catch (e) {
+                                developer.log(
+                                  '[Home] Print from preview failed: $e',
+                                  level: 1000,
+                                );
+                                Get.snackbar(
+                                  'Error',
+                                  'Failed to print: $e',
+                                  backgroundColor: Colors.red,
+                                  colorText: Colors.white,
+                                );
+                              }
+                            },
+                            child: const Text('Print'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-        await file.delete();
+          );
+        } else {
+          // --- ANDROID/ORIGINAL PREVIEW (using flutter_pdfview) ---
+          final dir = await getTemporaryDirectory();
+          final file = File(
+            '${dir.path}/invoice_${billData['invoiceNumber']}.pdf',
+          );
+          await file.writeAsBytes(await pdf.save());
+
+          await Get.dialog(
+            Dialog(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 600,
+                  maxHeight: 700,
+                ),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        'Invoice #${billData['invoiceNumber']} Preview',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: PDFView(filePath: file.path, enableSwipe: true),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Get.back(closeOverlays: true),
+                            child: const Text('Close'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () async {
+                              if (kIsWeb) {
+                                Get.snackbar(
+                                  'Web Mode',
+                                  'Not supported on Web',
+                                  backgroundColor: Colors.orange,
+                                  colorText: Colors.white,
+                                );
+                                return;
+                              }
+                              if (!printerController.isConnected.value) {
+                                Get.snackbar(
+                                  'Error',
+                                  'No printer connected',
+                                  backgroundColor: Colors.red,
+                                  colorText: Colors.white,
+                                );
+                                return;
+                              }
+                              try {
+                                await quickbillController.printInvoice(
+                                  billData,
+                                );
+                                Get.snackbar(
+                                  'Success',
+                                  'Invoice printed successfully',
+                                  backgroundColor: Colors.green,
+                                  colorText: Colors.white,
+                                );
+                                Get.back(closeOverlays: true);
+                              } catch (e) {
+                                Get.snackbar(
+                                  'Error',
+                                  'Failed to print: $e',
+                                  backgroundColor: Colors.red,
+                                  colorText: Colors.white,
+                                );
+                              }
+                            },
+                            child: const Text('Print'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+          await file.delete();
+        }
       }
     } catch (e) {
       Get.snackbar(

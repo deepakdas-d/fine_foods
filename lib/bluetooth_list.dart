@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fine_foods/home/printer_controller.dart';
 import 'package:fine_foods/appcolor.dart';
+
 class BluetoothList extends StatelessWidget {
   const BluetoothList({super.key});
 
@@ -11,13 +12,16 @@ class BluetoothList extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Bluetooth Printer'),
+        title: const Text('Select  Printer'),
         backgroundColor: AppColor.background,
         foregroundColor: AppColor.textPrimary,
         actions: [
           IconButton(
             onPressed: controller.disconnectPrinter,
-            icon: Icon(Icons.bluetooth_disabled_outlined, color: AppColor.textPrimary),
+            icon: Icon(
+              Icons.bluetooth_disabled_outlined,
+              color: AppColor.textPrimary,
+            ),
           ),
         ],
       ),
@@ -29,14 +33,22 @@ class BluetoothList extends StatelessWidget {
               children: [
                 CircularProgressIndicator(color: AppColor.primary),
                 SizedBox(height: 12),
-                Text("Scanning for Bluetooth printers...", style: TextStyle(color: AppColor.textPrimary)),
+                Text(
+                  "Scanning for Bluetooth printers...",
+                  style: TextStyle(color: AppColor.textPrimary),
+                ),
               ],
             ),
           );
         }
 
         if (controller.availablePrinters.isEmpty) {
-          return Center(child: Text("No printers found", style: TextStyle(color: AppColor.textPrimary)));
+          return Center(
+            child: Text(
+              "No printers found",
+              style: TextStyle(color: AppColor.textPrimary),
+            ),
+          );
         }
 
         return ListView.builder(
@@ -55,11 +67,20 @@ class BluetoothList extends StatelessWidget {
                       ? SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColor.primary),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColor.primary,
+                          ),
                         )
                       : Icon(Icons.print, color: AppColor.textPrimary),
-                  title: Text(printer.name, style: TextStyle(color: AppColor.textPrimary)),
-                  subtitle: Text(printer.address, style: TextStyle(color: AppColor.textSecondary)),
+                  title: Text(
+                    printer.name,
+                    style: TextStyle(color: AppColor.textPrimary),
+                  ),
+                  subtitle: Text(
+                    printer.address,
+                    style: TextStyle(color: AppColor.textSecondary),
+                  ),
                   trailing:
                       controller.selectedPrinter?.address == printer.address &&
                           controller.isConnected.value

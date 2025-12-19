@@ -1,8 +1,11 @@
-import 'dart:developer';
-import 'package:get/get.dart';
+import 'dart:developer' as developer;
+import 'dart:typed_data';
+import 'package:get/Get.dart';
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:get_storage/get_storage.dart';
+import '../services/print_service.dart';
+import '../services/android_print_service.dart';
+import '../services/windows_print_service.dart';
 
 class PrinterController extends GetxController {
   var isConnected = false.obs;
@@ -15,38 +18,62 @@ class PrinterController extends GetxController {
   BluetoothDevice? selectedPrinter;
   final storage = GetStorage();
 
+  late PrintService _service;
+
   @override
   void onInit() {
     if (GetPlatform.isWeb) {
-      log("PrinterController disabled on web");
+      developer.log("PrinterController disabled on web");
       return;
     }
+
+    // Setup Service
+    if (GetPlatform.isWindows) {
+      _service = WindowsPrintService();
+      developer.log('[PrinterController] Initialized WindowsPrintService');
+    } else {
+      _service = AndroidPrintService();
+      developer.log('[PrinterController] Initialized AndroidPrintService');
+    }
+
     super.onInit();
+
+    // Bind streams
+    _service.scanResults.listen((devices) {
+      final List<BluetoothDevice> mapped = [];
+      for (var d in devices) {
+        if (d is BluetoothDevice) {
+          mapped.add(d);
+        } else if (d is String) {
+          mapped.add(BluetoothDevice(d, d)); // Use name as address
+        }
+      }
+      availablePrinters.value = mapped;
+      developer.log(
+        '[PrinterController] Scan results updated: ${mapped.length} devices',
+      );
+    });
+
+    _service.connectionStatus.listen((connected) {
+      isConnected.value = connected;
+      developer.log(
+        '[PrinterController] Connection status changed: $connected',
+      );
+      if (connected && selectedPrinter != null) {
+        developer.log(
+          '[PrinterController] Printer connected and stable: ${selectedPrinter!.name}',
+        );
+        // Removed Get.snackbar to avoid Overlay error
+      }
+    });
+
     restoreLastPrinter();
-    log('[PrinterController] onInit called');
+    developer.log('[PrinterController] onInit called');
     startScan();
   }
 
-  /// Request Bluetooth permissions
-  Future<bool> _requestPermissions() async {
-    if (GetPlatform.isAndroid) {
-      log('[PrinterController] Requesting Bluetooth permissions...');
-      final status = await [
-        Permission.bluetoothScan,
-        Permission.bluetoothConnect,
-        Permission.location,
-      ].request();
-
-      bool granted = status.values.every((s) => s.isGranted);
-      log('[PrinterController] Permissions granted: $granted');
-      return granted;
-    }
-    return true;
-  }
-
-  /// Save last printer
   Future<void> _saveLastPrinter(BluetoothDevice device) async {
-    log(
+    developer.log(
       '[PrinterController] Saving last printer: ${device.name}, ${device.address}',
     );
     await storage.write('last_printer', {
@@ -55,120 +82,116 @@ class PrinterController extends GetxController {
     });
   }
 
-  /// Restore last printer (only load, no auto-connect)
   Future<void> restoreLastPrinter() async {
     final data = storage.read('last_printer');
-    log('[PrinterController] Restore check: $data');
+    developer.log('[PrinterController] Restore check: $data');
 
     if (data != null) {
       selectedPrinter = BluetoothDevice(data['name'], data['address']);
       printerName.value = data['name'];
 
-      log('[PrinterController] Restored printer: ${data['name']}');
+      developer.log('[PrinterController] Restored printer: ${data['name']}');
 
       // Try auto reconnect (if not connected)
       Future.delayed(const Duration(seconds: 1), () {
-        if (!BluetoothPrintPlus.isConnected) {
-          log('[PrinterController] Trying auto reconnect...');
+        if (!isConnected.value) {
+          developer.log('[PrinterController] Trying auto reconnect...');
           connectPrinter(selectedPrinter!);
         }
       });
     } else {
-      log('[PrinterController] No saved printer found');
+      developer.log('[PrinterController] No saved printer found');
     }
   }
 
-  /// Scan for printers
   Future<void> startScan() async {
-    final granted = await _requestPermissions();
-    if (!granted) {
-      Get.snackbar('Permission', 'Bluetooth permission required');
-      return;
-    }
-
     try {
       isScanning.value = true;
       availablePrinters.clear();
-      log('[PrinterController] Starting scan...');
-      await BluetoothPrintPlus.startScan(timeout: const Duration(seconds: 4));
-
-      BluetoothPrintPlus.scanResults.listen((devices) {
-        log(
-          '[PrinterController] Scan results: ${devices.map((d) => d.name).toList()}',
-        );
-        availablePrinters.value = devices;
-      });
+      developer.log('[PrinterController] Starting printer scan');
+      await _service.startScan(timeout: const Duration(seconds: 4));
+      developer.log('[PrinterController] Scan completed');
     } catch (e) {
-      log('[PrinterController] Scan failed: $e', level: 1000);
+      developer.log('[PrinterController] Scan failed: $e', level: 1000);
       Get.snackbar('Error', 'Failed to scan: $e');
     } finally {
       isScanning.value = false;
-      log('[PrinterController] Scan stopped');
     }
   }
 
-  /// Connect to printer with loader and retry
   Future<void> connectPrinter(BluetoothDevice device) async {
     try {
+      developer.log(
+        'DEBUG: PrinterController.connectPrinter called for ${device.name}',
+      );
       isConnecting.value = true;
       connectingAddress = device.address;
-      log(
+      developer.log(
         '[PrinterController] Connecting to printer: ${device.name}, ${device.address}',
       );
 
-      await BluetoothPrintPlus.connect(device);
-
-      // Retry loop to ensure connection is established
-      int retries = 0;
-      while (retries < 6 && !BluetoothPrintPlus.isConnected) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        retries++;
-        log(
-          '[PrinterController] Retry #$retries, isConnected=${BluetoothPrintPlus.isConnected}',
-        );
-      }
-
-      isConnected.value = BluetoothPrintPlus.isConnected;
-
-      if (isConnected.value) {
-        selectedPrinter = device;
-        printerName.value = device.name;
-        await _saveLastPrinter(device);
-        Get.snackbar("Connected", "Connected to ${device.name}");
-        log('[PrinterController] Successfully connected to ${device.name}');
+      dynamic target;
+      if (GetPlatform.isWindows) {
+        target = device.name;
+        developer.log('DEBUG: Targeting Windows printer by name: $target');
       } else {
-        Get.snackbar("Failed", "Could not connect to printer");
-        log('[PrinterController] Connection failed for ${device.name}');
+        target = device;
       }
+
+      await _service.connect(target);
+      developer.log('DEBUG: Service connect returned successfully');
+      developer.log(
+        '[PrinterController] Connection successful - checking stability',
+      );
+
+      selectedPrinter = device;
+      printerName.value = device.name;
+      await _saveLastPrinter(device);
     } catch (e) {
+      developer.log('[PrinterController] Connection failed: $e', level: 1000);
       Get.snackbar("Error", "Connection failed: $e");
-      log('[PrinterController] Exception during connection: $e', level: 1000);
     } finally {
       isConnecting.value = false;
       connectingAddress = null;
-      log('[PrinterController] connectPrinter finished, isConnecting=false');
     }
   }
 
-  /// Refresh connection
   Future<void> refreshConnection() async {
-    final connected = BluetoothPrintPlus.isConnected;
-    isConnected.value = connected;
-    log('[PrinterController] refreshConnection: isConnected=$connected');
-    if (!connected) printerName.value = selectedPrinter?.name ?? '';
+    developer.log('[PrinterController] Refreshing connection status');
+    isConnected.value = _service.isConnected;
+    if (isConnected.value) {
+      developer.log('[PrinterController] Connection is stable');
+    } else {
+      developer.log('[PrinterController] Connection lost or unstable');
+      printerName.value = selectedPrinter?.name ?? '';
+    }
   }
 
-  /// Disconnect printer
   Future<void> disconnectPrinter() async {
     try {
-      log('[PrinterController] Disconnecting printer...');
-      await BluetoothPrintPlus.disconnect();
-    } catch (_) {
-      log('[PrinterController] Exception while disconnecting', level: 1000);
+      developer.log('[PrinterController] Disconnecting printer...');
+      await _service.disconnect();
+      developer.log('[PrinterController] Disconnect successful');
+    } catch (e) {
+      developer.log('[PrinterController] Disconnect failed: $e', level: 1000);
     }
 
-    isConnected.value = false;
     printerName.value = '';
-    log('[PrinterController] Printer disconnected');
+    developer.log('[PrinterController] Printer disconnected');
+  }
+
+  Future<void> print(Uint8List data) async {
+    developer.log(
+      '[PrinterController] Starting print job with ${data.length} bytes',
+    );
+    try {
+      await _service.print(data);
+      developer.log(
+        '[PrinterController] Print job sent to service successfully',
+      );
+    } catch (e) {
+      developer.log('[PrinterController] Print job failed: $e', level: 1000);
+      rethrow;
+    }
   }
 }

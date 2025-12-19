@@ -3,6 +3,10 @@
 
 #include <flutter/dart_project.h>
 #include <flutter/flutter_view_controller.h>
+#include <flutter/method_channel.h>
+#include <flutter/standard_method_codec.h>
+
+#include "windows_printer.h"
 
 #include <memory>
 
@@ -28,6 +32,12 @@ class FlutterWindow : public Win32Window {
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
+
+  // Windows Printer instance
+  std::unique_ptr<WindowsPrinter> printer_;
+
+  // Method Channel for printer
+  std::unique_ptr<flutter::MethodChannel<>> printer_channel_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

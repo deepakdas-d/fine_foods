@@ -5,7 +5,6 @@ import 'package:fine_foods/ADMIN/sales_data/Sales_Growth.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list.dart';
 import 'package:fine_foods/appcolor.dart'; // Import AppColor
 import 'package:fine_foods/bottom_navigation.dart';
-import 'package:fine_foods/home/home.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -59,7 +58,10 @@ class Dashboard extends StatelessWidget {
             backgroundColor: AppColor.surface,
             title: Text(
               "Go to Home",
-              style: GoogleFonts.poppins(color: AppColor.textPrimary, fontWeight: FontWeight.bold),
+              style: GoogleFonts.poppins(
+                color: AppColor.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             content: Text(
               "Do you want to return to the Home screen?",
@@ -68,11 +70,17 @@ class Dashboard extends StatelessWidget {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: Text("No", style: GoogleFonts.poppins(color: AppColor.error)),
+                child: Text(
+                  "No",
+                  style: GoogleFonts.poppins(color: AppColor.error),
+                ),
               ),
               TextButton(
                 onPressed: () => Get.offAll(() => BottomNavPage()),
-                child: Text("Yes", style: GoogleFonts.poppins(color: AppColor.primary)),
+                child: Text(
+                  "Yes",
+                  style: GoogleFonts.poppins(color: AppColor.primary),
+                ),
               ),
             ],
           ),
@@ -88,7 +96,10 @@ class Dashboard extends StatelessWidget {
         appBar: AppBar(
           title: Text(
             "Admin Dashboard",
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: AppColor.background),
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: AppColor.background,
+            ),
           ),
           centerTitle: true,
           backgroundColor: AppColor.primary, // Yellow Header
@@ -174,7 +185,10 @@ class Dashboard extends StatelessWidget {
                       color: AppColor.surface, // Dark Card Background
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: Colors.white.withOpacity(0.05), width: 1),
+                        side: BorderSide(
+                          color: Colors.white.withOpacity(0.05),
+                          width: 1,
+                        ),
                       ),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),

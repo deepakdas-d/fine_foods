@@ -34,6 +34,7 @@ dependencies:
   get_storage: ^2.1.1
   animated_notch_bottom_bar: ^1.0.3
   file_saver: ^0.3.1
+  flutter_esc_pos_utils: ^1.0.1
 
 dev_dependencies:
   flutter_test:

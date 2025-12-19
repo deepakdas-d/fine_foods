@@ -30,10 +30,7 @@ class DefaultFirebaseOptions {
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -72,4 +69,15 @@ class DefaultFirebaseOptions {
     storageBucket: 'fine-foods-b891f.firebasestorage.app',
     iosBundleId: 'com.example.fineFoods',
   );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyBZ4pWTZHIkqPIeO-5tPw48_eVflVSf0hk',
+    appId: '1:600464634853:web:75c535430d47f89fc8350c',
+    messagingSenderId: '600464634853',
+    projectId: 'fine-foods-b891f',
+    authDomain: 'fine-foods-b891f.firebaseapp.com',
+    storageBucket: 'fine-foods-b891f.firebasestorage.app',
+    measurementId: 'G-R0YB99NLL3',
+  );
+
 }

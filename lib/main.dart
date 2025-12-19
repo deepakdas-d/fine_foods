@@ -8,17 +8,18 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await GetStorage.init(); // <-- MUST BE ABOVE!!!
+  await GetStorage.init();
 
   requestLocationPermission();
 
-  Get.put(PrinterController(), permanent: true); // now safe
-
+  // PrinterController moved to InitialBinding to ensure Overlay is ready
+  // Get.put(PrinterController(), permanent: true);
   runApp(MyApp());
 }
 
@@ -29,15 +30,21 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
+      initialBinding: BindingsBuilder(() {
+        if (!kIsWeb) {
+          Get.put(PrinterController(), permanent: true);
+        }
+      }),
       title: 'FINE FOODS',
       theme: ThemeData(
         scaffoldBackgroundColor: AppColor.background,
         primaryColor: AppColor.primary,
         fontFamily: GoogleFonts.poppins().fontFamily,
-        textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme).apply(
-          bodyColor: AppColor.textPrimary,
-          displayColor: AppColor.textPrimary,
-        ),
+        textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme)
+            .apply(
+              bodyColor: AppColor.textPrimary,
+              displayColor: AppColor.textPrimary,
+            ),
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColor.primary,
           brightness: Brightness.dark,
@@ -60,7 +67,9 @@ class MyApp extends StatelessWidget {
         cardTheme: CardThemeData(
           color: AppColor.surface,
           elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
@@ -84,7 +93,9 @@ class MyApp extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColor.primary,
             foregroundColor: AppColor.textOnPrimary,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
             textStyle: GoogleFonts.poppins(
               fontSize: 16,
