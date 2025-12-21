@@ -454,7 +454,7 @@ class BillingScreen extends StatelessWidget {
   }
 
   Widget _buildCheckoutSection() => Container(
-    padding: const EdgeInsets.all(16),
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
     decoration: BoxDecoration(
       color: AppColor.background,
       border: Border(
@@ -462,234 +462,11 @@ class BillingScreen extends StatelessWidget {
       ),
     ),
     child: Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Discount
-        TextFormField(
-          initialValue: controller.customerDiscount.value,
-          onChanged: (v) => controller.customerDiscount.value = v,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: 'Discount',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            prefixIcon: const Icon(Icons.discount_outlined),
-            isDense: true,
-          ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) return null;
-            final disc = double.tryParse(value.trim());
-            if (disc == null || disc <= 0) return 'Enter a valid discount > 0';
-            if (disc > controller.calculateTotal()) {
-              return 'Discount cannot exceed total';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16),
-
-        // Customer Details
-        ExpansionTile(
-          title: const Text(
-            'Customer Details (Optional)',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          children: [
-            TextField(
-              controller: controller.customerName,
-              decoration: InputDecoration(
-                labelText: 'Customer Name',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                prefixIcon: const Icon(Icons.person_outline),
-                isDense: true,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller.customerPhone,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: 'Phone Number',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                prefixIcon: const Icon(Icons.phone_outlined),
-                isDense: true,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Payment Method & Type (exact copy from Quick Bill)
-        Obx(() {
-          final isSplit = controller.selectedPaymentType.value == 'Split';
-          return Column(
-            children: [
-              // Payment Method Card
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Payment Method',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      if (isSplit)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            'Cash + Online',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColor.success,
-                            ),
-                          ),
-                        )
-                      else
-                        Row(
-                          children: [
-                            Expanded(
-                              child: RadioListTile<String>(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                title: const Text('Cash'),
-                                value: 'Cash',
-                                groupValue: controller.paymentMethod.value,
-                                onChanged: (val) =>
-                                    controller.paymentMethod.value = val!,
-                              ),
-                            ),
-                            Expanded(
-                              child: RadioListTile<String>(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                title: const Text('Online'),
-                                value: 'Online',
-                                groupValue: controller.paymentMethod.value,
-                                onChanged: (val) =>
-                                    controller.paymentMethod.value = val!,
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Payment Type Card
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Payment Type',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: RadioListTile<String>(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Full'),
-                              value: 'Full',
-                              groupValue: controller.selectedPaymentType.value,
-                              onChanged: (val) {
-                                controller.selectedPaymentType.value = val!;
-                                controller.paymentMethod.value = 'Cash';
-                                final total = controller.calculateTotal();
-                                controller.cashReceived.value = total
-                                    .toStringAsFixed(2);
-                                controller.onlineReceived.value = '0';
-                              },
-                            ),
-                          ),
-                          Expanded(
-                            child: RadioListTile<String>(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text('Split'),
-                              value: 'Split',
-                              groupValue: controller.selectedPaymentType.value,
-                              onChanged: (val) {
-                                controller.selectedPaymentType.value = val!;
-                                controller.cashReceived.value = '';
-                                controller.onlineReceived.value = '';
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      if (isSplit) ...[
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: 'Cash Received',
-                            prefixIcon: const Icon(Icons.money),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            isDense: true,
-                          ),
-                          onChanged: (v) => controller.cashReceived.value = v,
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: 'Online Received',
-                            prefixIcon: const Icon(Icons.qr_code),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            isDense: true,
-                          ),
-                          onChanged: (v) => controller.onlineReceived.value = v,
-                        ),
-                        const SizedBox(height: 8),
-                        Obx(() {
-                          final cash =
-                              double.tryParse(controller.cashReceived.value) ??
-                              0;
-                          final online =
-                              double.tryParse(
-                                controller.onlineReceived.value,
-                              ) ??
-                              0;
-                          final total = controller.calculateTotal();
-                          return Text(
-                            'Total Received: ₹${(cash + online).toStringAsFixed(2)} / ₹${total.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: (cash + online) == total
-                                  ? AppColor.success
-                                  : AppColor.error,
-                            ),
-                          );
-                        }),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-        }),
-        const SizedBox(height: 16),
-
-        // Total Display
+        // Compact Total Display First (Always Visible)
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: AppColor.surface,
             borderRadius: BorderRadius.circular(12),
@@ -705,17 +482,187 @@ class BillingScreen extends StatelessWidget {
                 () => Text(
                   '₹${controller.calculateTotal().toStringAsFixed(2)}',
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: AppColor.primary,
+                    color: Color(0xFFFFD700),
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
+        // Collapsible Advanced Options
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.only(bottom: 8),
+          title: const Text(
+            'Payment & Details',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          ),
+          subtitle: Obx(() {
+            final type = controller.selectedPaymentType.value;
+            final method = controller.paymentMethod.value;
+            return Text(
+              type == 'Split' ? 'Split Payment' : '$type • $method',
+              style: TextStyle(fontSize: 14, color: AppColor.textSecondary),
+            );
+          }),
+          children: [
+            // Discount
+            TextFormField(
+              initialValue: controller.customerDiscount.value.isEmpty
+                  ? null
+                  : controller.customerDiscount.value,
+              onChanged: (v) => controller.customerDiscount.value = v,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Discount (₹)',
+                prefixIcon: const Icon(Icons.discount_outlined, size: 20),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Customer Details (Compact Inline)
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controller.customerName,
+                    decoration: InputDecoration(
+                      labelText: 'Name',
+                      prefixIcon: const Icon(Icons.person_outline, size: 18),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: controller.customerPhone,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'Phone',
+                      prefixIcon: const Icon(Icons.phone_outlined, size: 18),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Payment Method & Type (Compact Cards)
+            Obx(() {
+              final isSplit = controller.selectedPaymentType.value == 'Split';
+              return Column(
+                children: [
+                  // Payment Type
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'Full', label: Text('Full')),
+                      ButtonSegment(value: 'Split', label: Text('Split')),
+                    ],
+                    selected: {controller.selectedPaymentType.value},
+                    onSelectionChanged: (set) {
+                      final val = set.first;
+                      controller.selectedPaymentType.value = val;
+                      if (val == 'Full') {
+                        controller.paymentMethod.value = 'Cash';
+                        controller.cashReceived.value = controller
+                            .calculateTotal()
+                            .toStringAsFixed(2);
+                        controller.onlineReceived.value = '0';
+                      } else {
+                        controller.cashReceived.value = '';
+                        controller.onlineReceived.value = '';
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  if (!isSplit)
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'Cash', label: Text('Cash')),
+                        ButtonSegment(value: 'Online', label: Text('Online')),
+                      ],
+                      selected: {controller.paymentMethod.value},
+                      onSelectionChanged: (set) =>
+                          controller.paymentMethod.value = set.first,
+                    ),
+
+                  if (isSplit) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: 'Cash',
+                              prefixIcon: const Icon(Icons.money, size: 18),
+                              isDense: true,
+                            ),
+                            onChanged: (v) => controller.cashReceived.value = v,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextFormField(
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: 'Online',
+                              prefixIcon: const Icon(Icons.qr_code, size: 18),
+                              isDense: true,
+                            ),
+                            onChanged: (v) =>
+                                controller.onlineReceived.value = v,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Obx(() {
+                      final cash =
+                          double.tryParse(controller.cashReceived.value) ?? 0;
+                      final online =
+                          double.tryParse(controller.onlineReceived.value) ?? 0;
+                      final total = controller.calculateTotal();
+                      final received = cash + online;
+                      return Text(
+                        'Received: ₹${received.toStringAsFixed(2)} / ₹${total.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: received >= total
+                              ? AppColor.success
+                              : AppColor.error,
+                        ),
+                      );
+                    }),
+                  ],
+                ],
+              );
+            }),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Generate Invoice Button
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
@@ -746,8 +693,11 @@ class BillingScreen extends StatelessWidget {
         ? FloatingActionButton.extended(
             onPressed: () => _showCartSheet(context),
             backgroundColor: const Color(0xFFFFD700),
-            icon: const Icon(Icons.shopping_cart),
-            label: Text('Cart (${controller.selectedProducts.length})'),
+            icon: const Icon(Icons.shopping_cart, color: AppColor.background),
+            label: Text(
+              'Cart (${controller.selectedProducts.length})',
+              style: TextStyle(color: AppColor.background),
+            ),
           )
         : const SizedBox.shrink(),
   );
