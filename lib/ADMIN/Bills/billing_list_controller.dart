@@ -13,6 +13,8 @@ import 'package:open_file/open_file.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+enum BillFilterType { all, month, day }
+
 class BillListController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -20,9 +22,12 @@ class BillListController extends GetxController {
   final RxList<Map<String, dynamic>> bills = <Map<String, dynamic>>[].obs;
   final RxBool isLoading = false.obs;
   final RxBool hasMore = true.obs;
-
+  final RxBool isFetching = false.obs;
   // Selected month filter (null = all time)
   final Rx<DateTime?> selectedMonth = Rx<DateTime?>(null);
+  // Filter state
+  final Rx<BillFilterType> filterType = BillFilterType.all.obs;
+  final Rx<DateTime?> selectedDay = Rx<DateTime?>(null);
 
   // Pagination
   DocumentSnapshot? _lastDoc;
@@ -43,6 +48,28 @@ class BillListController extends GetxController {
     }).reversed.toList();
   }
 
+  ///filter methods
+  void setAllFilter() {
+    filterType.value = BillFilterType.all;
+    selectedMonth.value = null;
+    selectedDay.value = null;
+    fetchBills(reset: true);
+  }
+
+  void setMonthFilter(DateTime month) {
+    filterType.value = BillFilterType.month;
+    selectedMonth.value = month;
+    selectedDay.value = null;
+    fetchBills(reset: true);
+  }
+
+  void setDayFilter(DateTime day) {
+    filterType.value = BillFilterType.day;
+    selectedDay.value = day;
+    selectedMonth.value = null;
+    fetchBills(reset: true);
+  }
+
   // ────────────────────────────────
   // FETCH BILLS WITH MONTH FILTER
   // ────────────────────────────────
@@ -53,9 +80,9 @@ class BillListController extends GetxController {
       hasMore.value = true;
     }
 
-    if (isLoading.value || !hasMore.value) return;
+    if (isFetching.value || !hasMore.value) return;
 
-    isLoading.value = true;
+    isFetching.value = true;
 
     try {
       Query query = _firestore
@@ -63,29 +90,47 @@ class BillListController extends GetxController {
           .orderBy('createdAt', descending: true)
           .limit(pageSize);
 
-      // Apply month filter if selected
-      if (selectedMonth.value != null) {
-        final year = selectedMonth.value!.year;
-        final month = selectedMonth.value!.month;
+      // 🟡 MONTH FILTER (STRING)
+      if (filterType.value == BillFilterType.month &&
+          selectedMonth.value != null) {
+        final m = selectedMonth.value!;
 
-        final startOfMonth = DateTime(year, month, 1);
-        final endOfMonth = DateTime(year, month + 1, 1).subtract(
-          const Duration(milliseconds: 1),
-        ); // Last millisecond of month
+        final start = DateTime(m.year, m.month, 1).toIso8601String();
+        final end = DateTime(
+          m.year,
+          m.month + 1,
+          1,
+        ).subtract(const Duration(milliseconds: 1)).toIso8601String();
+
+        log('[FILTER] Month range: $start → $end');
 
         query = query
-            .where(
-              'createdAt',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth),
-            )
-            .where(
-              'createdAt',
-              isLessThanOrEqualTo: Timestamp.fromDate(endOfMonth),
-            );
+            .where('createdAt', isGreaterThanOrEqualTo: start)
+            .where('createdAt', isLessThanOrEqualTo: end);
       }
 
-      // Pagination
-      if (_lastDoc != null && !reset) {
+      if (filterType.value == BillFilterType.day && selectedDay.value != null) {
+        final d = selectedDay.value!;
+
+        final start = DateTime(d.year, d.month, d.day).toIso8601String();
+        final end = DateTime(
+          d.year,
+          d.month,
+          d.day,
+          23,
+          59,
+          59,
+          999,
+        ).toIso8601String();
+
+        log('[FILTER] Day range: $start → $end');
+
+        query = query
+            .where('createdAt', isGreaterThanOrEqualTo: start)
+            .where('createdAt', isLessThanOrEqualTo: end);
+      }
+
+      if (_lastDoc != null) {
         query = query.startAfterDocument(_lastDoc!);
       }
 
@@ -97,24 +142,13 @@ class BillListController extends GetxController {
         return data;
       }).toList();
 
-      if (reset) {
-        bills.assignAll(newBills);
-      } else {
-        bills.addAll(newBills);
-      }
-
+      bills.addAll(newBills);
       _lastDoc = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
       hasMore.value = snapshot.docs.length == pageSize;
     } catch (e, s) {
-      log('Fetch bills error: $e\n$s');
-      Get.snackbar(
-        'Error',
-        'Failed to load bills',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      log('Fetch error: $e\n$s');
     } finally {
-      isLoading.value = false;
+      isFetching.value = false;
     }
   }
 
@@ -216,6 +250,58 @@ class BillListController extends GetxController {
   // ────────────────────────────────
   // PDF GENERATION
   // ────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> fetchAllBillsForExport() async {
+    Query query = _firestore
+        .collection('bills')
+        .orderBy('createdAt', descending: true);
+
+    // MONTH FILTER
+    if (filterType.value == BillFilterType.month &&
+        selectedMonth.value != null) {
+      final m = selectedMonth.value!;
+      final start = DateTime(m.year, m.month, 1).toIso8601String();
+      final end = DateTime(
+        m.year,
+        m.month + 1,
+        1,
+      ).subtract(const Duration(milliseconds: 1)).toIso8601String();
+
+      query = query
+          .where('createdAt', isGreaterThanOrEqualTo: start)
+          .where('createdAt', isLessThanOrEqualTo: end);
+    }
+
+    // DAY FILTER
+    if (filterType.value == BillFilterType.day && selectedDay.value != null) {
+      final d = selectedDay.value!;
+      final start = DateTime(d.year, d.month, d.day).toIso8601String();
+      final end = DateTime(
+        d.year,
+        d.month,
+        d.day,
+        23,
+        59,
+        59,
+        999,
+      ).toIso8601String();
+
+      query = query
+          .where('createdAt', isGreaterThanOrEqualTo: start)
+          .where('createdAt', isLessThanOrEqualTo: end);
+    }
+
+    log('[EXPORT] Fetching full dataset...');
+    final snapshot = await query.get();
+    log('[EXPORT] Total docs: ${snapshot.docs.length}');
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      data['id'] = doc.id;
+      return data;
+    }).toList();
+  }
+
   Future<Uint8List> generateBillPdf(Map<String, dynamic> bill) async {
     final pdf = pw.Document();
     final date = parseCreatedAt(bill['createdAt']);
@@ -467,22 +553,47 @@ class BillListController extends GetxController {
   }
 
   Future<String> savePdf(Uint8List bytes, String fileName) async {
-    final androidInfo = await DeviceInfoPlugin().androidInfo;
-    if (Platform.isAndroid && androidInfo.version.sdkInt >= 29) {
-      return await FileSaver.instance.saveAs(
-            name: fileName.replaceAll('.pdf', ''),
-            bytes: bytes,
-            fileExtension: 'pdf',
-            mimeType: MimeType.pdf,
-          ) ??
-          '';
-    } else {
+    // ✅ WINDOWS
+    if (Platform.isWindows) {
+      final path = await FileSaver.instance.saveAs(
+        name: fileName.replaceAll('.pdf', ''),
+        bytes: bytes,
+        fileExtension: 'pdf',
+        mimeType: MimeType.pdf,
+      );
+      return path ?? '';
+    }
+
+    // ✅ ANDROID
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+
+      // Android 10+
+      if (androidInfo.version.sdkInt >= 29) {
+        await FileSaver.instance.saveAs(
+          name: fileName.replaceAll('.pdf', ''),
+          bytes: bytes,
+          fileExtension: 'pdf',
+          mimeType: MimeType.pdf,
+        );
+        return ''; // ⚠ no real path on scoped storage
+      }
+
+      // Android < 10
       final dir = Directory('/storage/emulated/0/Download');
-      if (!await dir.exists()) await dir.create(recursive: true);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
       final path = '${dir.path}/$fileName';
       await File(path).writeAsBytes(bytes);
       return path;
     }
+
+    // ✅ FALLBACK (macOS / Linux)
+    final dir = Directory.systemTemp;
+    final path = '${dir.path}/$fileName';
+    await File(path).writeAsBytes(bytes);
+    return path;
   }
 
   Future<void> downloadBillPdf(Map<String, dynamic> bill) async {
@@ -535,14 +646,17 @@ class BillListController extends GetxController {
   }
 
   Future<void> downloadCurrentReport() async {
+    final exportBills = await fetchAllBillsForExport();
     if (bills.isEmpty) {
-      Get.snackbar(
-        "Empty",
-        "No bills to export",
-        backgroundColor: Colors.orange,
-        colorText: Colors.white,
-      );
-      return;
+      if (exportBills.isEmpty) {
+        Get.snackbar(
+          "Empty",
+          "No bills found for selected filter",
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
+        return;
+      }
     }
 
     try {
@@ -571,12 +685,12 @@ class BillListController extends GetxController {
               ),
             ),
             pw.SizedBox(height: 20),
-            pw.Text("Total Bills: ${bills.length}"),
+            pw.Text("Total Bills: ${exportBills.length}"),
             pw.Text(
-              "Total Sales: Rs${bills.fold(0.0, (sum, b) => sum + calculateBillFinalTotal(b)).toStringAsFixed(2)}",
+              "Total Sales: Rs${exportBills.fold(0.0, (sum, b) => sum + calculateBillFinalTotal(b)).toStringAsFixed(2)}",
             ),
             pw.SizedBox(height: 20),
-            ...bills.map((bill) {
+            ...exportBills.map((bill) {
               final date = parseCreatedAt(bill['createdAt']);
               final inv =
                   bill['invoiceNumber'] ?? 'INV-${bill['id'].substring(0, 8)}';
