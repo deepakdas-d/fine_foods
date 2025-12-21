@@ -7,7 +7,7 @@ class Product {
   final int count;
   final double price;
   final String createdAt;
-  final String quantityType; // Added quantityType field
+  final String quantityType;
 
   Product({
     required this.id,
@@ -19,6 +19,7 @@ class Product {
     required this.quantityType,
   });
 
+  // ------------------ Firestore → Map ------------------
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -31,32 +32,54 @@ class Product {
     };
   }
 
+  // ------------------ Map → Product ------------------
   factory Product.fromMap(Map<String, dynamic> map) {
     return Product(
       id: map['id'],
       name: map['name'],
       productId: map['productId'] ?? '',
-      count: map['count'],
-      price: map['price'].toDouble(),
+      count: (map['count'] as num).toInt(),
+      price: (map['price'] as num).toDouble(),
       createdAt: map['createdAt']?.toString() ?? '',
       quantityType: map['quantityType'] ?? 'Nos',
     );
   }
 
+  // ------------------ Firestore → Product ------------------
   factory Product.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Product(
       id: doc.id,
       name: data['name'] ?? '',
       productId: data['productId'] ?? '',
-      count: (data['count'] is int)
-          ? data['count'] as int
-          : (data['count'] as num?)?.toInt() ?? 0,
+      count: (data['count'] as num?)?.toInt() ?? 0,
       price: (data['price'] as num?)?.toDouble() ?? 0.0,
       createdAt: data['createdAt']?.toString() ?? '',
       quantityType: data['quantityType'] ?? 'Nos',
     );
   }
 
+  // ------------------ ✅ REQUIRED FIX ------------------
+  Product copyWith({
+    String? id,
+    String? name,
+    String? productId,
+    int? count,
+    double? price,
+    String? createdAt,
+    String? quantityType,
+  }) {
+    return Product(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      productId: productId ?? this.productId,
+      count: count ?? this.count,
+      price: price ?? this.price,
+      createdAt: createdAt ?? this.createdAt,
+      quantityType: quantityType ?? this.quantityType,
+    );
+  }
+
+  // ------------------ Helper ------------------
   double get totalPrice => count * price;
 }

@@ -7,11 +7,13 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:fine_foods/appcolor.dart';
+import 'package:printing/printing.dart';
 
 class BillingScreen extends StatelessWidget {
   final controller = Get.put(BillingController());
@@ -23,7 +25,6 @@ class BillingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLargeScreen = MediaQuery.of(context).size.width > 800;
 
-   
     return Scaffold(
       backgroundColor: AppColor.background,
       appBar: _buildAppBar(),
@@ -46,7 +47,10 @@ class BillingScreen extends StatelessWidget {
     backgroundColor: AppColor.background,
     title: const Text(
       "Point of Sale",
-      style: TextStyle(fontWeight: FontWeight.w600, color: AppColor.textPrimary),
+      style: TextStyle(
+        fontWeight: FontWeight.w600,
+        color: AppColor.textPrimary,
+      ),
     ),
     foregroundColor: AppColor.textPrimary,
     actions: [
@@ -55,7 +59,10 @@ class BillingScreen extends StatelessWidget {
           children: [
             IconButton(
               onPressed: () => _showCartSheet(Get.context!),
-              icon: const Icon(Icons.shopping_cart_outlined, color: AppColor.textPrimary),
+              icon: const Icon(
+                Icons.shopping_cart_outlined,
+                color: AppColor.textPrimary,
+              ),
             ),
             if (controller.selectedProducts.isNotEmpty)
               Positioned(
@@ -175,7 +182,9 @@ class BillingScreen extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 16,
-                  color: isOutOfStock ? AppColor.textSecondary : AppColor.textPrimary,
+                  color: isOutOfStock
+                      ? AppColor.textSecondary
+                      : AppColor.textPrimary,
                 ),
                 maxLines: 2,
               ),
@@ -448,13 +457,16 @@ class BillingScreen extends StatelessWidget {
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       color: AppColor.background,
-      border: Border(top: BorderSide(color: AppColor.textSecondary.withOpacity(0.2))),
+      border: Border(
+        top: BorderSide(color: AppColor.textSecondary.withOpacity(0.2)),
+      ),
     ),
     child: Column(
       children: [
+        // Discount
         TextFormField(
           initialValue: controller.customerDiscount.value,
-          onChanged: (value) => controller.customerDiscount.value = value,
+          onChanged: (v) => controller.customerDiscount.value = v,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
             labelText: 'Discount',
@@ -463,23 +475,18 @@ class BillingScreen extends StatelessWidget {
             isDense: true,
           ),
           validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return null; // discount is optional
+            if (value == null || value.trim().isEmpty) return null;
+            final disc = double.tryParse(value.trim());
+            if (disc == null || disc <= 0) return 'Enter a valid discount > 0';
+            if (disc > controller.calculateTotal()) {
+              return 'Discount cannot exceed total';
             }
-
-            final discount = double.tryParse(value.trim());
-            if (discount == null || discount <= 0) {
-              return 'Enter a valid discount > 0';
-            }
-
-            final total = controller.calculateTotal(); // your total function
-            if (discount > total) {
-              return 'Discount cannot exceed total price ($total)';
-            }
-
             return null;
           },
         ),
+        const SizedBox(height: 16),
+
+        // Customer Details
         ExpansionTile(
           title: const Text(
             'Customer Details (Optional)',
@@ -500,6 +507,7 @@ class BillingScreen extends StatelessWidget {
             const SizedBox(height: 12),
             TextField(
               controller: controller.customerPhone,
+              keyboardType: TextInputType.phone,
               decoration: InputDecoration(
                 labelText: 'Phone Number',
                 border: OutlineInputBorder(
@@ -508,15 +516,182 @@ class BillingScreen extends StatelessWidget {
                 prefixIcon: const Icon(Icons.phone_outlined),
                 isDense: true,
               ),
-              keyboardType: TextInputType.phone,
             ),
           ],
         ),
         const SizedBox(height: 16),
+
+        // Payment Method & Type (exact copy from Quick Bill)
+        Obx(() {
+          final isSplit = controller.selectedPaymentType.value == 'Split';
+          return Column(
+            children: [
+              // Payment Method Card
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Payment Method',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      if (isSplit)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Cash + Online',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColor.success,
+                            ),
+                          ),
+                        )
+                      else
+                        Row(
+                          children: [
+                            Expanded(
+                              child: RadioListTile<String>(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('Cash'),
+                                value: 'Cash',
+                                groupValue: controller.paymentMethod.value,
+                                onChanged: (val) =>
+                                    controller.paymentMethod.value = val!,
+                              ),
+                            ),
+                            Expanded(
+                              child: RadioListTile<String>(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('Online'),
+                                value: 'Online',
+                                groupValue: controller.paymentMethod.value,
+                                onChanged: (val) =>
+                                    controller.paymentMethod.value = val!,
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Payment Type Card
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Payment Type',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: RadioListTile<String>(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Full'),
+                              value: 'Full',
+                              groupValue: controller.selectedPaymentType.value,
+                              onChanged: (val) {
+                                controller.selectedPaymentType.value = val!;
+                                controller.paymentMethod.value = 'Cash';
+                                final total = controller.calculateTotal();
+                                controller.cashReceived.value = total
+                                    .toStringAsFixed(2);
+                                controller.onlineReceived.value = '0';
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            child: RadioListTile<String>(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Split'),
+                              value: 'Split',
+                              groupValue: controller.selectedPaymentType.value,
+                              onChanged: (val) {
+                                controller.selectedPaymentType.value = val!;
+                                controller.cashReceived.value = '';
+                                controller.onlineReceived.value = '';
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (isSplit) ...[
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Cash Received',
+                            prefixIcon: const Icon(Icons.money),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            isDense: true,
+                          ),
+                          onChanged: (v) => controller.cashReceived.value = v,
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Online Received',
+                            prefixIcon: const Icon(Icons.qr_code),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            isDense: true,
+                          ),
+                          onChanged: (v) => controller.onlineReceived.value = v,
+                        ),
+                        const SizedBox(height: 8),
+                        Obx(() {
+                          final cash =
+                              double.tryParse(controller.cashReceived.value) ??
+                              0;
+                          final online =
+                              double.tryParse(
+                                controller.onlineReceived.value,
+                              ) ??
+                              0;
+                          final total = controller.calculateTotal();
+                          return Text(
+                            'Total Received: ₹${(cash + online).toStringAsFixed(2)} / ₹${total.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: (cash + online) == total
+                                  ? AppColor.success
+                                  : AppColor.error,
+                            ),
+                          );
+                        }),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        }),
+        const SizedBox(height: 16),
+
+        // Total Display
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFD700).withOpacity(0.1),
+            color: AppColor.surface,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -532,7 +707,7 @@ class BillingScreen extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFFFD700),
+                    color: AppColor.primary,
                   ),
                 ),
               ),
@@ -540,6 +715,7 @@ class BillingScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
+
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
@@ -609,23 +785,130 @@ class BillingScreen extends StatelessWidget {
   Future<void> _generateInvoice() async {
     try {
       final billData = await controller.createBill();
-      if (billData != null) {
-        final pdf = pw.Document();
-        final fontData = await rootBundle.load(
-          'assets/fonts/Roboto-Regular.ttf',
-        );
-        final robotoFont = pw.Font.ttf(fontData);
+      if (billData == null) return;
 
-        pdf.addPage(
-          pw.Page(build: (context) => _buildPDFContent(billData, robotoFont)),
-        );
+      final pdf = pw.Document();
+      final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+      final robotoFont = pw.Font.ttf(fontData);
 
+      pdf.addPage(
+        pw.Page(build: (context) => _buildPDFContent(billData, robotoFont)),
+      );
+
+      // ================= WINDOWS =================
+      if (Platform.isWindows) {
+        await Get.dialog(
+          Dialog(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800, maxHeight: 800),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Invoice #${billData['invoiceNumber']} Preview',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Get.back(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: PdfPreview(
+                      build: (format) => pdf.save(),
+                      allowPrinting: false,
+                      allowSharing: false,
+                      canChangeOrientation: false,
+                      canChangePageFormat: false,
+                      initialPageFormat: PdfPageFormat(
+                        80 * PdfPageFormat.mm,
+                        double.infinity,
+                        marginAll: 5 * PdfPageFormat.mm,
+                      ),
+                      actions: const [],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Get.back(closeOverlays: true),
+                          child: const Text('Close'),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () async {
+                            final printerController =
+                                Get.find<PrinterController>();
+
+                            if (kIsWeb) {
+                              Get.snackbar(
+                                'Web Mode',
+                                'Not supported on Web',
+                                backgroundColor: Colors.orange,
+                                colorText: Colors.white,
+                              );
+                              return;
+                            }
+
+                            if (!printerController.isConnected.value) {
+                              Get.snackbar(
+                                'Error',
+                                'No printer connected',
+                                backgroundColor: Colors.red,
+                                colorText: Colors.white,
+                              );
+                              return;
+                            }
+
+                            try {
+                              await controller.printInvoice(billData);
+                              Get.snackbar(
+                                'Success',
+                                'Invoice printed successfully',
+                                backgroundColor: Colors.green,
+                                colorText: Colors.white,
+                              );
+                              Get.back(closeOverlays: true);
+                            } catch (e) {
+                              Get.snackbar(
+                                'Error',
+                                'Failed to print: $e',
+                                backgroundColor: Colors.red,
+                                colorText: Colors.white,
+                              );
+                            }
+                          },
+                          child: const Text('Print'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+      // ================= ANDROID =================
+      else {
         final dir = await getTemporaryDirectory();
         final file = File(
           '${dir.path}/invoice_${billData['invoiceNumber']}.pdf',
         );
         await file.writeAsBytes(await pdf.save());
-        await Future.delayed(const Duration(seconds: 1));
+
         await Get.dialog(
           Dialog(
             child: ConstrainedBox(
@@ -661,15 +944,15 @@ class BillingScreen extends StatelessWidget {
                                 Get.find<PrinterController>();
 
                             if (kIsWeb) {
-                              // ----------- WEB MODE -----------
                               Get.snackbar(
                                 'Web Mode',
-                                'Bluetooth printers are not supported on Web. Please download the invoice instead.',
+                                'Bluetooth printing not supported on Web',
                                 backgroundColor: Colors.orange,
                                 colorText: Colors.white,
                               );
                               return;
                             }
+
                             if (!printerController.isConnected.value) {
                               Get.snackbar(
                                 'Error',
@@ -679,6 +962,7 @@ class BillingScreen extends StatelessWidget {
                               );
                               return;
                             }
+
                             try {
                               await controller.printInvoice(billData);
                               Get.snackbar(
@@ -707,6 +991,7 @@ class BillingScreen extends StatelessWidget {
             ),
           ),
         );
+
         await file.delete();
       }
     } catch (e) {
@@ -762,54 +1047,75 @@ class BillingScreen extends StatelessWidget {
         ),
         pw.Table(
           border: pw.TableBorder.all(),
+          columnWidths: {
+            0: const pw.FlexColumnWidth(4), // Product name - wider
+            1: const pw.FlexColumnWidth(1), // Qty
+            2: const pw.FlexColumnWidth(2), // Price
+            3: const pw.FlexColumnWidth(2), // Total
+          },
+          defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
           children: [
+            // Header Row
             pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.grey300),
               children: ['Product', 'Qty', 'Price', 'Total']
                   .map(
                     (text) => pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
                       child: pw.Text(
                         text,
-                        style: pw.TextStyle(font: robotoFont),
+                        style: pw.TextStyle(
+                          font: robotoFont,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
                       ),
                     ),
                   )
                   .toList(),
             ),
-            ...billData['products'].values.map<pw.TableRow>(
-              (product) => pw.TableRow(
-                children: [
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text(
-                      product['productName'],
-                      style: pw.TextStyle(font: robotoFont),
-                    ),
+            // Product Rows - FIXED: removed .values and added .toList()
+            ...billData['products']
+                .map<pw.TableRow>(
+                  (product) => pw.TableRow(
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          product['productName'] ?? '',
+                          style: pw.TextStyle(font: robotoFont),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          product['quantity'].toString(),
+                          textAlign: pw.TextAlign.center,
+                          style: pw.TextStyle(font: robotoFont),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          '₹${(product['price'] as num).toStringAsFixed(2)}',
+                          textAlign: pw.TextAlign.right,
+                          style: pw.TextStyle(font: robotoFont),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(8),
+                        child: pw.Text(
+                          '₹${(product['total'] as num).toStringAsFixed(2)}',
+                          textAlign: pw.TextAlign.right,
+                          style: pw.TextStyle(
+                            font: robotoFont,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text(
-                      product['quantity'].toString(),
-                      style: pw.TextStyle(font: robotoFont),
-                    ),
-                  ),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text(
-                      '₹${product['price'].toStringAsFixed(2)}',
-                      style: pw.TextStyle(font: robotoFont),
-                    ),
-                  ),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.all(8),
-                    child: pw.Text(
-                      '₹${product['total'].toStringAsFixed(2)}',
-                      style: pw.TextStyle(font: robotoFont),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                )
+                .toList(),
           ],
         ),
         pw.SizedBox(height: 16),
