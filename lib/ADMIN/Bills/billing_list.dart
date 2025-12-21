@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:ui';
 import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
 import 'package:fine_foods/appcolor.dart';
 import 'package:flutter/material.dart';
@@ -14,88 +15,126 @@ class BillingList extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = Get.put(BillListController());
 
-    return Scaffold(
-      backgroundColor: AppColor.background,
-      appBar: AppBar(
-        title: Obx(() {
-          final month = controller.selectedMonth.value;
-          return Text(
-            month != null
-                ? 'Bills - ${DateFormat('MMMM yyyy').format(month)}'
-                : 'All Bills History',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-              color: AppColor.background,
-            ),
-          );
-        }),
-        backgroundColor: AppColor.primary,
-        foregroundColor: AppColor.background,
-        elevation: 2,
-        actions: [
-          // Download Button
-          IconButton(
-            onPressed: controller.downloadCurrentReport,
-            icon: const Icon(Icons.download_rounded),
-            tooltip: 'Download Report',
+    return Stack(
+      children: [
+        // MAIN UI
+        Scaffold(
+          backgroundColor: AppColor.background,
+          appBar: AppBar(
+            title: Obx(() {
+              final month = controller.selectedMonth.value;
+              return Text(
+                month != null
+                    ? 'Bills - ${DateFormat('MMMM yyyy').format(month)}'
+                    : 'All Bills History',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: AppColor.background,
+                ),
+              );
+            }),
+            backgroundColor: AppColor.primary,
+            foregroundColor: AppColor.background,
+            elevation: 2,
+            actions: [
+              IconButton(
+                onPressed: controller.isLoading.value
+                    ? null
+                    : controller.downloadCurrentReport,
+                icon: const Icon(Icons.download_rounded),
+                tooltip: 'Download Report',
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
-          const SizedBox(width: 8),
-        ],
-      ),
 
-      body: Column(
-        children: [
-          Obx(() => _buildFilterBar(controller, context)),
-
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () => controller.fetchBills(reset: true),
-              child: Obx(() {
-                if (controller.isLoading.value && controller.bills.isEmpty) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (controller.bills.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No bills found',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        color: AppColor.textSecondary,
-                      ),
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  itemCount:
-                      controller.bills.length +
-                      (controller.hasMore.value ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index >= controller.bills.length - 5 &&
-                        controller.hasMore.value) {
-                      controller.loadMore();
+          body: Column(
+            children: [
+              Obx(() => _buildFilterBar(controller, context)),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () => controller.fetchBills(reset: true),
+                  child: Obx(() {
+                    if (controller.isFetching.value &&
+                        controller.bills.isEmpty) {
+                      return const Center(child: CircularProgressIndicator());
                     }
 
-                    if (index == controller.bills.length) {
-                      return const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Center(child: CircularProgressIndicator()),
+                    if (controller.bills.isEmpty) {
+                      return Center(
+                        child: Text(
+                          'No bills found',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            color: AppColor.textSecondary,
+                          ),
+                        ),
                       );
                     }
 
-                    return BillCard(
-                      bill: controller.bills[index],
-                      controller: controller,
+                    return ListView.builder(
+                      itemCount:
+                          controller.bills.length +
+                          (controller.hasMore.value ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index >= controller.bills.length - 5 &&
+                            controller.hasMore.value) {
+                          controller.loadMore();
+                        }
+
+                        if (index == controller.bills.length) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+
+                        return BillCard(
+                          bill: controller.bills[index],
+                          controller: controller,
+                        );
+                      },
                     );
-                  },
-                );
-              }),
-            ),
+                  }),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+
+        // 🔵 BLUR + LOADER OVERLAY
+        Obx(() {
+          if (!controller.isLoading.value) return const SizedBox();
+
+          return Positioned.fill(
+            child: AbsorbPointer(
+              absorbing: true,
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                child: Container(
+                  color: Colors.black.withOpacity(0.2),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Generating report...',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 
