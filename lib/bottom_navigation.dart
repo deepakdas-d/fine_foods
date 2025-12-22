@@ -45,24 +45,19 @@ class BottomNavPage extends StatelessWidget {
         canPop:
             false, // Prevent automatic pop (back button won't exit immediately)
         onPopInvokedWithResult: (bool didPop, Object? result) async {
-          if (didPop)
-            return; // Already popped (unlikely here due to canPop: false)
+          if (didPop) return;
 
-          // Show confirmation dialog
           final bool? shouldExit = await Get.dialog<bool>(
             AlertDialog(
               title: const Text('Confirm Exit'),
               content: const Text('Do you want to exit the app?'),
               actions: [
                 TextButton(
-                  onPressed: () => Get.back(result: false), // "No"
+                  onPressed: () => Get.back(result: false),
                   child: const Text('No'),
                 ),
                 TextButton(
-                  onPressed: () {
-                    Get.closeCurrentSnackbar(); // Your previous workaround
-                    Get.back(result: true); // "Yes"
-                  },
+                  onPressed: () => Get.back(result: true),
                   child: const Text('Yes'),
                 ),
               ],
@@ -70,10 +65,10 @@ class BottomNavPage extends StatelessWidget {
           );
 
           if (shouldExit == true) {
-            SystemNavigator.pop(); // Actually exit the app
+            SystemNavigator.pop();
           }
-          // If false or null, do nothing (stay in app)
         },
+
         child: Scaffold(
           body: PageView(
             controller: pageController,
