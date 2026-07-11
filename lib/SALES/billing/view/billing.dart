@@ -793,7 +793,7 @@ class BillingScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         TextButton(
-                          onPressed: () => Get.back(closeOverlays: true),
+                          onPressed: () => Get.back(),
                           child: const Text('Close'),
                         ),
                         const SizedBox(width: 8),
@@ -830,7 +830,7 @@ class BillingScreen extends StatelessWidget {
                                 backgroundColor: Colors.green,
                                 colorText: Colors.white,
                               );
-                              Get.back(closeOverlays: true);
+                              Get.back();
                             } catch (e) {
                               Get.snackbar(
                                 'Error',
@@ -884,7 +884,7 @@ class BillingScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         TextButton(
-                          onPressed: () => Get.back(closeOverlays: true),
+                          onPressed: () => Get.back(),
                           child: const Text('Close'),
                         ),
                         const SizedBox(width: 8),
@@ -921,7 +921,7 @@ class BillingScreen extends StatelessWidget {
                                 backgroundColor: Colors.green,
                                 colorText: Colors.white,
                               );
-                              Get.back(closeOverlays: true);
+                              Get.back();
                             } catch (e) {
                               Get.snackbar(
                                 'Error',

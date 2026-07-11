@@ -60,36 +60,40 @@ class BluetoothList extends StatelessWidget {
               color: AppColor.surface,
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Obx(
-                () => ListTile(
-                  leading:
-                      controller.isConnecting.value &&
-                          controller.connectingAddress == printer.address
-                      ? SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColor.primary,
-                          ),
-                        )
-                      : Icon(Icons.print, color: AppColor.textPrimary),
-                  title: Text(
-                    printer.name,
-                    style: TextStyle(color: AppColor.textPrimary),
+                () => Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    leading:
+                        controller.isConnecting.value &&
+                            controller.connectingAddress == printer.address
+                        ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColor.primary,
+                            ),
+                          )
+                        : Icon(Icons.print, color: AppColor.textPrimary),
+                    title: Text(
+                      printer.name,
+                      style: TextStyle(color: AppColor.textPrimary),
+                    ),
+                    subtitle: Text(
+                      printer.address,
+                      style: TextStyle(color: AppColor.textSecondary),
+                    ),
+                    trailing:
+                        controller.selectedPrinter?.address ==
+                                printer.address &&
+                            controller.isConnected.value
+                        ? Icon(Icons.check, color: AppColor.success)
+                        : null,
+                    onTap: () async {
+                      await controller.connectPrinter(printer);
+                      if (controller.isConnected.value) Get.back();
+                    },
                   ),
-                  subtitle: Text(
-                    printer.address,
-                    style: TextStyle(color: AppColor.textSecondary),
-                  ),
-                  trailing:
-                      controller.selectedPrinter?.address == printer.address &&
-                          controller.isConnected.value
-                      ? Icon(Icons.check, color: AppColor.success)
-                      : null,
-                  onTap: () async {
-                    await controller.connectPrinter(printer);
-                    if (controller.isConnected.value) Get.back();
-                  },
                 ),
               ),
             );

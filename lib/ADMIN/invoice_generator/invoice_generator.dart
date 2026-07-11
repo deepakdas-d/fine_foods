@@ -20,7 +20,11 @@ class InvoiceGenerator extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'Invoice Generator',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 24, color: AppColor.background),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+            color: AppColor.background,
+          ),
         ),
         backgroundColor: AppColor.primary,
         centerTitle: true,
@@ -60,18 +64,26 @@ class InvoiceGenerator extends StatelessWidget {
                               initialValue: controller.selectedCollection.value,
                               decoration: InputDecoration(
                                 labelText: 'Collection',
-                                labelStyle: GoogleFonts.poppins(color: AppColor.textSecondary),
+                                labelStyle: GoogleFonts.poppins(
+                                  color: AppColor.textSecondary,
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: AppColor.textSecondary),
+                                  borderSide: BorderSide(
+                                    color: AppColor.textSecondary,
+                                  ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: AppColor.textSecondary),
+                                  borderSide: BorderSide(
+                                    color: AppColor.textSecondary,
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: AppColor.primary),
+                                  borderSide: BorderSide(
+                                    color: AppColor.primary,
+                                  ),
                                 ),
                                 prefixIcon: const Icon(
                                   Icons.category,
@@ -81,7 +93,9 @@ class InvoiceGenerator extends StatelessWidget {
                                 fillColor: AppColor.background,
                               ),
                               dropdownColor: AppColor.surface,
-                              style: GoogleFonts.poppins(color: AppColor.textPrimary),
+                              style: GoogleFonts.poppins(
+                                color: AppColor.textPrimary,
+                              ),
                               items: ['inventory', 'products'].map((
                                 String collection,
                               ) {
@@ -89,7 +103,10 @@ class InvoiceGenerator extends StatelessWidget {
                                   value: collection,
                                   child: Text(
                                     collection.capitalizeFirst!,
-                                    style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: AppColor.textPrimary,
+                                    ),
                                   ),
                                 );
                               }).toList(),
@@ -166,38 +183,42 @@ class InvoiceGenerator extends StatelessWidget {
                                           vertical: 4,
                                         ),
                                         color: AppColor.background,
-                                        child: ListTile(
-                                          leading: CircleAvatar(
-                                            backgroundColor: AppColor.primary.withValues(alpha: 0.2),
-                                            child: Text(
-                                              product.name[0].toUpperCase(),
-                                              style: GoogleFonts.poppins(
-                                                color: AppColor.primary,
-                                                fontWeight: FontWeight.bold,
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: ListTile(
+                                            leading: CircleAvatar(
+                                              backgroundColor: AppColor.primary
+                                                  .withValues(alpha: 0.2),
+                                              child: Text(
+                                                product.name[0].toUpperCase(),
+                                                style: GoogleFonts.poppins(
+                                                  color: AppColor.primary,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          title: Text(
-                                            product.name,
-                                            style: GoogleFonts.poppins(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: AppColor.textPrimary,
+                                            title: Text(
+                                              product.name,
+                                              style: GoogleFonts.poppins(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: AppColor.textPrimary,
+                                              ),
                                             ),
-                                          ),
-                                          subtitle: Text(
-                                            'Qty: ${product.count} ${product.quantityType} × ₹${product.price.toStringAsFixed(2)}',
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 14,
-                                              color: AppColor.textSecondary,
+                                            subtitle: Text(
+                                              'Qty: ${product.count} ${product.quantityType} × ₹${product.price.toStringAsFixed(2)}',
+                                              style: GoogleFonts.poppins(
+                                                fontSize: 14,
+                                                color: AppColor.textSecondary,
+                                              ),
                                             ),
-                                          ),
-                                          trailing: Text(
-                                            '₹${product.totalPrice.toStringAsFixed(2)}',
-                                            style: GoogleFonts.poppins(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: AppColor.textPrimary,
+                                            trailing: Text(
+                                              '₹${product.totalPrice.toStringAsFixed(2)}',
+                                              style: GoogleFonts.poppins(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: AppColor.textPrimary,
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -263,14 +284,16 @@ class InvoiceGenerator extends StatelessWidget {
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      disabledBackgroundColor: AppColor.success.withValues(alpha: 0.3),
+                                      disabledBackgroundColor: AppColor.success
+                                          .withValues(alpha: 0.3),
                                     ),
                                     child: Text(
                                       'Generate from Inventory',
                                       style: GoogleFonts.poppins(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
-                                        color: AppColor.textOnPrimary, // Assuming white/black on success? white is safe
+                                        color: AppColor
+                                            .textOnPrimary, // Assuming white/black on success? white is safe
                                       ),
                                     ),
                                   ),
@@ -297,7 +320,8 @@ class InvoiceGenerator extends StatelessWidget {
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      disabledBackgroundColor: AppColor.primary.withValues(alpha: 0.3),
+                                      disabledBackgroundColor: AppColor.primary
+                                          .withValues(alpha: 0.3),
                                     ),
                                     child: Text(
                                       'Generate from Products',

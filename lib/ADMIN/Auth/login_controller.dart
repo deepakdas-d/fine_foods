@@ -11,6 +11,13 @@ class LoginController extends GetxController {
 
   final isLoading = false.obs;
 
+  @override
+  void onClose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.onClose();
+  }
+
   void login() async {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
@@ -19,7 +26,7 @@ class LoginController extends GetxController {
       Get.snackbar(
         'Error',
         'Please enter email and password',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       return;
     }
@@ -34,9 +41,13 @@ class LoginController extends GetxController {
       Get.snackbar(
         'Success',
         'Login successful',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       
+      // Clear text fields on successful login
+      emailController.clear();
+      passwordController.clear();
+
       // Update global auth state, which will automatically update UI via Obx
       Get.find<AuthController>().loginSuccess();
       
@@ -48,13 +59,13 @@ class LoginController extends GetxController {
       Get.snackbar(
         'Error',
         e.message ?? 'Invalid credentials',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     } catch (e) {
       Get.snackbar(
         'Error',
         'An error occurred during login',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     } finally {
       isLoading.value = false;

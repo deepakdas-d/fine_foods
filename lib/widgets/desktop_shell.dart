@@ -7,6 +7,7 @@ import 'package:fine_foods/ADMIN/sales_data/sales_growth.dart';
 import 'package:fine_foods/appcolor.dart';
 import 'package:fine_foods/bluetooth_list.dart';
 import 'package:fine_foods/home/home.dart';
+import 'package:fine_foods/home/user_bills.dart';
 import 'package:fine_foods/login.dart';
 import 'package:fine_foods/widgets/desktop_nav_controller.dart';
 import 'package:fine_foods/widgets/desktop_sidebar.dart';
@@ -53,6 +54,8 @@ class DesktopShell extends StatelessWidget {
       case 7:
         if (!kIsWeb) return const BluetoothList();
         return Home(); // fallback — shouldn't reach on web
+      case 8:
+        return const UserBills();
       default:
         return Home();
     }

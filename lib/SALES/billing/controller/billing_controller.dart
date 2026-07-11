@@ -52,7 +52,7 @@ class BillingController extends GetxController {
       Get.snackbar(
         'Error',
         'Failed to fetch products: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
@@ -103,7 +103,7 @@ class BillingController extends GetxController {
       Get.snackbar(
         'Out of Stock',
         '${product.name} is out of stock',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.orange,
         colorText: Colors.white,
         duration: const Duration(seconds: 2),
@@ -252,6 +252,7 @@ class BillingController extends GetxController {
         'totalPaid': cash + online,
         'paymentStatus': 'paid',
 
+        'source': 'inventory',
         'createdAt': DateTime.now().toIso8601String(),
         'status': 'completed',
       };
@@ -538,7 +539,7 @@ class BillingController extends GetxController {
       Get.snackbar(
         'Success',
         'Invoice printed successfully!',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.green,
         colorText: Colors.white,
       );
@@ -548,7 +549,7 @@ class BillingController extends GetxController {
       Get.snackbar(
         'Error',
         'Failed to print invoice: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );

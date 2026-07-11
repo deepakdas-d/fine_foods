@@ -15,6 +15,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:fine_foods/appcolor.dart';
+import 'package:fine_foods/home/user_bills.dart';
+import 'package:fine_foods/widgets/responsive.dart';
 import 'dart:developer' as developer;
 
 class Home extends StatelessWidget {
@@ -41,6 +43,14 @@ class Home extends StatelessWidget {
         ),
         foregroundColor: AppColor.textPrimary,
         actions: [
+          // Mobile Bills shortcut
+          if (!Responsive.isDesktop(context))
+            IconButton(
+              icon: const Icon(Icons.receipt_long),
+              tooltip: 'My Bills',
+              onPressed: () => Get.to(() => const UserBills()),
+            ),
+
           if (!kIsWeb) // Hide on Web & Windows
             Obx(() {
               return Row(
@@ -154,36 +164,94 @@ class Home extends StatelessWidget {
     child: Column(
       children: [
         // Discount
-        TextFormField(
-          controller: TextEditingController(
-            text: quickbillController.customerDiscount.value,
-          ),
-          onChanged: (value) =>
-              quickbillController.customerDiscount.value = value,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: 'Discount',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            prefixIcon: const Icon(Icons.discount_outlined),
-            isDense: true,
-          ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return null; // discount is optional
-            }
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: TextEditingController(
+                  text: quickbillController.customerDiscount.value,
+                ),
+                onChanged: (value) =>
+                    quickbillController.customerDiscount.value = value,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Discount',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  prefixIcon: const Icon(Icons.discount_outlined),
+                  isDense: true,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return null; // discount is optional
+                  }
 
-            final discount = double.tryParse(value.trim());
-            if (discount == null || discount <= 0) {
-              return 'Enter a valid discount > 0';
-            }
+                  final discountVal = double.tryParse(value.trim());
+                  if (discountVal == null || discountVal < 0) {
+                    return 'Enter a valid discount >= 0';
+                  }
 
-            final total = quickbillController.calculateTotal();
-            if (discount > total) {
-              return 'Discount cannot exceed total price ($total)';
-            }
+                  final currentSubtotal = quickbillController.subtotal;
+                  if (quickbillController.discountType.value == 'Percentage' && discountVal > 100) {
+                    return 'Cannot exceed 100%';
+                  } else if (quickbillController.discountType.value == 'Amount' && discountVal > currentSubtotal) {
+                    return 'Cannot exceed subtotal';
+                  }
 
-            return null;
-          },
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Obx(() => Container(
+              height: 48,
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColor.textSecondary.withValues(alpha: 0.2)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    onTap: () {
+                      quickbillController.discountType.value = 'Amount';
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: quickbillController.discountType.value == 'Amount' ? AppColor.primary : Colors.transparent,
+                        borderRadius: const BorderRadius.horizontal(left: Radius.circular(7)),
+                      ),
+                      child: Text('₹', style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: quickbillController.discountType.value == 'Amount' ? Colors.white : AppColor.textPrimary,
+                      )),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      quickbillController.discountType.value = 'Percentage';
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: quickbillController.discountType.value == 'Percentage' ? AppColor.primary : Colors.transparent,
+                        borderRadius: const BorderRadius.horizontal(right: Radius.circular(7)),
+                      ),
+                      child: Text('%', style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: quickbillController.discountType.value == 'Percentage' ? Colors.white : AppColor.textPrimary,
+                      )),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+          ],
         ),
         const SizedBox(height: 16),
 
@@ -264,25 +332,35 @@ class Home extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: RadioListTile<String>(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Cash'),
-                            value: 'Cash',
-                            groupValue: quickbillController.paymentMethod.value,
-                            onChanged: (val) =>
-                                quickbillController.paymentMethod.value = val!,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: RadioListTile<String>(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Cash'),
+                              value: 'Cash',
+                              groupValue:
+                                  quickbillController.paymentMethod.value,
+                              onChanged: (val) =>
+                                  quickbillController.paymentMethod.value =
+                                      val!,
+                            ),
                           ),
                         ),
                         Expanded(
-                          child: RadioListTile<String>(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Online'),
-                            value: 'Online',
-                            groupValue: quickbillController.paymentMethod.value,
-                            onChanged: (val) =>
-                                quickbillController.paymentMethod.value = val!,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: RadioListTile<String>(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Online'),
+                              value: 'Online',
+                              groupValue:
+                                  quickbillController.paymentMethod.value,
+                              onChanged: (val) =>
+                                  quickbillController.paymentMethod.value =
+                                      val!,
+                            ),
                           ),
                         ),
                       ],
@@ -509,7 +587,7 @@ class Home extends StatelessWidget {
                           ),
                           IconButton(
                             icon: const Icon(Icons.close),
-                            onPressed: () => Get.back(),
+                            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
                           ),
                         ],
                       ),
@@ -537,7 +615,7 @@ class Home extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
-                            onPressed: () => Get.back(closeOverlays: true),
+                            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
                             child: const Text('Close'),
                           ),
                           const SizedBox(width: 8),
@@ -565,14 +643,15 @@ class Home extends StatelessWidget {
                                 await quickbillController.printInvoice(
                                   billData,
                                 );
+                                if (!context.mounted) return;
                                 developer.log('[Home] PrintInvoice completed');
+                                Navigator.of(context, rootNavigator: true).pop();
                                 Get.snackbar(
                                   'Success',
                                   'Invoice printed successfully',
                                   backgroundColor: Colors.green,
                                   colorText: Colors.white,
                                 );
-                                Get.back(closeOverlays: true);
                               } catch (e) {
                                 developer.log(
                                   '[Home] Print from preview failed: $e',
@@ -632,7 +711,7 @@ class Home extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
-                            onPressed: () => Get.back(closeOverlays: true),
+                            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
                             child: const Text('Close'),
                           ),
                           const SizedBox(width: 8),
@@ -660,13 +739,14 @@ class Home extends StatelessWidget {
                                 await quickbillController.printInvoice(
                                   billData,
                                 );
+                                if (!context.mounted) return;
+                                Navigator.of(context, rootNavigator: true).pop();
                                 Get.snackbar(
                                   'Success',
                                   'Invoice printed successfully',
                                   backgroundColor: Colors.green,
                                   colorText: Colors.white,
                                 );
-                                Get.back(closeOverlays: true);
                               } catch (e) {
                                 Get.snackbar(
                                   'Error',
@@ -851,30 +931,26 @@ class Home extends StatelessWidget {
   }
 }
 
-class ProductInputForm extends StatelessWidget {
+class ProductInputForm extends StatefulWidget {
   final QuickbillController controller;
 
   const ProductInputForm({required this.controller, super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController(
-      text: controller.productNameController.text,
-    );
-    final quantityController = TextEditingController(
-      text: controller.productQuantityController.text,
-    );
-    final priceController = TextEditingController(
-      text: controller.productPriceController.text,
-    );
+  State<ProductInputForm> createState() => _ProductInputFormState();
+}
 
+class _ProductInputFormState extends State<ProductInputForm> {
+  final formKey = GlobalKey<FormState>();
+
+  @override
+  Widget build(BuildContext context) {
     return Form(
       key: formKey,
       child: Column(
         children: [
           TextFormField(
-            controller: nameController,
+            controller: widget.controller.productNameController,
             decoration: InputDecoration(
               labelText: 'Product Name',
               border: OutlineInputBorder(
@@ -885,11 +961,32 @@ class ProductInputForm extends StatelessWidget {
             ),
             validator: (value) =>
                 value!.isEmpty ? 'Product name cannot be empty' : null,
-            onChanged: (value) => controller.productNameController.text = value,
+          ),
+          const SizedBox(height: 12),
+          Obx(
+            () => DropdownButtonFormField<String>(
+              value: widget.controller.selectedType.value,
+              decoration: InputDecoration(
+                labelText: 'Type',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                isDense: true,
+              ),
+              items: ['unit', 'kg', 'meter', 'pack']
+                  .map(
+                    (type) => DropdownMenuItem(value: type, child: Text(type)),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                widget.controller.selectedType.value = value!;
+              },
+              validator: (value) => value == null ? 'Select a type' : null,
+            ),
           ),
           const SizedBox(height: 12),
           TextFormField(
-            controller: quantityController,
+            controller: widget.controller.productQuantityController,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
               labelText: 'Quantity',
@@ -904,12 +1001,10 @@ class ProductInputForm extends StatelessWidget {
               final qty = double.tryParse(value);
               return qty == null || qty <= 0 ? 'Enter a valid quantity' : null;
             },
-            onChanged: (value) =>
-                controller.productQuantityController.text = value,
           ),
           const SizedBox(height: 12),
           TextFormField(
-            controller: priceController,
+            controller: widget.controller.productPriceController,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
               labelText: 'Price',
@@ -924,30 +1019,6 @@ class ProductInputForm extends StatelessWidget {
               final price = double.tryParse(value);
               return price == null || price <= 0 ? 'Enter a valid price' : null;
             },
-            onChanged: (value) =>
-                controller.productPriceController.text = value,
-          ),
-          const SizedBox(height: 12),
-          Obx(
-            () => DropdownButtonFormField<String>(
-              initialValue: controller.selectedType.value,
-              decoration: InputDecoration(
-                labelText: 'Type',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                isDense: true,
-              ),
-              items: ['unit', 'kg', 'meter', 'pack']
-                  .map(
-                    (type) => DropdownMenuItem(value: type, child: Text(type)),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                controller.selectedType.value = value!;
-              },
-              validator: (value) => value == null ? 'Select a type' : null,
-            ),
           ),
 
           const SizedBox(height: 16),
@@ -956,25 +1027,29 @@ class ProductInputForm extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () {
                 if (formKey.currentState!.validate()) {
-                  controller.addProduct(
-                    name: nameController.text.trim(),
-                    price: double.parse(priceController.text.trim()),
-                    quantity: double.parse(quantityController.text.trim()),
-                    type: controller.selectedType.value, // ✅ always latest
+                  FocusScope.of(context).unfocus();
+                  
+                  widget.controller.addProduct(
+                    name: widget.controller.productNameController.text.trim(),
+                    price: double.parse(widget.controller.productPriceController.text.trim()),
+                    quantity: double.parse(widget.controller.productQuantityController.text.trim()),
+                    type: widget.controller.selectedType.value,
                   );
 
-                  nameController.clear();
-                  quantityController.clear();
-                  priceController.clear();
-
-                  controller.clearProductInputs();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Product added to cart'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
                 } else {
-                  Get.snackbar(
-                    'Error',
-                    'Please correct the input errors',
-                    snackPosition: SnackPosition.BOTTOM,
-                    backgroundColor: Colors.red,
-                    colorText: Colors.white,
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please correct the input errors'),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
+                    ),
                   );
                 }
               },

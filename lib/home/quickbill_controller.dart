@@ -11,11 +11,36 @@ import 'dart:typed_data';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 
 class QuickbillController extends GetxController {
+  void _showErrorSnackbar(String message) {
+    if (Get.context != null) {
+      ScaffoldMessenger.of(Get.context!).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  void _showSuccessSnackbar(String message) {
+    if (Get.context != null) {
+      ScaffoldMessenger.of(Get.context!).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   final _firestore = FirebaseFirestore.instance;
   var isLoading = false.obs;
   var customerName = ''.obs;
   var customerPhone = ''.obs;
   var customerDiscount = ''.obs;
+  var discountType = 'Amount'.obs; // Amount / Percentage
   var paymentMethod = 'Cash'.obs; // cash / card / upi
   var paidAmount = ''.obs;
   var paymentStatus = 'paid'.obs; // paid / pending
@@ -53,13 +78,6 @@ class QuickbillController extends GetxController {
     };
     newProducts.add(product);
     clearProductInputs();
-    Get.snackbar(
-      'Success',
-      'Product added to cart',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.green,
-      colorText: Colors.white,
-    );
   }
 
   void clearProductInputs() {
@@ -73,15 +91,27 @@ class QuickbillController extends GetxController {
     newProducts.removeWhere((product) => product['id'] == id);
   }
 
-  double calculateTotal() {
+  double get subtotal {
     double total = 0;
     for (var product in newProducts) {
       total += product['total'] as double;
     }
-    final discount = customerDiscount.value.trim().isEmpty
-        ? 0.0
-        : double.parse(customerDiscount.value.trim());
-    return (total - discount).clamp(0, double.infinity);
+    return total;
+  }
+
+  double calculateDiscountAmount() {
+    if (customerDiscount.value.trim().isEmpty) return 0.0;
+    final discountVal = double.tryParse(customerDiscount.value.trim()) ?? 0.0;
+    final currentSubtotal = subtotal;
+    if (discountType.value == 'Percentage') {
+      return (currentSubtotal * discountVal / 100).clamp(0, currentSubtotal);
+    } else {
+      return discountVal.clamp(0, currentSubtotal);
+    }
+  }
+
+  double calculateTotal() {
+    return (subtotal - calculateDiscountAmount()).clamp(0, double.infinity);
   }
 
   String generateInvoiceNumber() {
@@ -95,39 +125,30 @@ class QuickbillController extends GetxController {
   //////------------------------------------------------Create Bill Function------------------------------------------------//////
   Future<Map<String, dynamic>?> createBill() async {
     if (newProducts.isEmpty) {
-      Get.snackbar(
-        'Error',
-        'Please add at least one product',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      _showErrorSnackbar('Please add at least one product');
       return null;
     }
 
     if (customerPhone.value.trim().isNotEmpty &&
         !RegExp(r'^\d{10}$').hasMatch(customerPhone.value.trim())) {
-      Get.snackbar(
-        'Error',
-        'Enter a valid 10-digit phone number',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      _showErrorSnackbar('Enter a valid 10-digit phone number');
       return null;
     }
 
-    if (customerDiscount.value.trim().isNotEmpty &&
-        (double.tryParse(customerDiscount.value.trim()) == null ||
-            double.parse(customerDiscount.value.trim()) <= 0)) {
-      Get.snackbar(
-        'Error',
-        'Enter a valid discount greater than 0',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-      return null;
+    if (customerDiscount.value.trim().isNotEmpty) {
+      final discountVal = double.tryParse(customerDiscount.value.trim());
+      if (discountVal == null || discountVal < 0) {
+        _showErrorSnackbar('Enter a valid discount >= 0');
+        return null;
+      }
+      final currentSubtotal = subtotal;
+      if (discountType.value == 'Percentage' && discountVal > 100) {
+        _showErrorSnackbar('Percentage discount cannot exceed 100%');
+        return null;
+      } else if (discountType.value == 'Amount' && discountVal > currentSubtotal) {
+        _showErrorSnackbar('Discount cannot exceed subtotal ($currentSubtotal)');
+        return null;
+      }
     }
 
     isLoading.value = true;
@@ -138,19 +159,11 @@ class QuickbillController extends GetxController {
       final batch = _firestore.batch();
 
       final totalAmount = calculateTotal();
-      final discount = customerDiscount.value.trim().isEmpty
-          ? 0.0
-          : double.parse(customerDiscount.value.trim());
+      final discount = calculateDiscountAmount();
 
       /// 🔴 EDGE CASE: TOTAL MUST BE > 0
       if (totalAmount <= 0) {
-        Get.snackbar(
-          'Error',
-          'Total amount must be greater than 0',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
+        _showErrorSnackbar('Total amount must be greater than 0');
         return null;
       }
 
@@ -174,13 +187,7 @@ class QuickbillController extends GetxController {
         online = double.tryParse(onlineReceived.value) ?? 0;
 
         if ((cash + online) != totalAmount) {
-          Get.snackbar(
-            'Error',
-            'Cash + Online must equal total amount',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.red,
-            colorText: Colors.white,
-          );
+          _showErrorSnackbar('Cash + Online must equal total amount');
           return null;
         }
       }
@@ -211,6 +218,8 @@ class QuickbillController extends GetxController {
         ),
 
         'discount': discount,
+        'discountType': discountType.value,
+        'discountInput': customerDiscount.value.trim(),
         'total': totalAmount,
         'itemCount': newProducts.fold(
           0.0,
@@ -227,6 +236,7 @@ class QuickbillController extends GetxController {
         'totalPaid': cash + online,
         'paymentStatus': 'paid',
 
+        'source': 'quickbill',
         'createdAt': DateTime.now().toIso8601String(),
         'status': 'completed',
       };
@@ -234,31 +244,18 @@ class QuickbillController extends GetxController {
       batch.set(_firestore.collection('bills').doc(billId), billData);
       await batch.commit();
 
-      Get.snackbar(
-        'Success',
-        'Invoice $invoiceNumber created successfully!',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 3),
-      );
-
-      clearCart();
-
       if (Get.isBottomSheetOpen == true) {
         Navigator.of(Get.overlayContext!, rootNavigator: true).pop();
       }
 
+      _showSuccessSnackbar('Invoice $invoiceNumber created successfully!');
+
+      clearCart();
+
       return billData;
     } catch (e) {
       developer.log('Failed to create bill: $e');
-      Get.snackbar(
-        'Error',
-        'Failed to create invoice',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      _showErrorSnackbar('Failed to create invoice');
       return null;
     } finally {
       isLoading.value = false;
@@ -270,8 +267,9 @@ class QuickbillController extends GetxController {
     customerName.value = '';
     customerPhone.value = '';
     customerDiscount.value = '';
+    discountType.value = 'Amount';
     paidAmount.value = '';
-    paymentMethod.value = 'cash';
+    paymentMethod.value = 'Cash';
     paymentStatus.value = 'paid';
     onlineReceived.value = '';
     cashReceived.value = '';
@@ -475,23 +473,11 @@ class QuickbillController extends GetxController {
       // ================= SEND TO PRINTER =================
       await printerController.print(printBytes);
 
-      Get.snackbar(
-        'Success',
-        'Invoice printed successfully!',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
+      _showSuccessSnackbar('Invoice printed successfully!');
     } catch (e) {
       developer.log('[QuickbillController] Print failed: $e', level: 1000);
 
-      Get.snackbar(
-        'Error',
-        'Failed to print invoice',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      _showErrorSnackbar('Failed to print invoice');
     }
   }
 }

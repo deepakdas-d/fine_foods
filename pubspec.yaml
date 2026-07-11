@@ -37,6 +37,7 @@ dependencies:
   flutter_esc_pos_utils: ^1.0.1
   month_picker_dialog: ^6.7.0
   firebase_auth: ^5.7.0
+  fl_chart: ^0.70.2
 
 dev_dependencies:
   flutter_test:

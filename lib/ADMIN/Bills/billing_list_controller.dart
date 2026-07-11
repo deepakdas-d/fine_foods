@@ -14,6 +14,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 enum BillFilterType { all, month, day }
+enum BillSourceFilter { all, quickbill, inventory }
 
 class BillListController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -28,6 +29,8 @@ class BillListController extends GetxController {
   // Filter state
   final Rx<BillFilterType> filterType = BillFilterType.all.obs;
   final Rx<DateTime?> selectedDay = Rx<DateTime?>(null);
+  // Source filter (quickbill / inventory / all)
+  final Rx<BillSourceFilter> sourceFilter = BillSourceFilter.all.obs;
 
   // Pagination
   DocumentSnapshot? _lastDoc;
@@ -68,6 +71,16 @@ class BillListController extends GetxController {
     selectedDay.value = day;
     selectedMonth.value = null;
     fetchBills(reset: true);
+  }
+
+  void setSourceFilter(BillSourceFilter filter) {
+    sourceFilter.value = filter;
+    fetchBills(reset: true);
+  }
+
+  /// Returns the source of a bill, defaulting to 'quickbill' for legacy bills.
+  String getBillSource(Map<String, dynamic> bill) {
+    return bill['source']?.toString() ?? 'quickbill';
   }
 
   // ────────────────────────────────
@@ -128,6 +141,16 @@ class BillListController extends GetxController {
         query = query
             .where('createdAt', isGreaterThanOrEqualTo: start)
             .where('createdAt', isLessThanOrEqualTo: end);
+      }
+
+      // SOURCE FILTER
+      // Note: Firestore composite index required on (source, createdAt).
+      // On first filtered query, Firestore logs an error with a clickable
+      // link to auto-create the index in the Firebase Console.
+      if (sourceFilter.value == BillSourceFilter.quickbill) {
+        query = query.where('source', isEqualTo: 'quickbill');
+      } else if (sourceFilter.value == BillSourceFilter.inventory) {
+        query = query.where('source', isEqualTo: 'inventory');
       }
 
       if (_lastDoc != null) {

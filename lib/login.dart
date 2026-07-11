@@ -3,10 +3,21 @@ import 'package:fine_foods/appcolor.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class LoginPage extends StatelessWidget {
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
   final LoginController controller = Get.put(LoginController());
 
-  LoginPage({super.key});
+  @override
+  void dispose() {
+    Get.delete<LoginController>();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
