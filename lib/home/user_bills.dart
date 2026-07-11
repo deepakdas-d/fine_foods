@@ -416,13 +416,13 @@ class UserBills extends StatelessWidget {
                 ),
               ],
             ),
+              ],
+            ),
           ],
         ),
-      ],
-    ),
-  ),
-);
-}
+      ),
+    );
+  }
 
   Widget _buildProductsList(Map<String, dynamic> bill) {
     final List<Map<String, dynamic>> products = _extractProductRows(bill);
