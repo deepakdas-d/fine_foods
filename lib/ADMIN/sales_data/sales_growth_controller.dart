@@ -23,9 +23,16 @@ class SalesGrowthController extends GetxController {
 
       for (var bill in billsSnapshot.docs) {
         final billData = bill.data();
-        if (billData['products'] != null && billData['products'] is Map) {
-          Map products = billData['products'];
-          for (var product in products.values) {
+        final productsData = billData['products'];
+        if (productsData != null) {
+          Iterable<dynamic> items = [];
+          if (productsData is Map) {
+            items = productsData.values;
+          } else if (productsData is List) {
+            items = productsData;
+          }
+
+          for (var product in items) {
             if (product is Map &&
                 product.containsKey('productName') &&
                 product.containsKey('quantity')) {

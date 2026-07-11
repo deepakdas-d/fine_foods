@@ -6,6 +6,8 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:fine_foods/home/bills_analytics_widget.dart';
 import 'package:fine_foods/home/bills_analytics_controller.dart';
+import 'package:month_picker_dialog/month_picker_dialog.dart';
+import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
 
 class UserBills extends StatelessWidget {
   const UserBills({super.key});
@@ -26,121 +28,242 @@ class UserBills extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColor.textPrimary),
       ),
-      body: Column(
-        children: [
-          Theme(
-            data: Theme.of(context).copyWith(
-              dividerColor: Colors.transparent,
-            ),
-            child: const ExpansionTile(
-              title: Text(
-                'Dashboard Analytics',
-                style: TextStyle(fontWeight: FontWeight.w600, color: AppColor.textPrimary),
-              ),
-              leading: Icon(Icons.analytics_outlined, color: AppColor.textPrimary),
-              children: [
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: BillsAnalyticsWidget(isCompact: true),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: TextField(
-              onChanged: (val) => controller.searchText.value = val,
-              style: const TextStyle(color: AppColor.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Search by Invoice or Customer',
-                hintStyle: const TextStyle(color: AppColor.textSecondary),
-                prefixIcon: const Icon(Icons.search, color: AppColor.textSecondary),
-                filled: true,
-                fillColor: AppColor.surface,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Obx(() {
-              if (controller.isLoading.value && controller.bills.isEmpty) {
-                return const Center(child: CircularProgressIndicator(color: AppColor.primary));
-              }
+      body: Obx(() {
+        final bills = controller.filteredBills;
 
-              final bills = controller.filteredBills;
-
-              if (bills.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'No bills found.',
-                        style: TextStyle(color: AppColor.textSecondary),
+        return RefreshIndicator(
+          onRefresh: controller.refreshBills,
+          color: AppColor.primary,
+          backgroundColor: AppColor.surface,
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    Theme(
+                      data: Theme.of(context).copyWith(
+                        dividerColor: Colors.transparent,
                       ),
-                      if (controller.isSearching && controller.hasMore.value) ...[
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => controller.loadMore(),
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColor.surface),
-                          child: const Text('Load older bills to search', style: TextStyle(color: AppColor.primary)),
+                      child: const ExpansionTile(
+                        title: Text(
+                          'Dashboard Analytics',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColor.textPrimary),
                         ),
-                      ],
-                    ],
-                  ),
-                );
-              }
-
-              return RefreshIndicator(
-                onRefresh: controller.refreshBills,
-                color: AppColor.primary,
-                backgroundColor: AppColor.surface,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16.0),
-                  itemCount: bills.length + (controller.isLoadingMore.value || (controller.isSearching && controller.hasMore.value) ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index == bills.length) {
-                      if (controller.isLoadingMore.value) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16.0),
-                          child: Center(
-                            child: CircularProgressIndicator(color: AppColor.primary),
+                        leading: Icon(Icons.analytics_outlined, color: AppColor.textPrimary),
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: BillsAnalyticsWidget(isCompact: true),
                           ),
-                        );
-                      } else if (controller.isSearching && controller.hasMore.value) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16.0),
-                          child: Center(
-                            child: ElevatedButton(
-                              onPressed: () => controller.loadMore(),
-                              style: ElevatedButton.styleFrom(backgroundColor: AppColor.surface),
-                              child: const Text('Load older bills to search', style: TextStyle(color: AppColor.primary)),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: TextField(
+                        onChanged: (val) => controller.searchText.value = val,
+                        style: const TextStyle(color: AppColor.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Search by Invoice or Customer',
+                          hintStyle: const TextStyle(color: AppColor.textSecondary),
+                          prefixIcon: const Icon(Icons.search, color: AppColor.textSecondary),
+                          filled: true,
+                          fillColor: AppColor.surface,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 8.0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Obx(() => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _buildFilterChip(
+                                  'All Time',
+                                  controller.filterType.value == BillFilterType.all,
+                                  () => controller.setAllFilter(),
+                                ),
+                                _buildFilterChip(
+                                  controller.selectedMonth.value == null
+                                      ? 'Month'
+                                      : DateFormat('MMM yyyy').format(controller.selectedMonth.value!),
+                                  controller.filterType.value == BillFilterType.month,
+                                  () async {
+                                    final picked = await showMonthPicker(
+                                      context: context,
+                                      initialDate: controller.selectedMonth.value ?? DateTime.now(),
+                                      firstDate: DateTime(2022, 1),
+                                      lastDate: DateTime.now(),
+                                    );
+                                    if (picked != null) {
+                                      controller.setMonthFilter(DateTime(picked.year, picked.month));
+                                    }
+                                  },
+                                ),
+                                _buildFilterChip(
+                                  controller.selectedDay.value == null
+                                      ? 'Day'
+                                      : DateFormat('dd MMM yyyy').format(controller.selectedDay.value!),
+                                  controller.filterType.value == BillFilterType.day,
+                                  () async {
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: DateTime.now(),
+                                      firstDate: DateTime(2022),
+                                      lastDate: DateTime.now(),
+                                    );
+                                    if (picked != null) {
+                                      controller.setDayFilter(picked);
+                                    }
+                                  },
+                                ),
+                              ],
                             ),
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    }
-
-                    // Lazy loading trigger (only auto-fetch if NOT searching)
-                    if (index == bills.length - 1 && !controller.isSearching) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        controller.loadMore();
-                      });
-                    }
-
-                    final bill = bills[index];
-                    return _buildBillCard(bill, controller);
-                  },
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _buildFilterChip(
+                                  'All Payments',
+                                  controller.paymentFilter.value == AnalyticsPaymentFilter.all,
+                                  () => controller.setPaymentFilter(AnalyticsPaymentFilter.all),
+                                ),
+                                _buildFilterChip(
+                                  'Cash',
+                                  controller.paymentFilter.value == AnalyticsPaymentFilter.cash,
+                                  () => controller.setPaymentFilter(AnalyticsPaymentFilter.cash),
+                                ),
+                                _buildFilterChip(
+                                  'Online',
+                                  controller.paymentFilter.value == AnalyticsPaymentFilter.online,
+                                  () => controller.setPaymentFilter(AnalyticsPaymentFilter.online),
+                                ),
+                                _buildFilterChip(
+                                  'Split',
+                                  controller.paymentFilter.value == AnalyticsPaymentFilter.split,
+                                  () => controller.setPaymentFilter(AnalyticsPaymentFilter.split),
+                                ),
+                              ],
+                            ),
+                          ],
+                        )),
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            }),
+              ),
+              if (controller.isLoading.value && controller.bills.isEmpty)
+                const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator(color: AppColor.primary)),
+                )
+              else if (bills.isEmpty)
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'No bills found.',
+                          style: TextStyle(color: AppColor.textSecondary),
+                        ),
+                        if (controller.isSearching && controller.hasMore.value) ...[
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () => controller.loadMore(),
+                            style: ElevatedButton.styleFrom(backgroundColor: AppColor.surface),
+                            child: const Text('Load older bills to search', style: TextStyle(color: AppColor.primary)),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.all(16.0),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        if (index == bills.length) {
+                          if (controller.isLoadingMore.value) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16.0),
+                              child: Center(
+                                child: CircularProgressIndicator(color: AppColor.primary),
+                              ),
+                            );
+                          } else if (controller.isSearching && controller.hasMore.value) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 16.0),
+                              child: Center(
+                                child: ElevatedButton(
+                                  onPressed: () => controller.loadMore(),
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppColor.surface),
+                                  child: const Text('Load older bills to search', style: TextStyle(color: AppColor.primary)),
+                                ),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        }
+
+                        // Lazy loading trigger (only auto-fetch if NOT searching)
+                        if (index == bills.length - 1 && !controller.isSearching) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            controller.loadMore();
+                          });
+                        }
+
+                        final bill = bills[index];
+                        return _buildBillCard(bill, controller);
+                      },
+                      childCount: bills.length +
+                          (controller.isLoadingMore.value || (controller.isSearching && controller.hasMore.value) ? 1 : 0),
+                    ),
+                  ),
+                ),
+            ],
           ),
-        ],
+        );
+      }),
+    );
+  }
+
+  Widget _buildFilterChip(String label, bool isSelected, VoidCallback onSelected) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onSelected,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColor.primary.withValues(alpha: 0.15) : Colors.transparent,
+            border: Border.all(
+              color: isSelected ? AppColor.primary : AppColor.textSecondary.withValues(alpha: 0.3),
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              color: isSelected ? AppColor.primary : AppColor.textSecondary,
+            ),
+          ),
+        ),
       ),
     );
   }

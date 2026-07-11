@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 
 enum AnalyticsSourceFilter { all, quickbill, inventory }
-enum AnalyticsPaymentFilter { all, cash, online }
+enum AnalyticsPaymentFilter { all, cash, online, split }
 enum AnalyticsDateFilter { today, week, month, custom }
 
 class BillsAnalyticsController extends GetxController {
@@ -76,9 +76,11 @@ class BillsAnalyticsController extends GetxController {
       // This is a known limitation of exact string matching unless we check 'Cash' or 'Both'.
       // For simplicity matching the request:
       if (paymentFilter.value == AnalyticsPaymentFilter.cash) {
-        query = query.where('paymentMethod', whereIn: ['Cash', 'Both']);
+        query = query.where('paymentMethod', isEqualTo: 'Cash');
       } else if (paymentFilter.value == AnalyticsPaymentFilter.online) {
-        query = query.where('paymentMethod', whereIn: ['Online', 'Both']);
+        query = query.where('paymentMethod', isEqualTo: 'Online');
+      } else if (paymentFilter.value == AnalyticsPaymentFilter.split) {
+        query = query.where('paymentMethod', isEqualTo: 'Both');
       }
 
       query = query.orderBy('createdAt', descending: true);

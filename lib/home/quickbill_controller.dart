@@ -353,8 +353,8 @@ class QuickbillController extends GetxController {
         const bold = PosStyles(bold: true, fontType: PosFontType.fontA);
 
         // -------- HEADER (NO size2 = NO pixel jump) --------
-        bytes += generator.text('WRAPPIE', styles: centerBold);
-        bytes += generator.text('CRAFTS & GIFTS', styles: centerBold);
+        bytes += generator.text('FINE FOODS', styles: centerBold);
+        bytes += generator.text('CRAFTS & GIFT', styles: centerBold);
         bytes += generator.text('Main Road Alathur', styles: center);
         bytes += generator.text('7907609118', styles: center);
         bytes += generator.feed(1);
@@ -436,7 +436,7 @@ class QuickbillController extends GetxController {
 
         esc.text(
           content:
-              '\x1B\x61\x01\x1B\x45\x01WRAPPIE\nCRAFTS & GIFTS\n\x1B\x45\x00',
+              '\x1B\x61\x01\x1B\x45\x01FINE FOODS\nCRAFTS & GIFT\n\x1B\x45\x00',
         );
         esc.text(content: '\n');
         esc.text(

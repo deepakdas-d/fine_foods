@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
+import 'package:fine_foods/home/bills_analytics_controller.dart';
 import 'package:get/get.dart';
 
 class UserBillsController extends GetxController {
@@ -13,8 +14,40 @@ class UserBillsController extends GetxController {
   final RxBool hasMore = true.obs;
   final RxString searchQuery = ''.obs;
   final RxString searchText = ''.obs;
+  
+  final Rx<AnalyticsPaymentFilter> paymentFilter = AnalyticsPaymentFilter.all.obs;
+  
+  final Rx<DateTime?> selectedMonth = Rx<DateTime?>(null);
+  final Rx<DateTime?> selectedDay = Rx<DateTime?>(null);
+  final Rx<BillFilterType> filterType = BillFilterType.all.obs;
 
   bool get isSearching => searchQuery.value.trim().isNotEmpty;
+
+  void setPaymentFilter(AnalyticsPaymentFilter filter) {
+    paymentFilter.value = filter;
+    fetchBills(reset: true);
+  }
+
+  void setAllFilter() {
+    filterType.value = BillFilterType.all;
+    selectedMonth.value = null;
+    selectedDay.value = null;
+    fetchBills(reset: true);
+  }
+
+  void setMonthFilter(DateTime month) {
+    filterType.value = BillFilterType.month;
+    selectedMonth.value = month;
+    selectedDay.value = null;
+    fetchBills(reset: true);
+  }
+
+  void setDayFilter(DateTime day) {
+    filterType.value = BillFilterType.day;
+    selectedDay.value = day;
+    selectedMonth.value = null;
+    fetchBills(reset: true);
+  }
 
   DocumentSnapshot? _lastDoc;
   static const int pageSize = 20;
@@ -70,10 +103,31 @@ class UserBillsController extends GetxController {
     }
 
     try {
-      Query query = _firestore
-          .collection('bills')
-          .orderBy('createdAt', descending: true)
-          .limit(pageSize);
+      Query query = _firestore.collection('bills');
+
+      if (filterType.value == BillFilterType.month && selectedMonth.value != null) {
+        final m = selectedMonth.value!;
+        final start = DateTime(m.year, m.month, 1).toIso8601String();
+        final end = DateTime(m.year, m.month + 1, 1).subtract(const Duration(milliseconds: 1)).toIso8601String();
+        query = query.where('createdAt', isGreaterThanOrEqualTo: start).where('createdAt', isLessThanOrEqualTo: end);
+      }
+
+      if (filterType.value == BillFilterType.day && selectedDay.value != null) {
+        final d = selectedDay.value!;
+        final start = DateTime(d.year, d.month, d.day).toIso8601String();
+        final end = DateTime(d.year, d.month, d.day, 23, 59, 59, 999).toIso8601String();
+        query = query.where('createdAt', isGreaterThanOrEqualTo: start).where('createdAt', isLessThanOrEqualTo: end);
+      }
+
+      if (paymentFilter.value == AnalyticsPaymentFilter.cash) {
+        query = query.where('paymentMethod', isEqualTo: 'Cash');
+      } else if (paymentFilter.value == AnalyticsPaymentFilter.online) {
+        query = query.where('paymentMethod', isEqualTo: 'Online');
+      } else if (paymentFilter.value == AnalyticsPaymentFilter.split) {
+        query = query.where('paymentMethod', isEqualTo: 'Both');
+      }
+
+      query = query.orderBy('createdAt', descending: true).limit(pageSize);
 
       if (_lastDoc != null) {
         query = query.startAfterDocument(_lastDoc!);

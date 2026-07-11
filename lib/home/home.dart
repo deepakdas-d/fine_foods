@@ -826,7 +826,7 @@ class Home extends StatelessWidget {
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
-          'WRAPPIE CRAFTS & GIFTS',
+          'FINE FOODS CRAFTS & GIFT',
           style: pw.TextStyle(
             fontSize: 24,
             fontWeight: pw.FontWeight.bold,
