@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 class BillsAnalyticsWidget extends StatelessWidget {
   final bool isCompact;
@@ -34,6 +35,8 @@ class BillsAnalyticsWidget extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildFilterRow(context, c),
+          const SizedBox(height: 16),
           _buildStatCards(c),
           const SizedBox(height: 16),
           LayoutBuilder(
@@ -60,6 +63,100 @@ class BillsAnalyticsWidget extends StatelessWidget {
         ],
       );
     });
+  }
+
+  Widget _buildFilterRow(BuildContext context, BillsAnalyticsController c) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Date Filters
+          Row(
+            children: [
+              _buildFilterChip('Today', c.dateFilter.value == AnalyticsDateFilter.today, 
+                () => c.setDateFilter(AnalyticsDateFilter.today)),
+              const SizedBox(width: 8),
+              _buildFilterChip('Week', c.dateFilter.value == AnalyticsDateFilter.week, 
+                () => c.setDateFilter(AnalyticsDateFilter.week)),
+              const SizedBox(width: 8),
+              _buildFilterChip('Month', c.dateFilter.value == AnalyticsDateFilter.month, 
+                () => c.setDateFilter(AnalyticsDateFilter.month)),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                c.dateFilter.value == AnalyticsDateFilter.custom && c.customDateRange.value != null
+                    ? '${DateFormat('MM/dd').format(c.customDateRange.value!.start)} - ${DateFormat('MM/dd').format(c.customDateRange.value!.end)}'
+                    : 'Custom',
+                c.dateFilter.value == AnalyticsDateFilter.custom,
+                () async {
+                  final range = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now(),
+                  );
+                  if (range != null) {
+                    c.setDateFilter(AnalyticsDateFilter.custom, customRange: range);
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Source & Payment Filters
+          Row(
+            children: [
+              _buildFilterChip('All Sources', c.sourceFilter.value == AnalyticsSourceFilter.all, 
+                () => c.setSourceFilter(AnalyticsSourceFilter.all)),
+              const SizedBox(width: 8),
+              _buildFilterChip('Quick Bill', c.sourceFilter.value == AnalyticsSourceFilter.quickbill, 
+                () => c.setSourceFilter(AnalyticsSourceFilter.quickbill)),
+              const SizedBox(width: 8),
+              _buildFilterChip('Inventory', c.sourceFilter.value == AnalyticsSourceFilter.inventory, 
+                () => c.setSourceFilter(AnalyticsSourceFilter.inventory)),
+              const SizedBox(width: 16),
+              Container(width: 1, height: 20, color: AppColor.textSecondary.withValues(alpha: 0.3)),
+              const SizedBox(width: 16),
+              _buildFilterChip('All Payments', c.paymentFilter.value == AnalyticsPaymentFilter.all, 
+                () => c.setPaymentFilter(AnalyticsPaymentFilter.all)),
+              const SizedBox(width: 8),
+              _buildFilterChip('Cash', c.paymentFilter.value == AnalyticsPaymentFilter.cash, 
+                () => c.setPaymentFilter(AnalyticsPaymentFilter.cash)),
+              const SizedBox(width: 8),
+              _buildFilterChip('Online', c.paymentFilter.value == AnalyticsPaymentFilter.online, 
+                () => c.setPaymentFilter(AnalyticsPaymentFilter.online)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, bool isSelected, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColor.primary.withValues(alpha: 0.15) : Colors.transparent,
+            border: Border.all(
+              color: isSelected ? AppColor.primary : AppColor.textSecondary.withValues(alpha: 0.3),
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              color: isSelected ? AppColor.primary : AppColor.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildStatCards(BillsAnalyticsController c) {

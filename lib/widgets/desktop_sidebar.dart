@@ -274,16 +274,7 @@ class DesktopSidebar extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // Active indicator dot
-                if (isActive)
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: AppColor.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+                // Active indicator dot removed to reduce visual clutter
               ],
             ),
           ),

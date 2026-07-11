@@ -618,10 +618,8 @@ class Home extends StatelessWidget {
                           ElevatedButton(
                             onPressed: () async {
                               final scaffoldMessenger = ScaffoldMessenger.of(context);
-                              final isMounted = () => context.mounted;
-
                               if (kIsWeb) {
-                                if (isMounted()) {
+                                if (context.mounted) {
                                   Navigator.of(context, rootNavigator: true).pop();
                                 }
                                 scaffoldMessenger.showSnackBar(
@@ -634,7 +632,7 @@ class Home extends StatelessWidget {
                               }
                               
                               if (!printerController.isConnected.value) {
-                                if (isMounted()) {
+                                if (context.mounted) {
                                   Navigator.of(context, rootNavigator: true).pop();
                                 }
                                 scaffoldMessenger.showSnackBar(
@@ -651,7 +649,7 @@ class Home extends StatelessWidget {
                                   billData,
                                 );
                                 
-                                if (isMounted()) {
+                                if (context.mounted) {
                                   Navigator.of(context, rootNavigator: true).pop();
                                 }
                                 
@@ -670,7 +668,7 @@ class Home extends StatelessWidget {
                                   level: 1000,
                                 );
                                 
-                                if (isMounted()) {
+                                if (context.mounted) {
                                   Navigator.of(context, rootNavigator: true).pop();
                                 }
                                 
@@ -736,10 +734,8 @@ class Home extends StatelessWidget {
                           ElevatedButton(
                             onPressed: () async {
                               final scaffoldMessenger = ScaffoldMessenger.of(context);
-                              final isMounted = () => context.mounted;
-
                               if (kIsWeb) {
-                                if (isMounted()) {
+                                if (context.mounted) {
                                   Navigator.of(context, rootNavigator: true).pop();
                                 }
                                 scaffoldMessenger.showSnackBar(
@@ -752,7 +748,7 @@ class Home extends StatelessWidget {
                               }
                               
                               if (!printerController.isConnected.value) {
-                                if (isMounted()) {
+                                if (context.mounted) {
                                   Navigator.of(context, rootNavigator: true).pop();
                                 }
                                 scaffoldMessenger.showSnackBar(
@@ -769,7 +765,7 @@ class Home extends StatelessWidget {
                                   billData,
                                 );
                                 
-                                if (isMounted()) {
+                                if (context.mounted) {
                                   Navigator.of(context, rootNavigator: true).pop();
                                 }
                                 
@@ -781,7 +777,7 @@ class Home extends StatelessWidget {
                                   ),
                                 );
                               } catch (e) {
-                                if (isMounted()) {
+                                if (context.mounted) {
                                   Navigator.of(context, rootNavigator: true).pop();
                                 }
                                 

@@ -23,7 +23,11 @@ class BillListController extends GetxController {
   final RxList<Map<String, dynamic>> bills = <Map<String, dynamic>>[].obs;
   final RxBool isLoading = false.obs;
   final RxBool hasMore = true.obs;
-  final RxBool isFetching = false.obs;
+  final RxBool isFetching = false.obs; // To prevent concurrent fetches
+  final RxString searchQuery = ''.obs;
+  final RxString searchText = ''.obs;
+
+  bool get isSearching => searchQuery.value.trim().isNotEmpty;
   // Selected month filter (null = all time)
   final Rx<DateTime?> selectedMonth = Rx<DateTime?>(null);
   // Filter state
@@ -32,6 +36,37 @@ class BillListController extends GetxController {
   // Source filter (quickbill / inventory / all)
   final Rx<BillSourceFilter> sourceFilter = BillSourceFilter.all.obs;
 
+  List<Map<String, dynamic>> get filteredBills {
+    if (searchQuery.value.trim().isEmpty) return bills;
+    final query = searchQuery.value.trim().toLowerCase();
+    return bills.where((bill) {
+      final invoice = bill['invoiceNumber']?.toString().toLowerCase() ?? '';
+      final customer = bill['customerName']?.toString().toLowerCase() ?? '';
+      
+      bool hasProductMatch = false;
+      final products = bill['products'];
+      if (products != null) {
+        Iterable<dynamic> items = [];
+        if (products is Map) {
+          items = products.values;
+        } else if (products is List) {
+          items = products;
+        }
+        for (final p in items) {
+          if (p is Map) {
+            final pName = (p['productName'] ?? p['name'] ?? '').toString().toLowerCase();
+            if (pName.contains(query)) {
+              hasProductMatch = true;
+              break;
+            }
+          }
+        }
+      }
+
+      return invoice.contains(query) || customer.contains(query) || hasProductMatch;
+    }).toList();
+  }
+
   // Pagination
   DocumentSnapshot? _lastDoc;
   static const int pageSize = 30;
@@ -39,6 +74,7 @@ class BillListController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    debounce(searchText, (val) => searchQuery.value = val, time: const Duration(milliseconds: 300));
     fetchBills(reset: true);
   }
 

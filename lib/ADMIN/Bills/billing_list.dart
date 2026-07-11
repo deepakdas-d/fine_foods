@@ -32,38 +32,36 @@ class BillingList extends StatelessWidget {
         // MAIN UI
         Scaffold(
           backgroundColor: AppColor.background,
-          appBar: AppBar(
-            title: Obx(() {
-              final month = controller.selectedMonth.value;
-              return Text(
-                month != null
-                    ? 'Bills - ${DateFormat('MMMM yyyy').format(month)}'
-                    : 'All Bills History',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  color: AppColor.background,
-                ),
-              );
-            }),
-            backgroundColor: AppColor.primary,
-            foregroundColor: AppColor.background,
-            elevation: 2,
-            actions: [
-              if (showAdminActions)
-                IconButton(
-                  onPressed: controller.isLoading.value
-                      ? null
-                      : controller.downloadCurrentReport,
-                  icon: const Icon(Icons.download_rounded),
-                  tooltip: 'Download Report',
-                ),
-              const SizedBox(width: 8),
-            ],
-          ),
-
           body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (showAdminActions)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'All Bills History',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                          color: AppColor.textPrimary,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: controller.isLoading.value
+                            ? null
+                            : controller.downloadCurrentReport,
+                        icon: const Icon(Icons.download_rounded),
+                        tooltip: 'Download Report',
+                        style: IconButton.styleFrom(
+                          foregroundColor: AppColor.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               Theme(
                 data: Theme.of(context).copyWith(
                   dividerColor: Colors.transparent,
@@ -92,37 +90,65 @@ class BillingList extends StatelessWidget {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    if (controller.bills.isEmpty) {
+                    final bills = controller.filteredBills;
+
+                    if (bills.isEmpty) {
                       return Center(
-                        child: Text(
-                          'No bills found',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            color: AppColor.textSecondary,
-                          ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'No bills found',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                color: AppColor.textSecondary,
+                              ),
+                            ),
+                            if (controller.isSearching && controller.hasMore.value) ...[
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () => controller.loadMore(),
+                                style: ElevatedButton.styleFrom(backgroundColor: AppColor.surface),
+                                child: Text('Load older bills to search', style: GoogleFonts.poppins(color: AppColor.primary)),
+                              ),
+                            ],
+                          ],
                         ),
                       );
                     }
 
                     return ListView.builder(
                       itemCount:
-                          controller.bills.length +
-                          (controller.hasMore.value ? 1 : 0),
+                          bills.length +
+                          (controller.hasMore.value || (controller.isSearching && controller.hasMore.value) ? 1 : 0),
                       itemBuilder: (context, index) {
-                        if (index >= controller.bills.length - 5 &&
-                            controller.hasMore.value) {
+                        if (index >= bills.length - 5 &&
+                            controller.hasMore.value && !controller.isSearching) {
                           controller.loadMore();
                         }
 
-                        if (index == controller.bills.length) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
+                        if (index == bills.length) {
+                          if (!controller.isSearching) {
+                            return const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          } else {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 16.0),
+                              child: Center(
+                                child: ElevatedButton(
+                                  onPressed: () => controller.loadMore(),
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppColor.surface),
+                                  child: Text('Load older bills to search', style: GoogleFonts.poppins(color: AppColor.primary)),
+                                ),
+                              ),
+                            );
+                          }
                         }
 
                         return BillCard(
-                          bill: controller.bills[index],
+                          bill: bills[index],
                           controller: controller,
                         );
                       },
@@ -175,27 +201,51 @@ class BillingList extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Search Box
+          TextField(
+            onChanged: (val) => controller.searchText.value = val,
+            style: GoogleFonts.poppins(color: AppColor.textPrimary, fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'Search by Invoice No. or Customer...',
+              hintStyle: GoogleFonts.poppins(color: AppColor.textSecondary, fontSize: 14),
+              prefixIcon: const Icon(Icons.search, color: AppColor.textSecondary, size: 20),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              filled: true,
+              fillColor: AppColor.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppColor.textSecondary.withValues(alpha: 0.2)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: AppColor.textSecondary.withValues(alpha: 0.2)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColor.primary),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           Wrap(
-            spacing: 12,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               // ALL
-              ChoiceChip(
-                label: const Text('All'),
-                selected: controller.filterType.value == BillFilterType.all,
-                onSelected: (_) => controller.setAllFilter(),
+              _buildFilterChip(
+                label: 'All Time',
+                isSelected: controller.filterType.value == BillFilterType.all,
+                onSelected: () => controller.setAllFilter(),
               ),
 
               // MONTH
-              ChoiceChip(
-                label: Text(
-                  controller.selectedMonth.value == null
-                      ? 'Month'
-                      : DateFormat(
-                          'MMM yyyy',
-                        ).format(controller.selectedMonth.value!),
-                ),
-                selected: controller.filterType.value == BillFilterType.month,
-                onSelected: (_) async {
+              _buildFilterChip(
+                label: controller.selectedMonth.value == null
+                    ? 'Month'
+                    : DateFormat('MMM yyyy').format(controller.selectedMonth.value!),
+                isSelected: controller.filterType.value == BillFilterType.month,
+                onSelected: () async {
                   final picked = await showMonthPicker(
                     context: context,
                     initialDate: controller.selectedMonth.value ?? DateTime.now(),
@@ -210,16 +260,12 @@ class BillingList extends StatelessWidget {
               ),
 
               // DAY
-              ChoiceChip(
-                label: Text(
-                  controller.selectedDay.value == null
-                      ? 'Day'
-                      : DateFormat(
-                          'dd MMM yyyy',
-                        ).format(controller.selectedDay.value!),
-                ),
-                selected: controller.filterType.value == BillFilterType.day,
-                onSelected: (_) async {
+              _buildFilterChip(
+                label: controller.selectedDay.value == null
+                    ? 'Day'
+                    : DateFormat('dd MMM yyyy').format(controller.selectedDay.value!),
+                isSelected: controller.filterType.value == BillFilterType.day,
+                onSelected: () async {
                   final picked = await showDatePicker(
                     context: context,
                     initialDate: DateTime.now(),
@@ -238,26 +284,55 @@ class BillingList extends StatelessWidget {
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: [
-                ChoiceChip(
-                  label: const Text('All Sources'),
-                  selected: controller.sourceFilter.value == BillSourceFilter.all,
-                  onSelected: (_) => controller.setSourceFilter(BillSourceFilter.all),
+                _buildFilterChip(
+                  label: 'All Sources',
+                  isSelected: controller.sourceFilter.value == BillSourceFilter.all,
+                  onSelected: () => controller.setSourceFilter(BillSourceFilter.all),
                 ),
-                ChoiceChip(
-                  label: const Text('Quick Bill'),
-                  selected: controller.sourceFilter.value == BillSourceFilter.quickbill,
-                  onSelected: (_) => controller.setSourceFilter(BillSourceFilter.quickbill),
+                _buildFilterChip(
+                  label: 'Quick Bill',
+                  isSelected: controller.sourceFilter.value == BillSourceFilter.quickbill,
+                  onSelected: () => controller.setSourceFilter(BillSourceFilter.quickbill),
                 ),
-                ChoiceChip(
-                  label: const Text('Inventory Sale'),
-                  selected: controller.sourceFilter.value == BillSourceFilter.inventory,
-                  onSelected: (_) => controller.setSourceFilter(BillSourceFilter.inventory),
+                _buildFilterChip(
+                  label: 'Inventory Sale',
+                  isSelected: controller.sourceFilter.value == BillSourceFilter.inventory,
+                  onSelected: () => controller.setSourceFilter(BillSourceFilter.inventory),
                 ),
               ],
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({required String label, required bool isSelected, required VoidCallback onSelected}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onSelected,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColor.primary.withValues(alpha: 0.15) : Colors.transparent,
+            border: Border.all(
+              color: isSelected ? AppColor.primary : AppColor.textSecondary.withValues(alpha: 0.3),
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              color: isSelected ? AppColor.primary : AppColor.textSecondary,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -353,7 +428,7 @@ class BillCard extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
-                      color: AppColor.primary, // Yellow Invoice Number
+                      color: AppColor.textPrimary, // White bold invoice
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -368,18 +443,16 @@ class BillCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: source == 'inventory'
-                            ? AppColor.success.withValues(alpha: 0.15)
-                            : AppColor.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
+                            ? const Color(0xFF00796B) // Teal
+                            : const Color(0xFF455A64), // Blue-gray
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         source == 'inventory' ? 'Inventory Sale' : 'Quick Bill',
                         style: GoogleFonts.poppins(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: source == 'inventory'
-                              ? AppColor.success
-                              : AppColor.primary,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -420,7 +493,7 @@ class BillCard extends StatelessWidget {
                 color: AppColor.textSecondary,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // Products title
             Text(
@@ -431,7 +504,7 @@ class BillCard extends StatelessWidget {
                 color: AppColor.textPrimary,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
 
             // Product list
             if (productRows.isEmpty)
@@ -446,11 +519,10 @@ class BillCard extends StatelessWidget {
               ...productRows.map(
                 (p) => Padding(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 3,
-                    horizontal: 8,
+                    vertical: 2,
+                    horizontal: 4,
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
@@ -459,6 +531,8 @@ class BillCard extends StatelessWidget {
                             fontWeight: FontWeight.w500,
                             color: AppColor.textPrimary,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Text(
@@ -469,11 +543,15 @@ class BillCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Rs${p['total'].toStringAsFixed(2)}',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          color: AppColor.textPrimary,
+                      SizedBox(
+                        width: 70,
+                        child: Text(
+                          'Rs${p['total'].toStringAsFixed(2)}',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            color: AppColor.textPrimary,
+                          ),
+                          textAlign: TextAlign.right,
                         ),
                       ),
                     ],
@@ -481,7 +559,7 @@ class BillCard extends StatelessWidget {
                 ),
               ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
             // Discount line
             if (discount > 0)
@@ -496,7 +574,7 @@ class BillCard extends StatelessWidget {
                 ),
               ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // Download PDF button
             Align(
