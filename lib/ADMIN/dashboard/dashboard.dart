@@ -1,10 +1,11 @@
 import 'package:fine_foods/ADMIN/Inventory/inventary.dart';
 import 'package:fine_foods/ADMIN/Stocks/stocks.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/invoice_generator.dart';
-import 'package:fine_foods/ADMIN/sales_data/Sales_Growth.dart';
+import 'package:fine_foods/ADMIN/sales_data/sales_growth.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list.dart';
 import 'package:fine_foods/appcolor.dart'; // Import AppColor
 import 'package:fine_foods/bottom_navigation.dart';
+import 'package:fine_foods/widgets/responsive.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -16,6 +17,7 @@ class Dashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
+    final isDesktop = Responsive.isDesktop(context);
 
     final List<_DashboardItem> menuItems = [
       _DashboardItem(
@@ -50,8 +52,14 @@ class Dashboard extends StatelessWidget {
       ),
     ];
 
-    return WillPopScope(
-      onWillPop: () async {
+    // On desktop, the sidebar handles navigation — no WillPopScope needed.
+    final body = _buildBody(context, screenHeight, isDesktop, menuItems);
+    if (isDesktop) return body;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
         bool goHome = await showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -89,9 +97,13 @@ class Dashboard extends StatelessWidget {
         if (goHome) {
           Get.offAll(() => BottomNavPage());
         }
-        return false;
       },
-      child: Scaffold(
+      child: body,
+    );
+  }
+
+  Widget _buildBody(BuildContext context, double screenHeight, bool isDesktop, List<_DashboardItem> menuItems) {
+    return Scaffold(
         backgroundColor: AppColor.background, // Dark Background
         appBar: AppBar(
           title: Text(
@@ -172,11 +184,11 @@ class Dashboard extends StatelessWidget {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: menuItems.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, // number of columns
-                    crossAxisSpacing: 16, // horizontal spacing
-                    mainAxisSpacing: 16, // vertical spacing
-                    childAspectRatio: 1.1, // width/height ratio
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: isDesktop ? 3 : 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: isDesktop ? 1.3 : 1.1,
                   ),
                   itemBuilder: (context, index) {
                     final item = menuItems[index];
@@ -186,15 +198,15 @@ class Dashboard extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                         side: BorderSide(
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                           width: 1,
                         ),
                       ),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
                         onTap: () => Get.to(() => item.page),
-                        splashColor: item.color.withOpacity(0.1),
-                        highlightColor: item.color.withOpacity(0.05),
+                        splashColor: item.color.withValues(alpha: 0.1),
+                        highlightColor: item.color.withValues(alpha: 0.05),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: Column(
@@ -203,7 +215,7 @@ class Dashboard extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: item.color.withOpacity(0.15),
+                                  color: item.color.withValues(alpha: 0.15),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
@@ -233,7 +245,6 @@ class Dashboard extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }

@@ -47,7 +47,7 @@ class Inventory extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: AppColor.surface,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColor.primary.withOpacity(0.5)),
+                            border: Border.all(color: AppColor.primary.withValues(alpha: 0.5)),
                           ),
                           child: Text(
                             'Total Value: ₹${controller.total.value.toStringAsFixed(2)}',
@@ -416,7 +416,7 @@ class Inventory extends StatelessWidget {
                           ),
                           Obx(
                             () => DropdownButtonFormField<String>(
-                              value: controller.quantityType.value,
+                              initialValue: controller.quantityType.value,
                               dropdownColor: AppColor.surface,
                               style: GoogleFonts.poppins(color: AppColor.textPrimary),
                               decoration: InputDecoration(

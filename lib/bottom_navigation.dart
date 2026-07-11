@@ -2,10 +2,14 @@ import 'package:animated_notch_bottom_bar/animated_notch_bottom_bar/animated_not
 import 'package:fine_foods/appcolor.dart';
 import 'package:fine_foods/bottom_navigation_controller.dart';
 import 'package:fine_foods/login.dart';
+import 'package:fine_foods/widgets/desktop_shell.dart';
+import 'package:fine_foods/widgets/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Added for SystemNavigator
 import 'package:get/get.dart';
-import 'package:fine_foods/SALES/billing/view/billing.dart';
+import 'package:fine_foods/ADMIN/Auth/auth_controller.dart';
+import 'package:fine_foods/ADMIN/dashboard/dashboard.dart';
+// import 'package:fine_foods/SALES/billing/view/billing.dart';
 import 'package:fine_foods/home/home.dart';
 
 class BottomNavPage extends StatelessWidget {
@@ -15,7 +19,14 @@ class BottomNavPage extends StatelessWidget {
 
   final PageController pageController = PageController(initialPage: 1);
 
-  final List<Widget> _pages = [LoginPage(), Home(), BillingScreen()];
+  List<Widget> get _pages {
+    final auth = Get.find<AuthController>();
+    return [
+      Obx(() => auth.isAdminLoggedIn.value ? const Dashboard() : LoginPage()),
+      Home(),
+      /*BillingScreen()*/
+    ];
+  }
 
   final List<BottomBarItem> bottomBarItems = const [
     BottomBarItem(
@@ -28,15 +39,23 @@ class BottomNavPage extends StatelessWidget {
       activeItem: Icon(Icons.home, color: AppColor.primary),
       itemLabel: 'Home',
     ),
+    /*
     BottomBarItem(
       inActiveItem: Icon(Icons.point_of_sale, color: AppColor.textSecondary),
       activeItem: Icon(Icons.point_of_sale, color: AppColor.primary),
       itemLabel: 'Sales',
     ),
+    */
   ];
 
   @override
   Widget build(BuildContext context) {
+    // Desktop/web: use sidebar shell instead of bottom nav.
+    if (Responsive.isDesktop(context)) {
+      return DesktopShell();
+    }
+
+    // Mobile: existing bottom-nav layout (unchanged).
     final screenWidth = MediaQuery.of(context).size.width;
     final itemWidth = screenWidth / bottomBarItems.length;
 

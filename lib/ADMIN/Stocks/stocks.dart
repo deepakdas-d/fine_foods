@@ -46,7 +46,7 @@ class Stocks extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: AppColor.surface,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColor.primary.withOpacity(0.5)),
+                            border: Border.all(color: AppColor.primary.withValues(alpha: 0.5)),
                           ),
                           child: Text(
                             'Total Value: ₹${controller.total.value.toStringAsFixed(2)}',
@@ -148,14 +148,14 @@ class Stocks extends StatelessWidget {
                                   Icon? statusIcon;
                                   // Simplified robust logic for row colors in dark theme
                                   if (product.count == 0) {
-                                    rowColor = AppColor.error.withOpacity(0.1);
+                                    rowColor = AppColor.error.withValues(alpha: 0.1);
                                     statusIcon = const Icon(
                                       Icons.warning_amber_rounded,
                                       color: AppColor.error,
                                       size: 20,
                                     );
                                   } else if (product.count <= 5) {
-                                    rowColor = AppColor.warning.withOpacity(0.1);
+                                    rowColor = AppColor.warning.withValues(alpha: 0.1);
                                     statusIcon = const Icon(
                                       Icons.error_outline,
                                       color: AppColor.warning,

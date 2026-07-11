@@ -57,7 +57,7 @@ class InvoiceGenerator extends StatelessWidget {
                             ),
                             const SizedBox(height: 12),
                             DropdownButtonFormField<String>(
-                              value: controller.selectedCollection.value,
+                              initialValue: controller.selectedCollection.value,
                               decoration: InputDecoration(
                                 labelText: 'Collection',
                                 labelStyle: GoogleFonts.poppins(color: AppColor.textSecondary),
@@ -168,7 +168,7 @@ class InvoiceGenerator extends StatelessWidget {
                                         color: AppColor.background,
                                         child: ListTile(
                                           leading: CircleAvatar(
-                                            backgroundColor: AppColor.primary.withOpacity(0.2),
+                                            backgroundColor: AppColor.primary.withValues(alpha: 0.2),
                                             child: Text(
                                               product.name[0].toUpperCase(),
                                               style: GoogleFonts.poppins(
@@ -263,7 +263,7 @@ class InvoiceGenerator extends StatelessWidget {
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      disabledBackgroundColor: AppColor.success.withOpacity(0.3),
+                                      disabledBackgroundColor: AppColor.success.withValues(alpha: 0.3),
                                     ),
                                     child: Text(
                                       'Generate from Inventory',
@@ -297,7 +297,7 @@ class InvoiceGenerator extends StatelessWidget {
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      disabledBackgroundColor: AppColor.primary.withOpacity(0.3),
+                                      disabledBackgroundColor: AppColor.primary.withValues(alpha: 0.3),
                                     ),
                                     child: Text(
                                       'Generate from Products',

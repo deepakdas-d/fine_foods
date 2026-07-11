@@ -12,7 +12,6 @@ import 'package:fine_foods/home/printer_controller.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
-import 'dart:typed_data';
 
 class BillingController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

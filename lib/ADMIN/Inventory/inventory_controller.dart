@@ -24,7 +24,7 @@ class InventoryController extends GetxController {
   }
 
   void calculateTotal() {
-    total.value = products.fold(0, (sum, product) => sum + product.totalPrice);
+    total.value = products.fold(0, (sumValue, product) => sumValue + product.totalPrice);
   }
 
   void clearForm() {

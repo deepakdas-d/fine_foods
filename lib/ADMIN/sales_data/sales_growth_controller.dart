@@ -70,7 +70,7 @@ class SalesGrowthController extends GetxController {
 
       productSales.assignAll(mergedList);
     } catch (e) {
-      print("Error fetching sales data: $e");
+      Get.log("Error fetching sales data: $e");
     } finally {
       isLoading.value = false;
     }

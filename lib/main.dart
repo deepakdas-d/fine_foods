@@ -3,18 +3,26 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:fine_foods/bottom_navigation.dart';
 import 'package:fine_foods/firebase_options.dart';
 import 'package:fine_foods/home/printer_controller.dart';
+import 'package:fine_foods/widgets/desktop_nav_controller.dart';
+import 'package:fine_foods/ADMIN/Auth/auth_controller.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:path_provider/path_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await GetStorage.init();
+  if (!kIsWeb) {
+    final appDir = await getApplicationSupportDirectory();
+    await GetStorage('GetStorage', appDir.path).initStorage;
+  } else {
+    await GetStorage.init();
+  }
 
   requestLocationPermission();
 
@@ -34,6 +42,8 @@ class MyApp extends StatelessWidget {
         if (!kIsWeb) {
           Get.put(PrinterController(), permanent: true);
         }
+        Get.put(AuthController(), permanent: true);
+        Get.lazyPut(() => DesktopNavController());
       }),
       title: 'FINE FOODS',
       theme: ThemeData(
@@ -51,7 +61,6 @@ class MyApp extends StatelessWidget {
           surface: AppColor.surface,
           primary: AppColor.primary,
           onPrimary: AppColor.textOnPrimary,
-          background: AppColor.background,
           error: AppColor.error,
         ),
         appBarTheme: AppBarTheme(

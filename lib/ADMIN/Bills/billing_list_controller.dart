@@ -687,7 +687,7 @@ class BillListController extends GetxController {
             pw.SizedBox(height: 20),
             pw.Text("Total Bills: ${exportBills.length}"),
             pw.Text(
-              "Total Sales: Rs${exportBills.fold(0.0, (sum, b) => sum + calculateBillFinalTotal(b)).toStringAsFixed(2)}",
+              "Total Sales: Rs${exportBills.fold(0.0, (sumValue, b) => sumValue + calculateBillFinalTotal(b)).toStringAsFixed(2)}",
             ),
             pw.SizedBox(height: 20),
             ...exportBills.map((bill) {

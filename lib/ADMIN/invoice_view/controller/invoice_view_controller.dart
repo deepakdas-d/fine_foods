@@ -84,7 +84,7 @@ class InvoiceViewController extends GetxController {
             pw.SizedBox(height: 16),
 
             // Table Header
-            pw.Table.fromTextArray(
+            pw.TableHelper.fromTextArray(
               headers: ['Item', 'Qty', 'Price', 'Total'],
               data: invoice.products.map((product) {
                 return [

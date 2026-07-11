@@ -163,7 +163,7 @@ class InvoiceViewPage extends StatelessWidget {
                                 color: AppColor.surface,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
-                                  side: BorderSide(color: AppColor.primary.withOpacity(0.5)),
+                                  side: BorderSide(color: AppColor.primary.withValues(alpha: 0.5)),
                                 ),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(

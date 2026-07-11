@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
 import 'package:fine_foods/home/printer_controller.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:get/get.dart' show GetPlatform;
 import 'dart:developer' as developer;
 import 'dart:typed_data';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
@@ -208,14 +207,14 @@ class QuickbillController extends GetxController {
 
         'subtotal': newProducts.fold(
           0.0,
-          (sum, p) => sum + (p['total'] as double),
+          (sumValue, p) => sumValue + (p['total'] as double),
         ),
 
         'discount': discount,
         'total': totalAmount,
         'itemCount': newProducts.fold(
           0.0,
-          (sum, p) => sum + (p['quantity'] as double),
+          (sumValue, p) => sumValue + (p['quantity'] as double),
         ),
 
         /// 💳 PAYMENT INFO

@@ -15,7 +15,15 @@ class LoginPage extends StatelessWidget {
         padding: const EdgeInsets.all(20.0),
         child: Center(
           child: SingleChildScrollView(
-            child: Column(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 400),
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: AppColor.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              ),
+              child: Column(
               children: [
                 Text(
                   "Login",
@@ -66,6 +74,7 @@ class LoginPage extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

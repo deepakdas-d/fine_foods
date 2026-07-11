@@ -99,7 +99,7 @@ class InvoiceController extends GetxController {
   void calculateTotal() {
     totalAmount.value = products.fold(
       0.0,
-      (sum, product) => sum + product.totalPrice,
+      (sumValue, product) => sumValue + product.totalPrice,
     );
   }
 

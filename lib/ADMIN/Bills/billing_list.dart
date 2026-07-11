@@ -113,7 +113,7 @@ class BillingList extends StatelessWidget {
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                 child: Container(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -429,7 +429,7 @@ class BillCard extends StatelessWidget {
                 icon: const Icon(Icons.picture_as_pdf, size: 18),
                 label: const Text('PDF'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColor.primary.withOpacity(0.8),
+                  backgroundColor: AppColor.primary.withValues(alpha: 0.8),
                   foregroundColor: Colors.black, // Text on primary
                   elevation: 2,
                   shape: RoundedRectangleBorder(

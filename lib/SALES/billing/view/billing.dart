@@ -122,14 +122,14 @@ class BillingScreen extends StatelessWidget {
       color: AppColor.surface,
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
-        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10),
       ],
     ),
     child: TextField(
       onChanged: controller.searchProducts,
       decoration: const InputDecoration(
         hintText: 'Search products...',
-        prefixIcon: Icon(Icons.search, color: Color(0xFFFFD700)),
+        prefixIcon: Icon(Icons.search, color: AppColor.primary),
         border: InputBorder.none,
         contentPadding: EdgeInsets.all(16),
       ),
@@ -150,7 +150,7 @@ class BillingScreen extends StatelessWidget {
         border: Border.all(
           color: isSelected
               ? AppColor.primary
-              : AppColor.textSecondary.withOpacity(0.2),
+              : AppColor.textSecondary.withValues(alpha: 0.2),
         ),
       ),
       child: InkWell(
@@ -166,14 +166,14 @@ class BillingScreen extends StatelessWidget {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: isOutOfStock
-                      ? Colors.grey.withOpacity(0.3)
-                      : const Color(0xFFFFD700).withOpacity(0.1),
+                      ? Colors.grey.withValues(alpha: 0.3)
+                      : AppColor.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.inventory_2_outlined,
                   size: 32,
-                  color: isOutOfStock ? Colors.grey : const Color(0xFFFFD700),
+                  color: isOutOfStock ? Colors.grey : AppColor.primary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -220,8 +220,8 @@ class BillingScreen extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: isOutOfStock
-                          ? Colors.red.withOpacity(0.1)
-                          : Colors.green.withOpacity(0.1),
+                          ? Colors.red.withValues(alpha: 0.1)
+                          : Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -259,7 +259,7 @@ class BillingScreen extends StatelessWidget {
                             onPressed: () =>
                                 controller.increaseQuantity(product),
                             icon: const Icon(Icons.add_circle_outline),
-                            color: const Color(0xFFFFD700),
+                            color: AppColor.primary,
                           ),
                         ],
                       )
@@ -270,7 +270,7 @@ class BillingScreen extends StatelessWidget {
                           icon: const Icon(Icons.add_shopping_cart),
                           label: const Text('Add'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFFD700),
+                            backgroundColor: AppColor.primary,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -290,7 +290,7 @@ class BillingScreen extends StatelessWidget {
     decoration: BoxDecoration(
       color: AppColor.surface,
       boxShadow: [
-        BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10),
+        BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10),
       ],
     ),
     child: _buildCartContent(),
@@ -300,7 +300,7 @@ class BillingScreen extends StatelessWidget {
     children: [
       Container(
         padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(color: Color(0xFFFFD700)),
+        decoration: BoxDecoration(color: AppColor.primary),
         child: Row(
           children: [
             const Icon(Icons.shopping_cart, color: Colors.white),
@@ -371,7 +371,7 @@ class BillingScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColor.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColor.textSecondary.withOpacity(0.2)),
+        border: Border.all(color: AppColor.textSecondary.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -379,12 +379,12 @@ class BillingScreen extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFD700).withOpacity(0.1),
+              color: AppColor.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
               Icons.inventory_2_outlined,
-              color: Color(0xFFFFD700),
+              color: AppColor.primary,
             ),
           ),
           const SizedBox(width: 12),
@@ -436,7 +436,7 @@ class BillingScreen extends StatelessWidget {
               IconButton(
                 onPressed: () => controller.increaseQuantity(product),
                 icon: const Icon(Icons.add_circle_outline),
-                color: const Color(0xFFFFD700),
+                color: AppColor.primary,
               ),
             ],
           ),
@@ -445,7 +445,7 @@ class BillingScreen extends StatelessWidget {
             '₹${(controller.getCustomPrice(product) * quantity).toStringAsFixed(2)}',
             style: const TextStyle(
               fontWeight: FontWeight.bold,
-              color: Color(0xFFFFD700),
+              color: AppColor.primary,
             ),
           ),
         ],
@@ -458,7 +458,7 @@ class BillingScreen extends StatelessWidget {
     decoration: BoxDecoration(
       color: AppColor.background,
       border: Border(
-        top: BorderSide(color: AppColor.textSecondary.withOpacity(0.2)),
+        top: BorderSide(color: AppColor.textSecondary.withValues(alpha: 0.2)),
       ),
     ),
     child: Column(
@@ -484,7 +484,7 @@ class BillingScreen extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFFFD700),
+                    color: AppColor.primary,
                   ),
                 ),
               ),
@@ -675,7 +675,7 @@ class BillingScreen extends StatelessWidget {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFD700),
+              backgroundColor: AppColor.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
@@ -692,7 +692,7 @@ class BillingScreen extends StatelessWidget {
     () => controller.selectedProducts.isNotEmpty
         ? FloatingActionButton.extended(
             onPressed: () => _showCartSheet(context),
-            backgroundColor: const Color(0xFFFFD700),
+            backgroundColor: AppColor.primary,
             icon: const Icon(Icons.shopping_cart, color: AppColor.background),
             label: Text(
               'Cart (${controller.selectedProducts.length})',

@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use
 import 'dart:io';
 
 import 'package:fine_foods/bluetooth_list.dart';
@@ -147,7 +148,7 @@ class Home extends StatelessWidget {
     decoration: BoxDecoration(
       color: AppColor.background,
       border: Border(
-        top: BorderSide(color: AppColor.textSecondary.withOpacity(0.2)),
+        top: BorderSide(color: AppColor.textSecondary.withValues(alpha: 0.2)),
       ),
     ),
     child: Column(
@@ -456,7 +457,7 @@ class Home extends StatelessWidget {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFD700),
+              backgroundColor: AppColor.primary,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
@@ -929,7 +930,7 @@ class ProductInputForm extends StatelessWidget {
           const SizedBox(height: 12),
           Obx(
             () => DropdownButtonFormField<String>(
-              value: controller.selectedType.value,
+              initialValue: controller.selectedType.value,
               decoration: InputDecoration(
                 labelText: 'Type',
                 border: OutlineInputBorder(
@@ -978,7 +979,7 @@ class ProductInputForm extends StatelessWidget {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFD700),
+                backgroundColor: AppColor.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
