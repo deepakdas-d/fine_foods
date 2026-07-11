@@ -169,9 +169,7 @@ class Home extends StatelessWidget {
           children: [
             Expanded(
               child: TextFormField(
-                controller: TextEditingController(
-                  text: quickbillController.customerDiscount.value,
-                ),
+                controller: quickbillController.customerDiscountController,
                 onChanged: (value) =>
                     quickbillController.customerDiscount.value = value,
                 keyboardType: TextInputType.number,
@@ -263,9 +261,7 @@ class Home extends StatelessWidget {
           ),
           children: [
             TextField(
-              controller: TextEditingController(
-                text: quickbillController.customerName.value,
-              ),
+              controller: quickbillController.customerNameController,
               onChanged: (value) =>
                   quickbillController.customerName.value = value,
               decoration: InputDecoration(
@@ -279,9 +275,7 @@ class Home extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: TextEditingController(
-                text: quickbillController.customerPhone.value,
-              ),
+              controller: quickbillController.customerPhoneController,
               onChanged: (value) =>
                   quickbillController.customerPhone.value = value,
               decoration: InputDecoration(
@@ -433,6 +427,7 @@ class Home extends StatelessWidget {
                     const SizedBox(height: 8),
 
                     TextFormField(
+                      controller: quickbillController.cashReceivedController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: 'Cash Received',
@@ -449,6 +444,7 @@ class Home extends StatelessWidget {
                     const SizedBox(height: 8),
 
                     TextFormField(
+                      controller: quickbillController.onlineReceivedController,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: 'Online Received',
@@ -621,47 +617,69 @@ class Home extends StatelessWidget {
                           const SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: () async {
+                              final scaffoldMessenger = ScaffoldMessenger.of(context);
+                              final isMounted = () => context.mounted;
+
                               if (kIsWeb) {
-                                Get.snackbar(
-                                  'Web Mode',
-                                  'Not supported on Web',
-                                  backgroundColor: Colors.orange,
-                                  colorText: Colors.white,
+                                if (isMounted()) {
+                                  Navigator.of(context, rootNavigator: true).pop();
+                                }
+                                scaffoldMessenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Not supported on Web'),
+                                    backgroundColor: Colors.orange,
+                                  ),
                                 );
                                 return;
                               }
+                              
                               if (!printerController.isConnected.value) {
-                                Get.snackbar(
-                                  'Error',
-                                  'No printer connected',
-                                  backgroundColor: Colors.red,
-                                  colorText: Colors.white,
+                                if (isMounted()) {
+                                  Navigator.of(context, rootNavigator: true).pop();
+                                }
+                                scaffoldMessenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('No printer connected'),
+                                    backgroundColor: Colors.red,
+                                  ),
                                 );
                                 return;
                               }
+                              
                               try {
                                 await quickbillController.printInvoice(
                                   billData,
                                 );
-                                if (!context.mounted) return;
+                                
+                                if (isMounted()) {
+                                  Navigator.of(context, rootNavigator: true).pop();
+                                }
+                                
                                 developer.log('[Home] PrintInvoice completed');
-                                Navigator.of(context, rootNavigator: true).pop();
-                                Get.snackbar(
-                                  'Success',
-                                  'Invoice printed successfully',
-                                  backgroundColor: Colors.green,
-                                  colorText: Colors.white,
+                                
+                                scaffoldMessenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Invoice printed successfully'),
+                                    backgroundColor: Colors.green,
+                                    duration: Duration(seconds: 3),
+                                  ),
                                 );
                               } catch (e) {
                                 developer.log(
                                   '[Home] Print from preview failed: $e',
                                   level: 1000,
                                 );
-                                Get.snackbar(
-                                  'Error',
-                                  'Failed to print: $e',
-                                  backgroundColor: Colors.red,
-                                  colorText: Colors.white,
+                                
+                                if (isMounted()) {
+                                  Navigator.of(context, rootNavigator: true).pop();
+                                }
+                                
+                                scaffoldMessenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Failed to print invoice'),
+                                    backgroundColor: Colors.red,
+                                    duration: Duration(seconds: 3),
+                                  ),
                                 );
                               }
                             },
@@ -717,42 +735,62 @@ class Home extends StatelessWidget {
                           const SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: () async {
+                              final scaffoldMessenger = ScaffoldMessenger.of(context);
+                              final isMounted = () => context.mounted;
+
                               if (kIsWeb) {
-                                Get.snackbar(
-                                  'Web Mode',
-                                  'Not supported on Web',
-                                  backgroundColor: Colors.orange,
-                                  colorText: Colors.white,
+                                if (isMounted()) {
+                                  Navigator.of(context, rootNavigator: true).pop();
+                                }
+                                scaffoldMessenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Not supported on Web'),
+                                    backgroundColor: Colors.orange,
+                                  ),
                                 );
                                 return;
                               }
+                              
                               if (!printerController.isConnected.value) {
-                                Get.snackbar(
-                                  'Error',
-                                  'No printer connected',
-                                  backgroundColor: Colors.red,
-                                  colorText: Colors.white,
+                                if (isMounted()) {
+                                  Navigator.of(context, rootNavigator: true).pop();
+                                }
+                                scaffoldMessenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('No printer connected'),
+                                    backgroundColor: Colors.red,
+                                  ),
                                 );
                                 return;
                               }
+                              
                               try {
                                 await quickbillController.printInvoice(
                                   billData,
                                 );
-                                if (!context.mounted) return;
-                                Navigator.of(context, rootNavigator: true).pop();
-                                Get.snackbar(
-                                  'Success',
-                                  'Invoice printed successfully',
-                                  backgroundColor: Colors.green,
-                                  colorText: Colors.white,
+                                
+                                if (isMounted()) {
+                                  Navigator.of(context, rootNavigator: true).pop();
+                                }
+                                
+                                scaffoldMessenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Invoice printed successfully'),
+                                    backgroundColor: Colors.green,
+                                    duration: Duration(seconds: 3),
+                                  ),
                                 );
                               } catch (e) {
-                                Get.snackbar(
-                                  'Error',
-                                  'Failed to print: $e',
-                                  backgroundColor: Colors.red,
-                                  colorText: Colors.white,
+                                if (isMounted()) {
+                                  Navigator.of(context, rootNavigator: true).pop();
+                                }
+                                
+                                scaffoldMessenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Failed to print invoice'),
+                                    backgroundColor: Colors.red,
+                                    duration: Duration(seconds: 3),
+                                  ),
                                 );
                               }
                             },

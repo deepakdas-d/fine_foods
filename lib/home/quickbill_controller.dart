@@ -54,11 +54,23 @@ class QuickbillController extends GetxController {
   final productQuantityController = TextEditingController();
   final selectedType = 'unit'.obs;
 
+  // Additional controllers for fields that need clearing
+  final customerNameController = TextEditingController();
+  final customerPhoneController = TextEditingController();
+  final customerDiscountController = TextEditingController();
+  final cashReceivedController = TextEditingController();
+  final onlineReceivedController = TextEditingController();
+
   @override
   void onClose() {
     productNameController.dispose();
     productPriceController.dispose();
     productQuantityController.dispose();
+    customerNameController.dispose();
+    customerPhoneController.dispose();
+    customerDiscountController.dispose();
+    cashReceivedController.dispose();
+    onlineReceivedController.dispose();
     super.onClose();
   }
 
@@ -274,6 +286,14 @@ class QuickbillController extends GetxController {
     onlineReceived.value = '';
     cashReceived.value = '';
     selectedPaymentType.value = 'Full';
+    
+    // Clear UI controllers
+    customerNameController.clear();
+    customerPhoneController.clear();
+    customerDiscountController.clear();
+    cashReceivedController.clear();
+    onlineReceivedController.clear();
+    
     clearProductInputs();
   }
 
@@ -472,12 +492,9 @@ class QuickbillController extends GetxController {
 
       // ================= SEND TO PRINTER =================
       await printerController.print(printBytes);
-
-      _showSuccessSnackbar('Invoice printed successfully!');
     } catch (e) {
       developer.log('[QuickbillController] Print failed: $e', level: 1000);
-
-      _showErrorSnackbar('Failed to print invoice');
+      rethrow;
     }
   }
 }
