@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:fine_foods/home/bills_analytics_widget.dart';
 import 'package:fine_foods/home/bills_analytics_controller.dart';
+import 'package:fine_foods/home/quickbill_controller.dart';
 import 'package:month_picker_dialog/month_picker_dialog.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
 
@@ -356,8 +357,40 @@ class UserBills extends StatelessWidget {
                     fontSize: 16,
                   ),
                 ),
-                InkWell(
-                  onTap: () => controller.downloadPdf(bill),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkWell(
+                      onTap: () {
+                        final qc = Get.put(QuickbillController());
+                        qc.printInvoice(bill);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColor.textSecondary),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.print, color: AppColor.textPrimary, size: 16),
+                            SizedBox(width: 4),
+                            Text(
+                              'Print',
+                              style: TextStyle(
+                                color: AppColor.textPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () => controller.downloadPdf(bill),
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -385,9 +418,11 @@ class UserBills extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  ),
+);
+}
 
   Widget _buildProductsList(Map<String, dynamic> bill) {
     final List<Map<String, dynamic>> products = _extractProductRows(bill);
