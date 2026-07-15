@@ -4,12 +4,30 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fine_foods/ADMIN/Auth/auth_controller.dart';
+import 'package:fine_foods/appcolor.dart';
 
 class LoginController extends GetxController {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
   final isLoading = false.obs;
+  final isPasswordVisible = false.obs;
+
+  void togglePasswordVisibility() {
+    isPasswordVisible.value = !isPasswordVisible.value;
+  }
+
+  void _showFeedback(String title, String message, Color bgColor) {
+    if (Get.context != null) {
+      ScaffoldMessenger.of(Get.context!).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: bgColor,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
 
   @override
   void onClose() {
@@ -23,11 +41,7 @@ class LoginController extends GetxController {
     final password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      Get.snackbar(
-        'Error',
-        'Please enter email and password',
-        snackPosition: SnackPosition.TOP,
-      );
+      _showFeedback('Error', 'Please enter email and password', AppColor.error);
       return;
     }
 
@@ -38,11 +52,7 @@ class LoginController extends GetxController {
         email: email,
         password: password,
       );
-      Get.snackbar(
-        'Success',
-        'Login successful',
-        snackPosition: SnackPosition.TOP,
-      );
+      _showFeedback('Success', 'Login successful', AppColor.success);
       
       // Clear text fields on successful login
       emailController.clear();
@@ -56,17 +66,9 @@ class LoginController extends GetxController {
         Get.offAll(() => const Dashboard()); 
       }
     } on FirebaseAuthException catch (e) {
-      Get.snackbar(
-        'Error',
-        e.message ?? 'Invalid credentials',
-        snackPosition: SnackPosition.TOP,
-      );
+      _showFeedback('Error', e.message ?? 'Invalid credentials', AppColor.error);
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'An error occurred during login',
-        snackPosition: SnackPosition.TOP,
-      );
+      _showFeedback('Error', 'An error occurred during login', AppColor.error);
     } finally {
       isLoading.value = false;
     }

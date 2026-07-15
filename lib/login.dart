@@ -14,12 +14,6 @@ class _LoginPageState extends State<LoginPage> {
   final LoginController controller = Get.put(LoginController());
 
   @override
-  void dispose() {
-    Get.delete<LoginController>();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Padding(
@@ -56,15 +50,25 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 SizedBox(height: 20),
 
-                TextFormField(
-                  controller: controller.passwordController,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: "Password",
-                    prefixIcon: Icon(Icons.lock),
+                Obx(
+                  () => TextFormField(
+                    controller: controller.passwordController,
+                    obscureText: !controller.isPasswordVisible.value,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      prefixIcon: const Icon(Icons.lock),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          controller.isPasswordVisible.value
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                        onPressed: controller.togglePasswordVisibility,
+                      ),
+                    ),
+                    style: const TextStyle(color: AppColor.textPrimary),
+                    cursorColor: AppColor.primary,
                   ),
-                  style: TextStyle(color: AppColor.textPrimary),
-                  cursorColor: AppColor.primary,
                 ),
 
                 SizedBox(height: 30),

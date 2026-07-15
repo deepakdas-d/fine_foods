@@ -59,223 +59,14 @@ class Inventory extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Theme(
-                              data: Theme.of(context).copyWith(
-                                dividerColor: Colors.grey[800],
-                                dataTableTheme: DataTableThemeData(
-                                  headingTextStyle: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColor.primary,
-                                  ),
-                                  dataTextStyle: GoogleFonts.poppins(
-                                    color: AppColor.textPrimary,
-                                  ),
-                                ),
-                              ),
-                              child: DataTable(
-                                columnSpacing: 25,
-                                dataRowMaxHeight: 66,
-                                headingRowHeight: 66,
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey[800]!),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                columns: [
-                                  DataColumn(
-                                    label: Text(
-                                      'Name',
-                                      style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.primary,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Text(
-                                      'Barcode',
-                                      style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.primary,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Expanded(
-                                      child: Text(
-                                        'Quantity',
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.primary,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Expanded(
-                                      child: Text(
-                                        'Unit',
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.primary,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Expanded(
-                                      child: Text(
-                                        'Price (₹)',
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.primary,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Expanded(
-                                      child: Text(
-                                        'Total',
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.primary,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: Expanded(
-                                      child: Text(
-                                        'Actions',
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColor.primary,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                                rows: controller.products.map((product) {
-                                  return DataRow(
-                                    cells: [
-                                      DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 8,
-                                          ),
-                                          child: Text(
-                                            product.name,
-                                            style: GoogleFonts.poppins(
-                                                fontSize: 14, color: AppColor.textPrimary),
-                                          ),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 8,
-                                          ),
-                                          child: Text(
-                                            product.productId,
-                                            style: GoogleFonts.poppins(
-                                                fontSize: 14, color: AppColor.textPrimary),
-                                          ),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 8,
-                                          ),
-                                          child: Text(
-                                            product.count.toString(),
-                                            style: GoogleFonts.poppins(
-                                                fontSize: 14, color: AppColor.textPrimary),
-                                          ),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 8,
-                                          ),
-                                          child: Text(
-                                            product.quantityType,
-                                            style: GoogleFonts.poppins(
-                                                fontSize: 14, color: AppColor.textPrimary),
-                                          ),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 8,
-                                          ),
-                                          child: Text(
-                                            product.price.toStringAsFixed(2),
-                                            style: GoogleFonts.poppins(
-                                                fontSize: 14, color: AppColor.textPrimary),
-                                          ),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 8,
-                                          ),
-                                          child: Text(
-                                            product.totalPrice.toStringAsFixed(2),
-                                            style: GoogleFonts.poppins(
-                                                fontSize: 14, color: AppColor.textPrimary),
-                                          ),
-                                        ),
-                                      ),
-                                      DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 8,
-                                          ),
-                                          child: IconButton(
-                                            icon: const Icon(
-                                              Icons.delete,
-                                              color: AppColor.error, // Red
-                                              size: 20,
-                                            ),
-                                            onPressed: () {
-                                              Get.defaultDialog(
-                                                backgroundColor: AppColor.surface,
-                                                title: "Delete Product",
-                                                middleText:
-                                                    "Are you sure you want to delete this product?",
-                                                titleStyle: GoogleFonts.poppins(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: AppColor.textPrimary,
-                                                ),
-                                                middleTextStyle: GoogleFonts.poppins(
-                                                  color: AppColor.textSecondary,
-                                                ),
-                                                textCancel: "Cancel",
-                                                textConfirm: "Delete",
-                                                confirmTextColor: AppColor.textOnPrimary,
-                                                cancelTextColor: AppColor.textPrimary,
-                                                buttonColor: AppColor.error,
-                                                onConfirm: () {
-                                                  controller.removeProduct(
-                                                    product.id,
-                                                  );
-                                                  Get.back();
-                                                },
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                }).toList(),
-                              )),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            if (constraints.maxWidth > 600) {
+                              return _buildDesktopTable(controller, context);
+                            } else {
+                              return _buildMobileList(controller, context);
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -543,6 +334,195 @@ class Inventory extends StatelessWidget {
           fillColor: AppColor.background,
         ),
       ),
+    );
+  }
+
+  Widget _buildDesktopTable(InventoryController controller, BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColor.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[800]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(
+              color: AppColor.background,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              border: Border(bottom: BorderSide(color: Colors.grey[800]!)),
+            ),
+            child: Row(
+              children: [
+                Expanded(flex: 3, child: Text('Name', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.primary, fontSize: 14))),
+                Expanded(flex: 2, child: Text('Barcode', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.primary, fontSize: 14))),
+                Expanded(flex: 2, child: Text('Quantity', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.primary, fontSize: 14))),
+                Expanded(flex: 1, child: Text('Unit', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.primary, fontSize: 14))),
+                Expanded(flex: 2, child: Text('Price (₹)', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.primary, fontSize: 14))),
+                Expanded(flex: 2, child: Text('Total (₹)', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.primary, fontSize: 14))),
+                Expanded(flex: 1, child: Text('Actions', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.primary, fontSize: 14))),
+              ],
+            ),
+          ),
+          ...controller.products.asMap().entries.map((entry) {
+            int idx = entry.key;
+            var product = entry.value;
+            return Material(
+              color: idx.isEven ? Colors.transparent : Colors.white.withValues(alpha: 0.02),
+              child: InkWell(
+                hoverColor: AppColor.primary.withValues(alpha: 0.1),
+                onTap: () {},
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: Colors.grey[800]!)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(flex: 3, child: Text(product.name, style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary))),
+                      Expanded(flex: 2, child: Text(product.productId, style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary))),
+                      Expanded(flex: 2, child: Text(product.count.toString(), style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary))),
+                      Expanded(flex: 1, child: Text(product.quantityType, style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary))),
+                      Expanded(flex: 2, child: Text(product.price.toStringAsFixed(2), style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary))),
+                      Expanded(flex: 2, child: Text(product.totalPrice.toStringAsFixed(2), style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: AppColor.primary))),
+                      Expanded(
+                        flex: 1, 
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: const Icon(Icons.delete_outline, color: AppColor.error, size: 22),
+                            onPressed: () {
+                              Get.defaultDialog(
+                                backgroundColor: AppColor.surface,
+                                title: "Delete Product",
+                                middleText: "Are you sure you want to delete this product?",
+                                titleStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.textPrimary),
+                                middleTextStyle: GoogleFonts.poppins(color: AppColor.textSecondary),
+                                textCancel: "Cancel",
+                                textConfirm: "Delete",
+                                confirmTextColor: AppColor.textOnPrimary,
+                                cancelTextColor: AppColor.textPrimary,
+                                buttonColor: AppColor.error,
+                                onConfirm: () {
+                                  controller.removeProduct(product.id);
+                                  Get.back();
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileList(InventoryController controller, BuildContext context) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: controller.products.length,
+      itemBuilder: (context, index) {
+        final product = controller.products[index];
+        return Card(
+          color: AppColor.surface,
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey[800]!),
+          ),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        product.name,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColor.primary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: const Icon(Icons.delete_outline, color: AppColor.error, size: 24),
+                      onPressed: () {
+                        Get.defaultDialog(
+                          backgroundColor: AppColor.surface,
+                          title: "Delete Product",
+                          middleText: "Are you sure you want to delete this product?",
+                          titleStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.textPrimary),
+                          middleTextStyle: GoogleFonts.poppins(color: AppColor.textSecondary),
+                          textCancel: "Cancel",
+                          textConfirm: "Delete",
+                          confirmTextColor: AppColor.textOnPrimary,
+                          cancelTextColor: AppColor.textPrimary,
+                          buttonColor: AppColor.error,
+                          onConfirm: () {
+                            controller.removeProduct(product.id);
+                            Get.back();
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Barcode: ${product.productId}",
+                  style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Qty", style: GoogleFonts.poppins(fontSize: 12, color: AppColor.textSecondary)),
+                        Text("${product.count} ${product.quantityType}", style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Price", style: GoogleFonts.poppins(fontSize: 12, color: AppColor.textSecondary)),
+                        Text("₹${product.price.toStringAsFixed(2)}", style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text("Total", style: GoogleFonts.poppins(fontSize: 12, color: AppColor.textSecondary)),
+                        Text("₹${product.totalPrice.toStringAsFixed(2)}", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: AppColor.primary)),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

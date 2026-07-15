@@ -186,32 +186,59 @@ class BillsAnalyticsWidget extends StatelessWidget {
 
   Widget _buildStatCard(_StatData data) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColor.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColor.textSecondary.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(data.icon, color: AppColor.primary, size: 22),
-          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                data.label,
+                style: GoogleFonts.poppins(
+                  color: AppColor.textSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColor.textSecondary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(data.icon, color: AppColor.primary, size: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           Text(
             data.value,
             style: GoogleFonts.poppins(
               color: AppColor.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            data.label,
-            style: GoogleFonts.poppins(
-              color: AppColor.textSecondary,
-              fontSize: 12,
-            ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.trending_up, color: AppColor.success, size: 14),
+              const SizedBox(width: 4),
+              Text(
+                'Up from past',
+                style: GoogleFonts.poppins(
+                  color: AppColor.textSecondary,
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ),
         ],
       ),

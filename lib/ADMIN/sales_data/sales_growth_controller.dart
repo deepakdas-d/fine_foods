@@ -17,31 +17,15 @@ class SalesGrowthController extends GetxController {
     try {
       isLoading.value = true;
 
-      // 1️⃣ Fetch sales from bills
-      final billsSnapshot = await _firestore.collection('bills').get();
+      // 1️⃣ Fetch sales from products collection
+      final productsSnapshot = await _firestore.collection('products').get();
       final Map<String, int> salesMap = {};
 
-      for (var bill in billsSnapshot.docs) {
-        final billData = bill.data();
-        final productsData = billData['products'];
-        if (productsData != null) {
-          Iterable<dynamic> items = [];
-          if (productsData is Map) {
-            items = productsData.values;
-          } else if (productsData is List) {
-            items = productsData;
-          }
-
-          for (var product in items) {
-            if (product is Map &&
-                product.containsKey('productName') &&
-                product.containsKey('quantity')) {
-              final name = product['productName'] ?? 'Unknown';
-              final qty = (product['quantity'] ?? 0) as int;
-              salesMap[name] = (salesMap[name] ?? 0) + qty;
-            }
-          }
-        }
+      for (var doc in productsSnapshot.docs) {
+        final data = doc.data();
+        final name = data['name'] ?? 'Unknown';
+        final count = ((data['count'] ?? 0) as num).toInt();
+        salesMap[name] = (salesMap[name] ?? 0) + count;
       }
 
       // 2️⃣ Fetch inventory counts
@@ -51,13 +35,15 @@ class SalesGrowthController extends GetxController {
       for (var doc in inventorySnapshot.docs) {
         final data = doc.data();
         final name = data['name'] ?? 'Unknown';
-        final count = (data['count'] ?? 0) as int;
-        inventoryMap[name] = count;
+        final count = ((data['count'] ?? 0) as num).toInt();
+        inventoryMap[name] = (inventoryMap[name] ?? 0) + count;
       }
 
       // 3️⃣ Merge into ProductSalesData
+      final Set<String> allProducts = {...inventoryMap.keys, ...salesMap.keys};
       final List<ProductSalesData> mergedList = [];
-      for (var productName in inventoryMap.keys) {
+      
+      for (var productName in allProducts) {
         final soldQty = salesMap[productName] ?? 0;
         final inventoryQty = inventoryMap[productName] ?? 0;
         final remainingQty = inventoryQty - soldQty;
@@ -72,8 +58,12 @@ class SalesGrowthController extends GetxController {
         );
       }
 
-      // Sort by sold quantity
-      mergedList.sort((a, b) => b.soldQty.compareTo(a.soldQty));
+      // Sort by sold quantity (descending), then by name
+      mergedList.sort((a, b) {
+        int cmp = b.soldQty.compareTo(a.soldQty);
+        if (cmp != 0) return cmp;
+        return a.name.compareTo(b.name);
+      });
 
       productSales.assignAll(mergedList);
     } catch (e) {

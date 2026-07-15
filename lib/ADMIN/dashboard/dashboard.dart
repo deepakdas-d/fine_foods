@@ -10,12 +10,18 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:fine_foods/home/bills_analytics_widget.dart';
+import 'package:fine_foods/home/bills_analytics_controller.dart';
+import 'dashboard_stock_chart.dart';
 
 class Dashboard extends StatelessWidget {
   const Dashboard({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Ensure controllers are available
+    Get.put(BillsAnalyticsController());
+
     final screenHeight = MediaQuery.of(context).size.height;
     final isDesktop = Responsive.isDesktop(context);
 
@@ -105,6 +111,7 @@ class Dashboard extends StatelessWidget {
   Widget _buildBody(BuildContext context, double screenHeight, bool isDesktop, List<_DashboardItem> menuItems) {
     return Scaffold(
         backgroundColor: AppColor.background, // Dark Background
+        drawer: isDesktop ? null : _buildDrawer(context, menuItems),
         appBar: AppBar(
           title: Text(
             "Admin Dashboard",
@@ -136,31 +143,6 @@ class Dashboard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                /// 🔹 Logo Card
-                // Card(
-                //   elevation: 8,
-                //   color: AppColor.surface,
-                //   shape: RoundedRectangleBorder(
-                //     borderRadius: BorderRadius.circular(16),
-                //   ),
-                //   child: Container(
-                //     height: screenHeight * 0.22,
-                //     width: double.infinity,
-                //     padding: const EdgeInsets.all(16),
-                //     decoration: BoxDecoration(
-                //       borderRadius: BorderRadius.circular(16),
-                //       color: AppColor.surface,
-                //     ),
-                //     child: Center(
-                //       child: Image.asset(
-                //         "assets/images/logo.png",
-                //         fit: BoxFit.contain,
-                //       ),
-                //     ),
-                //   ),
-                // ),
-                // SizedBox(height: screenHeight * 0.03),
-
                 /// 🔹 Welcome Text
                 Text(
                   "Welcome, Admin!",
@@ -177,74 +159,117 @@ class Dashboard extends StatelessWidget {
                     color: AppColor.textSecondary, // Grey
                   ),
                 ),
-                SizedBox(height: screenHeight * 0.03),
+                const SizedBox(height: 24),
 
-                /// 🔹 Dashboard Menu Grid
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: menuItems.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: isDesktop ? 3 : 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: isDesktop ? 1.3 : 1.1,
-                  ),
-                  itemBuilder: (context, index) {
-                    final item = menuItems[index];
-                    return Card(
-                      elevation: 4,
-                      color: AppColor.surface, // Dark Card Background
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          width: 1,
-                        ),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () => Get.to(() => item.page),
-                        splashColor: item.color.withValues(alpha: 0.1),
-                        highlightColor: item.color.withValues(alpha: 0.05),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: item.color.withValues(alpha: 0.15),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  item.icon,
-                                  size: 32,
-                                  color: item.color,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                item.title,
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColor.textPrimary, // White text
-                                ),
-                              ),
-                            ],
+                /// 🔹 Dashboard Layout
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth > 800) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left Column (70%) - Main Analytics
+                          Expanded(
+                            flex: 7,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                BillsAnalyticsWidget(),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                    );
+                          const SizedBox(width: 24),
+                          // Right Column (30%) - Top Sales & Low Stock
+                          Expanded(
+                            flex: 3,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                DashboardStockSection(),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    } else {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          BillsAnalyticsWidget(),
+                          SizedBox(height: 24),
+                          DashboardStockSection(),
+                        ],
+                      );
+                    }
                   },
                 ),
               ],
             ),
           ),
         ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context, List<_DashboardItem> menuItems) {
+    return Drawer(
+      backgroundColor: AppColor.surface,
+      child: Column(
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(
+              color: AppColor.primary,
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColor.background.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.admin_panel_settings, size: 40, color: AppColor.background),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    "Admin Menu",
+                    style: GoogleFonts.poppins(
+                      color: AppColor.background,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: menuItems.length,
+              itemBuilder: (context, index) {
+                final item = menuItems[index];
+                return ListTile(
+                  leading: Icon(item.icon, color: item.color),
+                  title: Text(
+                    item.title,
+                    style: GoogleFonts.poppins(
+                      color: AppColor.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context); // Close drawer
+                    Get.to(() => item.page);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
