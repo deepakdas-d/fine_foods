@@ -1,4 +1,5 @@
 import 'package:fine_foods/ADMIN/Inventory/inventory_controller.dart';
+import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
 import 'package:fine_foods/appcolor.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -85,37 +86,47 @@ class Inventory extends StatelessWidget {
 
   void _showAddProductModal(
     BuildContext context,
-    InventoryController controller,
-  ) {
+    InventoryController controller, {
+    Product? product,
+  }) {
+    if (product != null) {
+      controller.productNameController.text = product.name;
+      controller.productIdController.text = product.productId;
+      controller.productCountController.text = product.count.toString();
+      controller.productPriceController.text = product.price.toString();
+      controller.quantityType.value = product.quantityType;
+    } else {
+      controller.clearForm();
+      controller.generateUniqueBarcode();
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.4,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (context, scrollController) {
-            return Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: AppColor.surface, // Dark modal bg
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: SingleChildScrollView(
-                controller: scrollController,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: AppColor.surface, // Dark modal bg
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                     Center(
                       child: Container(
                         width: 40,
@@ -128,7 +139,7 @@ class Inventory extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'Add Product',
+                      product != null ? 'Edit Product' : 'Add Product',
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.bold,
                         fontSize: 20,
@@ -161,8 +172,9 @@ class Inventory extends StatelessWidget {
                     TextField(
                       controller: controller.productIdController,
                       style: GoogleFonts.poppins(color: AppColor.textPrimary),
+                      readOnly: true, // Auto-generated barcode
                       decoration: InputDecoration(
-                        labelText: 'Product Barcode',
+                        labelText: 'Product Barcode (Auto-generated)',
                         labelStyle: TextStyle(color: AppColor.textSecondary),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -252,14 +264,16 @@ class Inventory extends StatelessWidget {
                       child: ElevatedButton(
                         onPressed: () {
                           if (controller.formKey.currentState!.validate()) {
-                            controller.addProduct();
+                            if (product != null) {
+                              controller.updateProduct(product.id);
+                            } else {
+                              controller.addProduct();
+                            }
                             Navigator.pop(context);
                           } else {
-                            Get.snackbar(
-                              'Oops!',
+                            controller.showToast(
                               'Please fill all required fields correctly',
-                              backgroundColor: AppColor.surface,
-                              colorText: AppColor.primary,
+                              Colors.red,
                             );
                           }
                         },
@@ -273,7 +287,7 @@ class Inventory extends StatelessWidget {
                           elevation: 2,
                         ),
                         child: Text(
-                          'Add Product',
+                          product != null ? 'Save Changes' : 'Add Product',
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -285,9 +299,8 @@ class Inventory extends StatelessWidget {
                   ],
                 ),
               ),
-            );
-          },
-        );
+            ),
+          );
       },
     );
   }
@@ -392,28 +405,48 @@ class Inventory extends StatelessWidget {
                         flex: 1, 
                         child: Align(
                           alignment: Alignment.centerLeft,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: const Icon(Icons.delete_outline, color: AppColor.error, size: 22),
-                            onPressed: () {
-                              Get.defaultDialog(
-                                backgroundColor: AppColor.surface,
-                                title: "Delete Product",
-                                middleText: "Are you sure you want to delete this product?",
-                                titleStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.textPrimary),
-                                middleTextStyle: GoogleFonts.poppins(color: AppColor.textSecondary),
-                                textCancel: "Cancel",
-                                textConfirm: "Delete",
-                                confirmTextColor: AppColor.textOnPrimary,
-                                cancelTextColor: AppColor.textPrimary,
-                                buttonColor: AppColor.error,
-                                onConfirm: () {
-                                  controller.removeProduct(product.id);
-                                  Get.back();
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(Icons.edit_outlined, color: AppColor.primary, size: 22),
+                                onPressed: () {
+                                  _showAddProductModal(context, controller, product: product);
                                 },
-                              );
-                            },
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(Icons.delete_outline, color: AppColor.error, size: 22),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      backgroundColor: AppColor.surface,
+                                      title: Text("Delete Product", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.textPrimary)),
+                                      content: Text("Are you sure you want to delete this product?", style: GoogleFonts.poppins(color: AppColor.textSecondary)),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context),
+                                          child: Text("Cancel", style: TextStyle(color: AppColor.textPrimary)),
+                                        ),
+                                        ElevatedButton(
+                                          style: ElevatedButton.styleFrom(backgroundColor: AppColor.error),
+                                          onPressed: () {
+                                            controller.removeProduct(product.id);
+                                            Navigator.pop(context);
+                                          },
+                                          child: Text("Delete", style: TextStyle(color: AppColor.textOnPrimary)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -461,28 +494,47 @@ class Inventory extends StatelessWidget {
                         ),
                       ),
                     ),
-                    IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      icon: const Icon(Icons.delete_outline, color: AppColor.error, size: 24),
-                      onPressed: () {
-                        Get.defaultDialog(
-                          backgroundColor: AppColor.surface,
-                          title: "Delete Product",
-                          middleText: "Are you sure you want to delete this product?",
-                          titleStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.textPrimary),
-                          middleTextStyle: GoogleFonts.poppins(color: AppColor.textSecondary),
-                          textCancel: "Cancel",
-                          textConfirm: "Delete",
-                          confirmTextColor: AppColor.textOnPrimary,
-                          cancelTextColor: AppColor.textPrimary,
-                          buttonColor: AppColor.error,
-                          onConfirm: () {
-                            controller.removeProduct(product.id);
-                            Get.back();
+                    Row(
+                      children: [
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: const Icon(Icons.edit_outlined, color: AppColor.primary, size: 24),
+                          onPressed: () {
+                            _showAddProductModal(context, controller, product: product);
                           },
-                        );
-                      },
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: const Icon(Icons.delete_outline, color: AppColor.error, size: 24),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                backgroundColor: AppColor.surface,
+                                title: Text("Delete Product", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.textPrimary)),
+                                content: Text("Are you sure you want to delete this product?", style: GoogleFonts.poppins(color: AppColor.textSecondary)),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: Text("Cancel", style: TextStyle(color: AppColor.textPrimary)),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(backgroundColor: AppColor.error),
+                                    onPressed: () {
+                                      controller.removeProduct(product.id);
+                                      Navigator.pop(context);
+                                    },
+                                    child: Text("Delete", style: TextStyle(color: AppColor.textOnPrimary)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),

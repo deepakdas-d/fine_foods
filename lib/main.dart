@@ -17,13 +17,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  GetStorage storage;
   if (!kIsWeb) {
     final appDir = await getApplicationSupportDirectory();
-    await GetStorage('GetStorage', appDir.path).initStorage;
+    storage = GetStorage('GetStorage', appDir.path);
+    await storage.initStorage;
   } else {
-    await GetStorage.init();
+    await GetStorage.init('GetStorage');
+    storage = GetStorage('GetStorage');
   }
-
+  Get.put<GetStorage>(storage, permanent: true);
   requestLocationPermission();
 
   // PrinterController moved to InitialBinding to ensure Overlay is ready

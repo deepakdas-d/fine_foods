@@ -16,6 +16,7 @@ class DesktopNavController extends GetxController {
   /// 6 = Bills (Admin)
   /// 7 = Bluetooth / Printer (hidden on web)
   /// 8 = Bills (User)
+  /// 9 = Sales Bill
   final selectedIndex = 0.obs;
 
   /// Tracks whether the user is logged into the admin section on desktop.

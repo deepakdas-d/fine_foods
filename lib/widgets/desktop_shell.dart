@@ -12,6 +12,7 @@ import 'package:fine_foods/login.dart';
 import 'package:fine_foods/widgets/desktop_nav_controller.dart';
 import 'package:fine_foods/widgets/desktop_sidebar.dart';
 import 'package:fine_foods/widgets/responsive.dart';
+import 'package:fine_foods/SALES/billing/view/billing.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -56,6 +57,8 @@ class DesktopShell extends StatelessWidget {
         return Home(); // fallback — shouldn't reach on web
       case 8:
         return const UserBills();
+      case 9:
+        return BillingScreen();
       default:
         return Home();
     }

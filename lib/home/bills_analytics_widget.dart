@@ -111,7 +111,7 @@ class BillsAnalyticsWidget extends StatelessWidget {
               _buildFilterChip('Quick Bill', c.sourceFilter.value == AnalyticsSourceFilter.quickbill, 
                 () => c.setSourceFilter(AnalyticsSourceFilter.quickbill)),
               const SizedBox(width: 8),
-              _buildFilterChip('Inventory', c.sourceFilter.value == AnalyticsSourceFilter.inventory, 
+              _buildFilterChip('Sales Bill', c.sourceFilter.value == AnalyticsSourceFilter.inventory, 
                 () => c.setSourceFilter(AnalyticsSourceFilter.inventory)),
               const SizedBox(width: 16),
               Container(width: 1, height: 20, color: AppColor.textSecondary.withValues(alpha: 0.3)),
@@ -368,7 +368,7 @@ class BillsAnalyticsWidget extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            'Quick Bill vs Inventory',
+            'Quick Bill vs Sales Bill',
             style: GoogleFonts.poppins(
               color: AppColor.textPrimary,
               fontSize: 14,
@@ -418,7 +418,7 @@ class BillsAnalyticsWidget extends StatelessWidget {
                       sideTitles: SideTitles(
                         showTitles: true,
                         getTitlesWidget: (value, _) {
-                          final labels = ['Quick Bill', 'Inventory'];
+                          final labels = ['Quick Bill', 'Sales Bill'];
                           if (value.toInt() < labels.length) {
                             return Padding(
                               padding: const EdgeInsets.only(top: 6),

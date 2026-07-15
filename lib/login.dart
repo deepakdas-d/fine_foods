@@ -12,6 +12,15 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final LoginController controller = Get.put(LoginController());
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +48,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 SizedBox(height: 40),
                 TextFormField(
-                  controller: controller.emailController,
+                  controller: emailController,
                   decoration: InputDecoration(
                     labelText: "Email",
                     prefixIcon: Icon(Icons.email),
@@ -52,7 +61,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 Obx(
                   () => TextFormField(
-                    controller: controller.passwordController,
+                    controller: passwordController,
                     obscureText: !controller.isPasswordVisible.value,
                     decoration: InputDecoration(
                       labelText: "Password",
@@ -79,7 +88,9 @@ class _LoginPageState extends State<LoginPage> {
                           width: double.infinity,
                           height: 50,
                           child: ElevatedButton(
-                            onPressed: controller.login,
+                            onPressed: () => controller.login(
+                                emailController.text.trim(),
+                                passwordController.text.trim()),
                             child: Text("Login"),
                           ),
                         ),

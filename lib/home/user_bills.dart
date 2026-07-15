@@ -329,7 +329,7 @@ class UserBills extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    isQuickBill ? 'Quick Bill' : 'Inventory Sale',
+                    isQuickBill ? 'Quick Bill' : 'Sales Bill',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,

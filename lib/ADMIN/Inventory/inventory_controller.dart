@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +36,28 @@ class InventoryController extends GetxController {
     quantityType.value = 'Nos'; // Reset to default
   }
 
+  void generateUniqueBarcode() {
+    String newBarcode;
+    bool isUnique;
+    do {
+      // Generate a 6-digit number between 100000 and 999999
+      newBarcode = (100000 + Random().nextInt(900000)).toString();
+      isUnique = !products.any((p) => p.productId == newBarcode);
+    } while (!isUnique);
+    productIdController.text = newBarcode;
+  }
+
+  void showToast(String message, Color bgColor) {
+    ScaffoldMessenger.of(Get.context!).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: bgColor,
+        behavior: SnackBarBehavior.floating, // Makes it act more like a toast
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   String? validateNos(String? value) {
     if (value == null || value.isEmpty) return 'Quantity is required';
     if (!RegExp(r'^\d+$').hasMatch(value)) return 'Enter valid number';
@@ -50,17 +73,34 @@ class InventoryController extends GetxController {
         productCountController.text.isEmpty ||
         productIdController.text.isEmpty ||
         productPriceController.text.isEmpty) {
-      Get.snackbar(
-        'Error',
-        'Please fill all fields',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      showToast('Please fill all fields', Colors.red);
       return;
     }
 
     try {
       isLoading.value = true;
+
+      // Additional safety check against Firebase to prevent concurrent duplicates
+      String barcode = productIdController.text;
+      bool isUniqueInDb = false;
+      
+      while (!isUniqueInDb) {
+        final existingDoc = await _firestore
+            .collection('products')
+            .where('productId', isEqualTo: barcode)
+            .get();
+
+        if (existingDoc.docs.isEmpty) {
+          isUniqueInDb = true;
+        } else {
+          // If it exists in Firebase, generate a new one and loop again
+          do {
+            barcode = (100000 + Random().nextInt(900000)).toString();
+          } while (products.any((p) => p.productId == barcode));
+          
+          productIdController.text = barcode; // Update UI just in case
+        }
+      }
 
       final product = Product(
         id: _uuid.v4(),
@@ -82,19 +122,52 @@ class InventoryController extends GetxController {
       calculateTotal();
       clearForm();
 
-      Get.snackbar(
-        'Success',
-        'Product added successfully',
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
+      showToast('Product added successfully', Colors.green);
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to add product: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
+      showToast('Failed to add product: $e', Colors.red);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void updateProduct(String id) async {
+    if (productNameController.text.isEmpty ||
+        productCountController.text.isEmpty ||
+        productIdController.text.isEmpty ||
+        productPriceController.text.isEmpty) {
+      showToast('Please fill all fields', Colors.red);
+      return;
+    }
+
+    try {
+      isLoading.value = true;
+      
+      final existingProductIndex = products.indexWhere((p) => p.id == id);
+      if (existingProductIndex == -1) return;
+      final existingProduct = products[existingProductIndex];
+
+      final updatedProduct = Product(
+        id: id,
+        name: productNameController.text,
+        productId: productIdController.text,
+        count: int.parse(productCountController.text),
+        price: double.parse(productPriceController.text),
+        createdAt: existingProduct.createdAt,
+        quantityType: quantityType.value,
       );
+
+      await Future.wait([
+        _firestore.collection('products').doc(id).update(updatedProduct.toMap()),
+        _firestore.collection('inventory').doc(id).update(updatedProduct.toMap()),
+      ]);
+
+      products[existingProductIndex] = updatedProduct;
+      calculateTotal();
+      clearForm();
+
+      showToast('Product updated successfully', Colors.green);
+    } catch (e) {
+      showToast('Failed to update product: $e', Colors.red);
     } finally {
       isLoading.value = false;
     }
@@ -113,19 +186,9 @@ class InventoryController extends GetxController {
       products.removeWhere((product) => product.id == productId);
       calculateTotal();
 
-      Get.snackbar(
-        'Success',
-        'Product removed successfully',
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
+      showToast('Product removed successfully', Colors.green);
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to remove product: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      showToast('Failed to remove product: $e', Colors.red);
     } finally {
       isLoading.value = false;
     }
@@ -148,12 +211,7 @@ class InventoryController extends GetxController {
 
       calculateTotal();
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to load products: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      showToast('Failed to load products: $e', Colors.red);
     } finally {
       isLoading.value = false;
     }

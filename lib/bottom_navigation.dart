@@ -9,7 +9,7 @@ import 'package:flutter/services.dart'; // Added for SystemNavigator
 import 'package:get/get.dart';
 import 'package:fine_foods/ADMIN/Auth/auth_controller.dart';
 import 'package:fine_foods/ADMIN/dashboard/dashboard.dart';
-// import 'package:fine_foods/SALES/billing/view/billing.dart';
+import 'package:fine_foods/SALES/billing/view/billing.dart';
 import 'package:fine_foods/home/home.dart';
 
 class BottomNavPage extends StatelessWidget {
@@ -24,7 +24,7 @@ class BottomNavPage extends StatelessWidget {
     return [
       Obx(() => auth.isAdminLoggedIn.value ? const Dashboard() : LoginPage()),
       Home(),
-      /*BillingScreen()*/
+      BillingScreen()
     ];
   }
 
@@ -39,13 +39,11 @@ class BottomNavPage extends StatelessWidget {
       activeItem: Icon(Icons.home, color: AppColor.primary),
       itemLabel: 'Home',
     ),
-    /*
     BottomBarItem(
       inActiveItem: Icon(Icons.point_of_sale, color: AppColor.textSecondary),
       activeItem: Icon(Icons.point_of_sale, color: AppColor.primary),
       itemLabel: 'Sales',
     ),
-    */
   ];
 
   @override

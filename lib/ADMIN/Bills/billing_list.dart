@@ -297,7 +297,7 @@ class BillingList extends StatelessWidget {
                   onSelected: () => controller.setSourceFilter(BillSourceFilter.quickbill),
                 ),
                 _buildFilterChip(
-                  label: 'Inventory Sale',
+                  label: 'Sales Bill',
                   isSelected: controller.sourceFilter.value == BillSourceFilter.inventory,
                   onSelected: () => controller.setSourceFilter(BillSourceFilter.inventory),
                 ),
@@ -448,7 +448,7 @@ class BillCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        source == 'inventory' ? 'Inventory Sale' : 'Quick Bill',
+                        source == 'inventory' ? 'Sales Bill' : 'Quick Bill',
                         style: GoogleFonts.poppins(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,

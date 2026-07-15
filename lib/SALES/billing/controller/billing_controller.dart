@@ -1,4 +1,4 @@
-import 'dart:developer';
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -30,25 +30,78 @@ class BillingController extends GetxController {
   RxString paymentMethod = 'Cash'.obs;
   RxString cashReceived = ''.obs;
   RxString onlineReceived = ''.obs;
+
+  DocumentSnapshot? lastDocument;
+  final RxBool isFetchingMore = false.obs;
+  final RxBool hasMore = true.obs;
+  Timer? _debounce;
+  final ScrollController scrollController = ScrollController();
   @override
   void onInit() {
     super.onInit();
-    fetchProducts();
-    filteredProducts.assignAll(products);
+    scrollController.addListener(_onScroll);
+    isLoading.value = true;
+    fetchProducts(refresh: true);
   }
 
-  void fetchProducts() async {
-    isLoading.value = true;
-    try {
-      final snapshot = await _firestore.collection('products').get();
-      products.value = snapshot.docs
-          .map((doc) => Product.fromFirestore(doc))
-          .toList();
+  void _onScroll() {
+    if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
+      fetchProducts();
+    }
+  }
 
-      products.sort((a, b) => a.name.compareTo(b.name));
-      searchProducts(searchQuery.value);
+  Future<void> fetchProducts({bool refresh = false}) async {
+    if (refresh) {
+      lastDocument = null;
+      hasMore.value = true;
+      // Do not clear filteredProducts or set isLoading = true here to prevent UI blink during search
+    }
+
+    if (!hasMore.value || (isFetchingMore.value && !refresh)) return;
+
+    if (!refresh) isFetchingMore.value = true;
+
+    try {
+      Query query = _firestore.collection('products').orderBy('name');
+
+      if (searchQuery.value.trim().isNotEmpty) {
+        String searchPrefix = searchQuery.value.trim();
+        // Capitalize the first letter to match Firestore's case-sensitive strings
+        searchPrefix = searchPrefix[0].toUpperCase() + searchPrefix.substring(1).toLowerCase();
+        
+        query = query.where('name', isGreaterThanOrEqualTo: searchPrefix)
+                     .where('name', isLessThanOrEqualTo: '$searchPrefix\uf8ff');
+      }
+
+      query = query.limit(20);
+
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument!);
+      }
+
+      final snapshot = await query.get();
+
+      if (refresh) {
+        filteredProducts.clear();
+      }
+
+      if (snapshot.docs.isNotEmpty) {
+        lastDocument = snapshot.docs.last;
+        final newItems = snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList();
+        
+        for (var item in newItems) {
+          if (!products.any((p) => p.id == item.id)) {
+            products.add(item);
+          }
+        }
+        filteredProducts.addAll(newItems);
+      }
+
+      if (snapshot.docs.length < 20) {
+        hasMore.value = false;
+      }
     } catch (e) {
-      log('Failed to fetch products: $e');
+      developer.log('Failed to fetch products: $e');
       Get.snackbar(
         'Error',
         'Failed to fetch products: $e',
@@ -58,25 +111,16 @@ class BillingController extends GetxController {
       );
     } finally {
       isLoading.value = false;
+      isFetchingMore.value = false;
     }
   }
 
   void searchProducts(String query) {
-    searchQuery.value = query;
-    if (query.isEmpty) {
-      filteredProducts.assignAll(products);
-    } else {
-      final lowerQuery = query.toLowerCase();
-      filteredProducts.assignAll(
-        products
-            .where(
-              (product) =>
-                  product.name.toLowerCase().contains(lowerQuery) ||
-                  product.productId.toLowerCase().contains(lowerQuery),
-            )
-            .toList(),
-      );
-    }
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      searchQuery.value = query;
+      fetchProducts(refresh: true);
+    });
   }
 
   int getSelectedQuantity(Product product) {
@@ -285,7 +329,7 @@ class BillingController extends GetxController {
       );
 
       clearCart();
-      filteredProducts.assignAll(products);
+      fetchProducts(refresh: true);
       if (Get.isBottomSheetOpen == true) {
         Navigator.of(Get.overlayContext!, rootNavigator: true).pop();
       }
@@ -556,33 +600,64 @@ class BillingController extends GetxController {
     }
   }
 
-  void _showFeedback(String message) {
-    if (Get.isSnackbarOpen) {
-      Future.delayed(const Duration(seconds: 1), () {
-        _showSnack(message);
-      });
-    } else {
-      _showSnack(message);
-    }
-  }
+  void _showFeedback(String message, {Color bgColor = Colors.black87}) {
+    final overlay = Get.key.currentState?.overlay;
+    if (overlay == null) return;
 
-  void _showSnack(String message) {
-    Get.showSnackbar(
-      GetSnackBar(
-        message: message,
-        duration: const Duration(seconds: 1),
-        backgroundColor: Colors.black87,
-        borderRadius: 8,
-        margin: const EdgeInsets.all(16),
-        snackStyle: SnackStyle.FLOATING,
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 40,
+        right: 20,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          builder: (context, value, child) {
+            return Transform.translate(
+              offset: Offset(0, -20 * (1 - value)),
+              child: Opacity(opacity: value, child: child),
+            );
+          },
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  )
+                ],
+              ),
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+        ),
       ),
     );
+
+    overlay.insert(entry);
+    Future.delayed(const Duration(seconds: 3), () {
+      if (entry.mounted) {
+        entry.remove();
+      }
+    });
   }
 
   @override
   void onClose() {
     customerName.dispose();
     customerPhone.dispose();
+    scrollController.dispose();
+    _debounce?.cancel();
     super.onClose();
   }
 }

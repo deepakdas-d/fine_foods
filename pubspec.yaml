@@ -45,6 +45,7 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   flutter_native_splash: ^2.4.6
   flutter_launcher_icons: ^0.14.4
+  msix: ^3.16.9
 
 # icon setting
 flutter_launcher_icons:
@@ -75,6 +76,15 @@ flutter_native_splash:
     icon_background_color: "#000000"
     image_dark: "assets/images/logo.png"
     icon_background_color_dark: "#000000"
+
+msix_config:
+  display_name: Fine Foods POS
+  publisher_display_name: Deepak Das
+  identity_name: DeepakDas.FineFoodsPOS
+  msix_version: 1.0.0.0
+  publisher: CN=F9B34059-13E3-48E0-B232-0ABC94423C59
+  logo_path: assets/images/logo.png
+  capabilities: internetClient, bluetooth, location
 
 flutter:
   uses-material-design: true

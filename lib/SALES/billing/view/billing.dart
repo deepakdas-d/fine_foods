@@ -94,20 +94,45 @@ class BillingScreen extends StatelessWidget {
         Expanded(
           child: Obx(
             () => controller.filteredProducts.isEmpty
-                ? const Center(
-                    child: Text(
-                      "No products found",
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                ? RefreshIndicator(
+                    onRefresh: () => controller.fetchProducts(refresh: true),
+                    color: AppColor.primary,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 100),
+                        Center(
+                          child: Text(
+                            "No products found",
+                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                          ),
+                        ),
+                      ],
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: controller.filteredProducts.length,
-                    itemBuilder: (context, index) => Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _buildProductCard(
-                        controller.filteredProducts[index],
+                : RefreshIndicator(
+                    onRefresh: () => controller.fetchProducts(refresh: true),
+                    color: AppColor.primary,
+                    child: GridView.builder(
+                      controller: controller.scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 350,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        mainAxisExtent: 260,
                       ),
+                      itemCount: controller.filteredProducts.length +
+                          (controller.isFetchingMore.value ? 4 : 0),
+                      itemBuilder: (context, index) {
+                        if (index >= controller.filteredProducts.length) {
+                          return _buildSkeletonCard();
+                        }
+                        return _buildProductCard(
+                          controller.filteredProducts[index],
+                        );
+                      },
                     ),
                   ),
           ),
@@ -115,6 +140,42 @@ class BillingScreen extends StatelessWidget {
       ],
     ),
   );
+
+  Widget _buildSkeletonCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColor.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColor.textSecondary.withValues(alpha: 0.1)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 60,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(height: 16, width: 120, color: Colors.grey.withValues(alpha: 0.2)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(height: 16, width: 60, color: Colors.grey.withValues(alpha: 0.2)),
+              Container(height: 24, width: 60, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12))),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(height: 40, width: double.infinity, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8))),
+        ],
+      ),
+    );
+  }
 
   Widget _buildSearchBar() => Container(
     margin: const EdgeInsets.all(16),
@@ -141,7 +202,6 @@ class BillingScreen extends StatelessWidget {
     final isOutOfStock = product.count <= 0;
     final quantity = controller.getSelectedQuantity(product);
 
-    final currentPrice = controller.getCustomPrice(product);
 
     return Container(
       decoration: BoxDecoration(
@@ -192,27 +252,19 @@ class BillingScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  SizedBox(
-                    width: 150,
-                    child: TextField(
-                      enabled: !isOutOfStock,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: '$currentPrice',
-                        prefixText: '₹',
-                        hintText: product.price.toStringAsFixed(2),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        isDense: true,
+                  Expanded(
+                    child: Text(
+                      '₹${product.price.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isOutOfStock
+                            ? AppColor.textSecondary
+                            : AppColor.textPrimary,
                       ),
-                      onChanged: (value) {
-                        final newPrice =
-                            double.tryParse(value) ?? product.price;
-                        controller.setCustomPrice(product, newPrice);
-                      },
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -363,7 +415,6 @@ class BillingScreen extends StatelessWidget {
   );
 
   Widget _buildCartItem(Product product, int quantity) {
-    final currentPrice = controller.getCustomPrice(product);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -397,25 +448,11 @@ class BillingScreen extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                   maxLines: 2,
                 ),
-                SizedBox(
-                  width: 100,
-                  child: TextField(
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: '$currentPrice',
-                      prefixText: '₹',
-                      hintText: controller
-                          .getCustomPrice(product)
-                          .toStringAsFixed(2),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      isDense: true,
-                    ),
-                    onChanged: (value) {
-                      final newPrice = double.tryParse(value) ?? product.price;
-                      controller.setCustomPrice(product, newPrice);
-                    },
+                Text(
+                  '₹${product.price.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColor.textSecondary,
                   ),
                 ),
               ],
