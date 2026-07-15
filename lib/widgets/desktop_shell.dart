@@ -9,6 +9,8 @@ import 'package:fine_foods/bluetooth_list.dart';
 import 'package:fine_foods/home/home.dart';
 import 'package:fine_foods/home/user_bills.dart';
 import 'package:fine_foods/login.dart';
+import 'package:fine_foods/ADMIN/Customers/customer_view.dart';
+import 'package:fine_foods/ADMIN/DiscountCards/discount_cards_view.dart';
 import 'package:fine_foods/widgets/desktop_nav_controller.dart';
 import 'package:fine_foods/widgets/desktop_sidebar.dart';
 import 'package:fine_foods/widgets/responsive.dart';
@@ -31,9 +33,10 @@ class DesktopShell extends StatelessWidget {
 
   /// Maps sidebar indices to their corresponding page widgets.
   Widget _pageForIndex(int index) {
-    // If the index corresponds to an admin section (1 to 6) and the user
+    // If the index corresponds to an admin section and the user
     // is not logged in, render the LoginPage instead of the requested page.
-    if (index >= 1 && index <= 6 && !Get.find<AuthController>().isAdminLoggedIn.value) {
+    final isAdminIndex = (index >= 1 && index <= 6) || index == 10 || index == 11;
+    if (isAdminIndex && !Get.find<AuthController>().isAdminLoggedIn.value) {
       return LoginPage();
     }
 
@@ -59,6 +62,10 @@ class DesktopShell extends StatelessWidget {
         return const UserBills();
       case 9:
         return BillingScreen();
+      case 10:
+        return CustomerView();
+      case 11:
+        return DiscountCardsView();
       default:
         return Home();
     }

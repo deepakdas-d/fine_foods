@@ -24,6 +24,44 @@ class SalesGrowth extends StatelessWidget {
         backgroundColor: AppColor.primary,
         centerTitle: true,
         iconTheme: const IconThemeData(color: AppColor.background),
+        actions: [
+          Obx(() => DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              dropdownColor: AppColor.surface,
+              icon: const Padding(
+                padding: EdgeInsets.only(left: 8.0),
+                child: Icon(Icons.filter_list, color: AppColor.background),
+              ),
+              value: controller.selectedFilter.value,
+              style: GoogleFonts.poppins(color: AppColor.background, fontWeight: FontWeight.w600),
+              selectedItemBuilder: (BuildContext context) {
+                return ['Today', 'This Month', 'This Year', 'All Time'].map((String value) {
+                  return Center(
+                    child: Text(
+                      value,
+                      style: GoogleFonts.poppins(color: AppColor.background, fontWeight: FontWeight.w600),
+                    ),
+                  );
+                }).toList();
+              },
+              items: ['Today', 'This Month', 'This Year', 'All Time'].map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(
+                    value,
+                    style: GoogleFonts.poppins(color: AppColor.textPrimary, fontWeight: FontWeight.w500),
+                  ),
+                );
+              }).toList(),
+              onChanged: (newValue) {
+                if (newValue != null) {
+                  controller.changeFilter(newValue);
+                }
+              },
+            ),
+          )),
+          const SizedBox(width: 16),
+        ],
       ),
       body: Obx(() {
         if (controller.isLoading.value) {

@@ -16,8 +16,11 @@ import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 class BillingController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final customerName = TextEditingController();
-  final customerPhone = TextEditingController();
+  TextEditingController customerPhone = TextEditingController();
   var customerDiscount = ''.obs;
+  var cardDiscountPercent = 0.0.obs;
+  var cardTierUsed = RxnString();
+  final RxList<Map<String, dynamic>> foundCustomers = <Map<String, dynamic>>[].obs;
 
   final RxList<Product> products = <Product>[].obs;
   final RxList<Product> filteredProducts = <Product>[].obs;
@@ -36,12 +39,25 @@ class BillingController extends GetxController {
   final RxBool hasMore = true.obs;
   Timer? _debounce;
   final ScrollController scrollController = ScrollController();
+  final RxList<Map<String, dynamic>> allCustomers = <Map<String, dynamic>>[].obs;
+
   @override
   void onInit() {
     super.onInit();
     scrollController.addListener(_onScroll);
     isLoading.value = true;
     fetchProducts(refresh: true);
+    fetchAllCustomers();
+  }
+
+  StreamSubscription? _customersSub;
+
+  void fetchAllCustomers() {
+    _customersSub = _firestore.collection('customers').snapshots().listen((snap) {
+      allCustomers.assignAll(snap.docs.map((e) => e.data()).toList());
+    }, onError: (e) {
+      developer.log('Failed to listen to customers: $e');
+    });
   }
 
   void _onScroll() {
@@ -173,6 +189,98 @@ class BillingController extends GetxController {
     customPrices.clear();
     customerName.clear();
     customerPhone.clear();
+    customerDiscount.value = '';
+    cardDiscountPercent.value = 0.0;
+    cardTierUsed.value = null;
+  }
+
+  Future<void> searchCustomerByPhone(String phone) async {
+    if (phone.trim().length != 10) {
+      Get.snackbar('Error', 'Enter a valid 10-digit phone number');
+      return;
+    }
+    
+    try {
+      isLoading.value = true;
+      final querySnapshot = await _firestore
+          .collection('customers')
+          .where('phone', isEqualTo: phone.trim())
+          .get();
+          
+      if (querySnapshot.docs.isEmpty) {
+        Get.snackbar('Not Found', 'Customer not found. You can proceed without discount.');
+        foundCustomers.clear();
+        applySelectedCustomer(null);
+      } else if (querySnapshot.docs.length == 1) {
+        foundCustomers.clear();
+        applySelectedCustomer(querySnapshot.docs.first.data());
+      } else {
+        foundCustomers.assignAll(querySnapshot.docs.map((d) => d.data()).toList());
+        _showCustomerSelectionDialog();
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to search customer: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void _showCustomerSelectionDialog() {
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: const Color(0xFF2B3139),
+        title: const Text('Select Customer', style: TextStyle(color: Colors.white)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: foundCustomers.length,
+            itemBuilder: (context, index) {
+              final c = foundCustomers[index];
+              return ListTile(
+                title: Text(c['name'] ?? '', style: const TextStyle(color: Colors.white)),
+                subtitle: Text('Tier: ${c['cardTier']?.toString().toUpperCase() ?? 'None'}', style: const TextStyle(color: Colors.white70)),
+                onTap: () {
+                  Get.back();
+                  applySelectedCustomer(c);
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> applySelectedCustomer(Map<String, dynamic>? data) async {
+    if (data == null) {
+      customerName.clear();
+      cardDiscountPercent.value = 0.0;
+      cardTierUsed.value = null;
+      return;
+    }
+    
+    customerName.text = data['name'] ?? '';
+    cardTierUsed.value = data['cardTier'];
+    
+    if (data['cardId'] != null) {
+      try {
+        final cardDoc = await _firestore.collection('discount_cards').doc(data['cardId']).get();
+        if (cardDoc.exists && cardDoc.data()?['active'] == true) {
+          cardDiscountPercent.value = (cardDoc.data()?['discountPercent'] as num?)?.toDouble() ?? 0.0;
+        } else {
+          cardDiscountPercent.value = 0.0;
+        }
+      } catch (e) {
+        cardDiscountPercent.value = 0.0;
+      }
+    } else {
+      cardDiscountPercent.value = 0.0;
+    }
+    
+    if (cardDiscountPercent.value > 0) {
+      Get.snackbar('Discount Applied', '${cardTierUsed.value?.toUpperCase()} Card applied (${cardDiscountPercent.value}%)');
+    }
   }
 
   double calculateTotal() {
@@ -180,7 +288,15 @@ class BillingController extends GetxController {
     for (var product in products) {
       if (selectedProducts.containsKey(product.id)) {
         final price = getCustomPrice(product);
-        total += price * selectedProducts[product.id]!;
+        final qty = selectedProducts[product.id]!;
+        final lineSubtotal = price * qty;
+        
+        double lineCardDiscount = 0.0;
+        if (!product.cardDiscountExcluded && cardDiscountPercent.value > 0) {
+          lineCardDiscount = lineSubtotal * (cardDiscountPercent.value / 100);
+        }
+        
+        total += (lineSubtotal - lineCardDiscount);
       }
     }
     final discount = customerDiscount.trim().isEmpty
@@ -266,18 +382,28 @@ class BillingController extends GetxController {
             ? 'Walk-in Customer'
             : customerName.text.trim(),
         'customerPhone': customerPhone.text.trim(),
+        'cardTierUsed': cardTierUsed.value,
+        'cardDiscountPercent': cardDiscountPercent.value,
 
         // ✅ FIXED PRODUCTS LIST
         'products': selectedProducts.entries.map((entry) {
           final product = products.firstWhere((p) => p.id == entry.key);
           final price = getCustomPrice(product);
+          final lineSubtotal = price * entry.value;
+          
+          double cardDiscountAmount = 0.0;
+          if (!product.cardDiscountExcluded && cardDiscountPercent.value > 0) {
+            cardDiscountAmount = lineSubtotal * (cardDiscountPercent.value / 100);
+          }
 
           return {
             'productId': product.id,
             'productName': product.name,
             'quantity': entry.value,
             'price': price,
-            'total': price * entry.value,
+            'total': lineSubtotal - cardDiscountAmount,
+            'cardDiscountExcluded': product.cardDiscountExcluded,
+            'cardDiscountAmount': cardDiscountAmount,
           };
         }).toList(),
 
@@ -318,6 +444,28 @@ class BillingController extends GetxController {
           );
         }
       }
+
+      // --- Time-Bucket Aggregations for Sales Growth ---
+      // Since this is the inventory billing controller, it naturally filters out quick bills.
+      final now = DateTime.now();
+      final dayKey = DateFormat('yyyy-MM-dd').format(now);
+      final monthKey = DateFormat('yyyy-MM').format(now);
+      final yearKey = DateFormat('yyyy').format(now);
+
+      final Map<String, dynamic> salesIncrements = {};
+      for (var entry in selectedProducts.entries) {
+        final product = products.firstWhere((p) => p.id == entry.key);
+        salesIncrements[entry.key] = {
+          'qty': FieldValue.increment(entry.value),
+          'name': product.name,
+        };
+      }
+
+      batch.set(_firestore.collection('sales_stats').doc('daily_$dayKey'), salesIncrements, SetOptions(merge: true));
+      batch.set(_firestore.collection('sales_stats').doc('monthly_$monthKey'), salesIncrements, SetOptions(merge: true));
+      batch.set(_firestore.collection('sales_stats').doc('yearly_$yearKey'), salesIncrements, SetOptions(merge: true));
+      batch.set(_firestore.collection('sales_stats').doc('all_time'), salesIncrements, SetOptions(merge: true));
+      // -----------------------------------------------
 
       await batch.commit();
 
@@ -658,6 +806,7 @@ class BillingController extends GetxController {
     customerPhone.dispose();
     scrollController.dispose();
     _debounce?.cancel();
+    _customersSub?.cancel();
     super.onClose();
   }
 }

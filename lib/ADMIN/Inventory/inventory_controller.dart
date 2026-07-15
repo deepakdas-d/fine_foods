@@ -3,12 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:async';
 import 'package:uuid/uuid.dart';
-
 class InventoryController extends GetxController {
   final _firestore = FirebaseFirestore.instance;
   final _uuid = Uuid();
   final products = <Product>[].obs;
+  final allProducts = <Product>[]; // Store all products for client-side filtering
   final isLoading = false.obs;
   final total = 0.0.obs;
   final productNameController = TextEditingController();
@@ -16,7 +17,31 @@ class InventoryController extends GetxController {
   final productIdController = TextEditingController();
   final productPriceController = TextEditingController();
   final quantityType = 'Nos'.obs; // Added quantityType observable
+  final cardDiscountExcluded = false.obs;
   final formKey = GlobalKey<FormState>();
+
+  Timer? _debounce;
+  final searchQuery = ''.obs;
+
+  void onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      searchQuery.value = query;
+      _filterProducts();
+    });
+  }
+
+  void _filterProducts() {
+    if (searchQuery.value.isEmpty) {
+      products.assignAll(allProducts);
+    } else {
+      final q = searchQuery.value.toLowerCase();
+      products.assignAll(
+        allProducts.where((p) => p.name.toLowerCase().contains(q)).toList(),
+      );
+    }
+    calculateTotal();
+  }
 
   @override
   void onInit() {
@@ -34,6 +59,7 @@ class InventoryController extends GetxController {
     productPriceController.clear();
     productIdController.clear();
     quantityType.value = 'Nos'; // Reset to default
+    cardDiscountExcluded.value = false;
   }
 
   void generateUniqueBarcode() {
@@ -110,6 +136,7 @@ class InventoryController extends GetxController {
         price: double.parse(productPriceController.text),
         createdAt: DateTime.now().toString(),
         quantityType: quantityType.value,
+        cardDiscountExcluded: cardDiscountExcluded.value,
       );
 
       // Add to both products and inventory collections
@@ -118,8 +145,8 @@ class InventoryController extends GetxController {
         _firestore.collection('inventory').doc(product.id).set(product.toMap()),
       ]);
 
-      products.add(product);
-      calculateTotal();
+      allProducts.insert(0, product);
+      _filterProducts();
       clearForm();
 
       showToast('Product added successfully', Colors.green);
@@ -154,6 +181,7 @@ class InventoryController extends GetxController {
         price: double.parse(productPriceController.text),
         createdAt: existingProduct.createdAt,
         quantityType: quantityType.value,
+        cardDiscountExcluded: cardDiscountExcluded.value,
       );
 
       await Future.wait([
@@ -161,8 +189,11 @@ class InventoryController extends GetxController {
         _firestore.collection('inventory').doc(id).update(updatedProduct.toMap()),
       ]);
 
-      products[existingProductIndex] = updatedProduct;
-      calculateTotal();
+      final allIndex = allProducts.indexWhere((p) => p.id == id);
+      if (allIndex != -1) {
+        allProducts[allIndex] = updatedProduct;
+      }
+      _filterProducts();
       clearForm();
 
       showToast('Product updated successfully', Colors.green);
@@ -183,8 +214,8 @@ class InventoryController extends GetxController {
         _firestore.collection('inventory').doc(productId).delete(),
       ]);
 
-      products.removeWhere((product) => product.id == productId);
-      calculateTotal();
+      allProducts.removeWhere((product) => product.id == productId);
+      _filterProducts();
 
       showToast('Product removed successfully', Colors.green);
     } catch (e) {
@@ -203,13 +234,13 @@ class InventoryController extends GetxController {
           .orderBy('createdAt', descending: true)
           .get();
 
-      products.clear();
+      allProducts.clear();
       for (var doc in querySnapshot.docs) {
         final product = Product.fromMap(doc.data());
-        products.add(product);
+        allProducts.add(product);
       }
 
-      calculateTotal();
+      _filterProducts();
     } catch (e) {
       showToast('Failed to load products: $e', Colors.red);
     } finally {

@@ -68,6 +68,8 @@ class DesktopSidebar extends StatelessWidget {
         const _SidebarItem(label: 'Invoice Generator', icon: Icons.receipt_long_rounded, index: 4),
         const _SidebarItem(label: 'Sales Growth', icon: Icons.bar_chart_rounded, index: 5),
         const _SidebarItem(label: 'Bills', icon: Icons.receipt_outlined, index: 6),
+        const _SidebarItem(label: 'Customers', icon: Icons.people_alt_rounded, index: 10),
+        const _SidebarItem(label: 'Discount Cards', icon: Icons.card_giftcard_rounded, index: 11),
       ];
     } else {
       return [

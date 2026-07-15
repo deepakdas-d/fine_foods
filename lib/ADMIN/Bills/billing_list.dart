@@ -32,68 +32,75 @@ class BillingList extends StatelessWidget {
         // MAIN UI
         Scaffold(
           backgroundColor: AppColor.background,
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (showAdminActions)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          body: RefreshIndicator(
+            onRefresh: () => controller.fetchBills(reset: true),
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'All Bills History',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                          color: AppColor.textPrimary,
+                      if (showAdminActions)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'All Bills History',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
+                                  color: AppColor.textPrimary,
+                                ),
+                              ),
+                              Obx(() => IconButton(
+                                onPressed: controller.isLoading.value
+                                    ? null
+                                    : controller.downloadCurrentReport,
+                                icon: const Icon(Icons.download_rounded),
+                                tooltip: 'Download Report',
+                                style: IconButton.styleFrom(
+                                  foregroundColor: AppColor.primary,
+                                ),
+                              )),
+                            ],
+                          ),
+                        ),
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          dividerColor: Colors.transparent,
+                        ),
+                        child: const ExpansionTile(
+                          title: Text(
+                            'Dashboard Analytics',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          leading: Icon(Icons.analytics_outlined),
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              child: BillsAnalyticsWidget(isCompact: true),
+                            ),
+                          ],
                         ),
                       ),
-                      IconButton(
-                        onPressed: controller.isLoading.value
-                            ? null
-                            : controller.downloadCurrentReport,
-                        icon: const Icon(Icons.download_rounded),
-                        tooltip: 'Download Report',
-                        style: IconButton.styleFrom(
-                          foregroundColor: AppColor.primary,
-                        ),
-                      ),
+                      Obx(() => _buildFilterBar(controller, context)),
                     ],
                   ),
                 ),
-              Theme(
-                data: Theme.of(context).copyWith(
-                  dividerColor: Colors.transparent,
-                ),
-                child: const ExpansionTile(
-                  title: Text(
-                    'Dashboard Analytics',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  leading: Icon(Icons.analytics_outlined),
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: BillsAnalyticsWidget(isCompact: true),
-                    ),
-                  ],
-                ),
-              ),
-              Obx(() => _buildFilterBar(controller, context)),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () => controller.fetchBills(reset: true),
-                  child: Obx(() {
-                    if (controller.isFetching.value &&
-                        controller.bills.isEmpty) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+                Obx(() {
+                  if (controller.isFetching.value && controller.bills.isEmpty) {
+                    return const SliverFillRemaining(
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
 
-                    final bills = controller.filteredBills;
+                  final bills = controller.filteredBills;
 
-                    if (bills.isEmpty) {
-                      return Center(
+                  if (bills.isEmpty) {
+                    return SliverFillRemaining(
+                      child: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -114,14 +121,13 @@ class BillingList extends StatelessWidget {
                             ],
                           ],
                         ),
-                      );
-                    }
+                      ),
+                    );
+                  }
 
-                    return ListView.builder(
-                      itemCount:
-                          bills.length +
-                          (controller.hasMore.value || (controller.isSearching && controller.hasMore.value) ? 1 : 0),
-                      itemBuilder: (context, index) {
+                  return SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
                         if (index >= bills.length - 5 &&
                             controller.hasMore.value && !controller.isSearching) {
                           controller.loadMore();
@@ -152,11 +158,13 @@ class BillingList extends StatelessWidget {
                           controller: controller,
                         );
                       },
-                    );
-                  }),
-                ),
-              ),
-            ],
+                      childCount: bills.length +
+                          (controller.hasMore.value || (controller.isSearching && controller.hasMore.value) ? 1 : 0),
+                    ),
+                  );
+                }),
+              ],
+            ),
           ),
         ),
 

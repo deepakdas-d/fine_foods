@@ -8,6 +8,7 @@ class Product {
   final double price;
   final String createdAt;
   final String quantityType;
+  final bool cardDiscountExcluded;
 
   Product({
     required this.id,
@@ -17,6 +18,7 @@ class Product {
     required this.price,
     required this.createdAt,
     required this.quantityType,
+    this.cardDiscountExcluded = false,
   });
 
   // ------------------ Firestore → Map ------------------
@@ -29,6 +31,7 @@ class Product {
       'price': price,
       'createdAt': createdAt,
       'quantityType': quantityType,
+      'cardDiscountExcluded': cardDiscountExcluded,
     };
   }
 
@@ -42,6 +45,7 @@ class Product {
       price: (map['price'] as num).toDouble(),
       createdAt: map['createdAt']?.toString() ?? '',
       quantityType: map['quantityType'] ?? 'Nos',
+      cardDiscountExcluded: map['cardDiscountExcluded'] ?? false,
     );
   }
 
@@ -56,6 +60,7 @@ class Product {
       price: (data['price'] as num?)?.toDouble() ?? 0.0,
       createdAt: data['createdAt']?.toString() ?? '',
       quantityType: data['quantityType'] ?? 'Nos',
+      cardDiscountExcluded: data['cardDiscountExcluded'] ?? false,
     );
   }
 
@@ -68,6 +73,7 @@ class Product {
     double? price,
     String? createdAt,
     String? quantityType,
+    bool? cardDiscountExcluded,
   }) {
     return Product(
       id: id ?? this.id,
@@ -77,6 +83,7 @@ class Product {
       price: price ?? this.price,
       createdAt: createdAt ?? this.createdAt,
       quantityType: quantityType ?? this.quantityType,
+      cardDiscountExcluded: cardDiscountExcluded ?? this.cardDiscountExcluded,
     );
   }
 

@@ -26,52 +26,93 @@ class Stocks extends StatelessWidget {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
         ),
       ),
-      body: Obx(
-        () => controller.isLoading.value
-            ? const Center(child: CircularProgressIndicator())
-            : Container(
-                margin: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColor.surface, width: 1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColor.surface,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColor.primary.withValues(alpha: 0.5)),
-                          ),
-                          child: Text(
-                            'Total Value: ₹${controller.total.value.toStringAsFixed(2)}',
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColor.primary,
-                            ),
+      body: Container(
+        margin: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColor.surface, width: 1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.spaceBetween,
+                  children: [
+                    Obx(
+                      () => Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColor.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColor.primary.withValues(alpha: 0.5)),
+                        ),
+                        child: Text(
+                          'Total Value: ₹${controller.total.value.toStringAsFixed(2)}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColor.primary,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            if (constraints.maxWidth > 600) {
-                              return _buildDesktopTable(controller, context);
-                            } else {
-                              return _buildMobileList(controller, context);
-                            }
-                          },
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                    SizedBox(
+                      width: 300,
+                      child: TextField(
+                        onChanged: controller.onSearchChanged,
+                        style: GoogleFonts.poppins(color: AppColor.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Search products...',
+                          hintStyle: TextStyle(color: AppColor.textSecondary),
+                          prefixIcon: const Icon(Icons.search, color: AppColor.primary),
+                          filled: true,
+                          fillColor: AppColor.surface,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.grey[700]!),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+                const SizedBox(height: 16),
+                Obx(
+                  () {
+                    // Force Obx to track the products list.
+                    // LayoutBuilder accesses the list during layout phase, which hides it from Obx tracking.
+                    final _ = controller.products.length;
+                    
+                    return controller.isLoading.value
+                        ? const Padding(
+                            padding: EdgeInsets.all(32.0),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              if (constraints.maxWidth > 600) {
+                                return _buildDesktopTable(controller, context);
+                              } else {
+                                return _buildMobileList(controller, context);
+                              }
+                            },
+                          );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

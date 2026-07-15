@@ -570,6 +570,80 @@ class BillingScreen extends StatelessWidget {
             Row(
               children: [
                 Expanded(
+                  child: Autocomplete<Map<String, dynamic>>(
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text.length < 3) {
+                        return const Iterable<Map<String, dynamic>>.empty();
+                      }
+                      return controller.allCustomers.where((customer) {
+                        final phone = customer['phone'] as String? ?? '';
+                        return phone.contains(textEditingValue.text);
+                      });
+                    },
+                    displayStringForOption: (option) => option['phone'] ?? '',
+                    onSelected: (Map<String, dynamic> selection) {
+                      controller.customerPhone.text = selection['phone'] ?? '';
+                      controller.applySelectedCustomer(selection);
+                    },
+                    fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                      // Use the Autocomplete's controller as the primary one to avoid listener memory leaks
+                      if (controller.customerPhone != textEditingController) {
+                        controller.customerPhone = textEditingController;
+                      }
+
+                      return TextField(
+                        controller: textEditingController,
+                        focusNode: focusNode,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          labelText: 'Phone (Autocomplete)',
+                          prefixIcon: const Icon(Icons.phone_outlined, size: 18),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.search, size: 18, color: AppColor.primary),
+                            onPressed: () {
+                              controller.searchCustomerByPhone(textEditingController.text);
+                            },
+                          ),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      );
+                    },
+                    optionsViewBuilder: (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 4.0,
+                          borderRadius: BorderRadius.circular(8),
+                          color: AppColor.surface,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 200, maxWidth: 250),
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              itemCount: options.length,
+                              itemBuilder: (BuildContext context, int index) {
+                                final option = options.elementAt(index);
+                                return ListTile(
+                                  title: Text(option['phone'] ?? '', style: const TextStyle(color: AppColor.textPrimary)),
+                                  subtitle: Text(option['name'] ?? '', style: const TextStyle(color: AppColor.textSecondary)),
+                                  onTap: () {
+                                    onSelected(option);
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
                   child: TextField(
                     controller: controller.customerName,
                     decoration: InputDecoration(
@@ -583,24 +657,20 @@ class BillingScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: controller.customerPhone,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: 'Phone',
-                      prefixIcon: const Icon(Icons.phone_outlined, size: 18),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
               ],
             ),
+            Obx(() {
+              if (controller.cardTierUsed.value != null) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    '${controller.cardTierUsed.value?.toUpperCase()} Card Applied: ${controller.cardDiscountPercent.value}%',
+                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            }),
             const SizedBox(height: 16),
 
             // Payment Method & Type (Compact Cards)

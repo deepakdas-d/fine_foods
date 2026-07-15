@@ -1,11 +1,13 @@
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class SalesGrowthController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   var isLoading = true.obs;
 
   var productSales = <ProductSalesData>[].obs;
+  var selectedFilter = 'This Month'.obs;
 
   @override
   void onInit() {
@@ -13,44 +15,82 @@ class SalesGrowthController extends GetxController {
     fetchSalesData();
   }
 
+  void changeFilter(String newFilter) {
+    selectedFilter.value = newFilter;
+    fetchSalesData();
+  }
+
   Future<void> fetchSalesData() async {
     try {
       isLoading.value = true;
 
-      // 1️⃣ Fetch sales from products collection
+      // 1️⃣ Determine the doc key based on the filter
+      final now = DateTime.now();
+      String docKey = '';
+      
+      switch (selectedFilter.value) {
+        case 'Today':
+          docKey = 'daily_${DateFormat('yyyy-MM-dd').format(now)}';
+          break;
+        case 'This Month':
+          docKey = 'monthly_${DateFormat('yyyy-MM').format(now)}';
+          break;
+        case 'This Year':
+          docKey = 'yearly_${DateFormat('yyyy').format(now)}';
+          break;
+        case 'All Time':
+        default:
+          docKey = 'all_time';
+          break;
+      }
+
+      // 2️⃣ Fetch the single stats document
+      final statsDoc = await _firestore.collection('sales_stats').doc(docKey).get();
+      final Map<String, int> soldQtyById = {};
+      final Map<String, String> bucketNameById = {};
+      
+      if (statsDoc.exists && statsDoc.data() != null) {
+        final data = statsDoc.data()!;
+        data.forEach((key, value) {
+          if (value is Map) {
+            soldQtyById[key] = ((value['qty'] ?? 0) as num).toInt();
+            bucketNameById[key] = value['name']?.toString() ?? 'Unknown';
+          } else {
+            // Fallback just in case there's old data
+            soldQtyById[key] = (value as num).toInt();
+          }
+        });
+      }
+
+      // 3️⃣ Fetch current product details from products collection
       final productsSnapshot = await _firestore.collection('products').get();
-      final Map<String, int> salesMap = {};
+      final Map<String, int> remainingQtyById = {};
+      final Map<String, String> nameById = {};
 
       for (var doc in productsSnapshot.docs) {
         final data = doc.data();
+        final productId = doc.id;
         final name = data['name'] ?? 'Unknown';
         final count = ((data['count'] ?? 0) as num).toInt();
-        salesMap[name] = (salesMap[name] ?? 0) + count;
+        
+        remainingQtyById[productId] = count;
+        nameById[productId] = name;
       }
 
-      // 2️⃣ Fetch inventory counts
-      final inventorySnapshot = await _firestore.collection('inventory').get();
-      final Map<String, int> inventoryMap = {};
-
-      for (var doc in inventorySnapshot.docs) {
-        final data = doc.data();
-        final name = data['name'] ?? 'Unknown';
-        final count = ((data['count'] ?? 0) as num).toInt();
-        inventoryMap[name] = (inventoryMap[name] ?? 0) + count;
-      }
-
-      // 3️⃣ Merge into ProductSalesData
-      final Set<String> allProducts = {...inventoryMap.keys, ...salesMap.keys};
+      // 4️⃣ Merge into ProductSalesData
+      final Set<String> allProductIds = {...soldQtyById.keys, ...remainingQtyById.keys};
       final List<ProductSalesData> mergedList = [];
       
-      for (var productName in allProducts) {
-        final soldQty = salesMap[productName] ?? 0;
-        final inventoryQty = inventoryMap[productName] ?? 0;
-        final remainingQty = inventoryQty - soldQty;
+      for (var productId in allProductIds) {
+        // If the product is deleted, it won't be in nameById, so we fall back to bucketNameById!
+        final name = nameById[productId] ?? bucketNameById[productId] ?? 'Unknown Product';
+        final soldQty = soldQtyById[productId] ?? 0;
+        final remainingQty = remainingQtyById[productId] ?? 0;
+        final inventoryQty = soldQty + remainingQty; // Total historically stocked
 
         mergedList.add(
           ProductSalesData(
-            name: productName,
+            name: name,
             soldQty: soldQty,
             inventoryQty: inventoryQty,
             remainingQty: remainingQty,

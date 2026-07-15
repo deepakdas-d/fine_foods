@@ -3,6 +3,8 @@ import 'package:fine_foods/ADMIN/Stocks/stocks.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/invoice_generator.dart';
 import 'package:fine_foods/ADMIN/sales_data/sales_growth.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list.dart';
+import 'package:fine_foods/ADMIN/DiscountCards/discount_cards_view.dart';
+import 'package:fine_foods/ADMIN/Customers/customer_view.dart';
 import 'package:fine_foods/appcolor.dart'; // Import AppColor
 import 'package:fine_foods/bottom_navigation.dart';
 import 'package:fine_foods/widgets/responsive.dart';
@@ -55,6 +57,18 @@ class Dashboard extends StatelessWidget {
         icon: Icons.receipt_long_outlined,
         color: const Color(0xFF9C27B0), // Purple for Bills
         page: const BillingList(),
+      ),
+      _DashboardItem(
+        title: "Customers",
+        icon: Icons.people_alt_rounded,
+        color: Colors.teal, // Teal for Customers
+        page: CustomerView(),
+      ),
+      _DashboardItem(
+        title: "Discount Cards",
+        icon: Icons.card_giftcard_rounded,
+        color: Colors.pinkAccent, // Pink for Discount Cards
+        page: DiscountCardsView(),
       ),
     ];
 
