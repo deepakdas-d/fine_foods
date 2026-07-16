@@ -46,7 +46,7 @@ class BillingScreen extends StatelessWidget {
     elevation: 0,
     backgroundColor: AppColor.background,
     title: const Text(
-      "Point of Sale",
+      "Sales",
       style: TextStyle(
         fontWeight: FontWeight.w600,
         color: AppColor.textPrimary,
