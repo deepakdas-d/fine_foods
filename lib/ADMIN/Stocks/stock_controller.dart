@@ -45,9 +45,15 @@ class StockAvailabilityController extends GetxController {
 
   Future<void> fetchOverallTotal() async {
     try {
-      final query = _firestore.collection('products');
-      final snapshot = await query.aggregate(sum('totalPrice')).get();
-      total.value = snapshot.getSum('totalPrice') ?? 0.0;
+      final allDocs = await _firestore.collection('products').get();
+      double calculatedTotal = 0.0;
+      for (var doc in allDocs.docs) {
+        final data = doc.data();
+        final qty = (data['count'] as num?)?.toInt() ?? 0;
+        final price = (data['price'] as num?)?.toDouble() ?? 0.0;
+        calculatedTotal += qty * price;
+      }
+      total.value = calculatedTotal;
     } catch (e) {
       debugPrint('Error fetching overall total: $e');
     }

@@ -3,6 +3,7 @@ import 'package:fine_foods/appcolor.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:ui';
 
 class Stocks extends StatelessWidget {
   const Stocks({super.key});
@@ -126,8 +127,16 @@ class Stocks extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 80.0), // Consistent bottom padding
         child: SizedBox(
           width: double.infinity,
-          child: Theme(
-            data: Theme.of(context).copyWith(
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+              },
+            ),
+            child: Theme(
+              data: Theme.of(context).copyWith(
               cardColor: AppColor.surface,
               dividerColor: Colors.grey[800],
               textTheme: TextTheme(
@@ -159,7 +168,7 @@ class Stocks extends StatelessWidget {
         ],
         source: StockDataSource(context, controller),
       ),
-    ))));
+    )))));
   }
 
   Widget _buildMobileList(StockAvailabilityController controller, BuildContext context) {

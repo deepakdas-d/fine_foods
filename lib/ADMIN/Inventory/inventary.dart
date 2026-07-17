@@ -4,6 +4,7 @@ import 'package:fine_foods/appcolor.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:ui';
 
 class Inventory extends StatelessWidget {
   const Inventory({super.key});
@@ -477,8 +478,16 @@ class Inventory extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 80.0), // Prevent FAB overlap
         child: SizedBox(
           width: double.infinity,
-          child: Theme(
-            data: Theme.of(context).copyWith(
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+              },
+            ),
+            child: Theme(
+              data: Theme.of(context).copyWith(
               cardColor: AppColor.surface,
               dividerColor: Colors.grey[800],
               textTheme: TextTheme(
@@ -511,7 +520,7 @@ class Inventory extends StatelessWidget {
         ],
         source: ProductDataSource(context, controller, (c, p) => _showAddProductModal(c, controller, product: p)),
       ),
-    ))));
+    )))));
   }
 
   Widget _buildMobileList(InventoryController controller, BuildContext context) {
@@ -708,14 +717,19 @@ class ProductDataSource extends DataTableSource {
             _enterSelectionMode(product.id);
           }
         },
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
+        child: InkWell(
           onTap: () {
             if (controller.isSelectionMode.value) {
               _toggleSelection(product.id);
             }
           },
-          child: child,
+          child: Container(
+            width: double.infinity,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            color: Colors.transparent,
+            child: child,
+          ),
         ),
       );
     }

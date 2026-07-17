@@ -44,3 +44,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 architecture.md
+
+# Visual Studio related
+.vs/
+windows/out/

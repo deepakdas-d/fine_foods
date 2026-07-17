@@ -69,6 +69,9 @@ class InventoryController extends GetxController {
   void toggleProductSelection(String id) {
     if (selectedProducts.contains(id)) {
       selectedProducts.remove(id);
+      if (selectedProducts.isEmpty) {
+        isSelectionMode.value = false;
+      }
     } else {
       selectedProducts.add(id);
     }

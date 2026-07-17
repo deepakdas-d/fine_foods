@@ -29,6 +29,7 @@ class Product {
       'productId': productId,
       'count': count,
       'price': price,
+      'totalPrice': count * price,
       'createdAt': createdAt,
       'quantityType': quantityType,
       'cardDiscountExcluded': cardDiscountExcluded,
