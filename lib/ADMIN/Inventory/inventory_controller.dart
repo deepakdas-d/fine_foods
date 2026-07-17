@@ -22,6 +22,9 @@ class InventoryController extends GetxController {
   final quantityType = 'Nos'.obs; // Added quantityType observable
   final cardDiscountExcluded = false.obs;
   final formKey = GlobalKey<FormState>();
+  
+  final isSelectionMode = false.obs;
+  final selectedProducts = <String>{}.obs;
 
   Timer? _debounce;
   final searchQuery = ''.obs;
@@ -54,6 +57,52 @@ class InventoryController extends GetxController {
 
   void calculateTotal() {
     total.value = products.fold(0, (sumValue, product) => sumValue + product.totalPrice);
+  }
+
+  void toggleSelectionMode() {
+    isSelectionMode.value = !isSelectionMode.value;
+    if (!isSelectionMode.value) {
+      selectedProducts.clear();
+    }
+  }
+
+  void toggleProductSelection(String id) {
+    if (selectedProducts.contains(id)) {
+      selectedProducts.remove(id);
+    } else {
+      selectedProducts.add(id);
+    }
+  }
+
+  void deleteSelectedProducts() async {
+    if (selectedProducts.isEmpty) return;
+    
+    try {
+      isLoading.value = true;
+      final productIds = selectedProducts.toList();
+      
+      // Batch limit is 500 operations, 2 per product = 250 products max per batch
+      for (var i = 0; i < productIds.length; i += 250) {
+        final batch = _firestore.batch();
+        final chunk = productIds.sublist(i, min(i + 250, productIds.length));
+        for (final id in chunk) {
+          batch.delete(_firestore.collection('products').doc(id));
+          batch.delete(_firestore.collection('inventory').doc(id));
+        }
+        await batch.commit();
+      }
+      
+      allProducts.removeWhere((p) => selectedProducts.contains(p.id));
+      _filterProducts();
+      
+      isSelectionMode.value = false;
+      selectedProducts.clear();
+      showToast('Selected products removed successfully', Colors.green);
+    } catch (e) {
+      showToast('Failed to remove selected products: $e', Colors.red);
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   void clearForm() {

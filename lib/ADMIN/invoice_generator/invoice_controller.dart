@@ -103,34 +103,6 @@ class InvoiceController extends GetxController {
     );
   }
 
-  void clearAllProducts() async {
-    try {
-      isLoading.value = true;
-
-      // Delete all products from the selected collection
-      final batch = _firestore.batch();
-      for (var product in products) {
-        batch.delete(
-          _firestore.collection(selectedCollection.value).doc(product.id),
-        );
-      }
-      await batch.commit();
-
-      products.clear();
-      calculateTotal();
-
-      showSuccessSnackbar();
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to clear products: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-    } finally {
-      isLoading.value = false;
-    }
-  }
 
   void showSuccessSnackbar() {
     final now = DateTime.now();

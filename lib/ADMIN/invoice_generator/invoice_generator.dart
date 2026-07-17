@@ -143,17 +143,6 @@ class InvoiceGenerator extends StatelessWidget {
                                     color: AppColor.primary,
                                   ),
                                 ),
-                                if (controller.products.isNotEmpty)
-                                  TextButton(
-                                    onPressed: controller.clearAllProducts,
-                                    child: Text(
-                                      'Clear All',
-                                      style: GoogleFonts.poppins(
-                                        color: AppColor.error,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
                               ],
                             ),
                             const SizedBox(height: 16),

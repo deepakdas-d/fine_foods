@@ -15,10 +15,11 @@ class Inventory extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColor.background, // Dark Background
       appBar: AppBar(
-        title: Text(
-          'Inventory Management',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 24, color: AppColor.background),
-        ),
+        title: Obx(() => controller.isSelectionMode.value
+            ? Text('${controller.selectedProducts.length} Selected',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 24, color: AppColor.background))
+            : Text('Inventory Management',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 24, color: AppColor.background))),
         backgroundColor: AppColor.primary, // Yellow
         centerTitle: true,
         foregroundColor: AppColor.background,
@@ -26,6 +27,48 @@ class Inventory extends StatelessWidget {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
         ),
+        leading: Obx(() {
+          if (controller.isSelectionMode.value) {
+            return IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: controller.toggleSelectionMode,
+            );
+          }
+          final ModalRoute<dynamic>? parentRoute = ModalRoute.of(context);
+          final bool canPop = parentRoute?.canPop ?? false;
+          return canPop ? const BackButton() : const SizedBox.shrink();
+        }),
+        actions: [
+          Obx(() => controller.isSelectionMode.value
+              ? IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        backgroundColor: AppColor.surface,
+                        title: Text("Delete Selected Products", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.textPrimary)),
+                        content: Text("Are you sure you want to delete ${controller.selectedProducts.length} products?", style: GoogleFonts.poppins(color: AppColor.textSecondary)),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text("Cancel", style: TextStyle(color: AppColor.textPrimary)),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: AppColor.error),
+                            onPressed: () {
+                              controller.deleteSelectedProducts();
+                              Navigator.pop(context);
+                            },
+                            child: Text("Delete", style: TextStyle(color: AppColor.textOnPrimary)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                )
+              : const SizedBox.shrink()),
+        ],
       ),
       body: Container(
         margin: const EdgeInsets.all(16.0),
@@ -73,7 +116,10 @@ class Inventory extends StatelessWidget {
               Expanded(
                 child: Obx(
                   () {
-                    final _ = controller.products.length;
+                    // Register dependencies for Obx
+                    controller.products.length;
+                    controller.selectedProducts.length;
+                    controller.isSelectionMode.value;
                     controller.isFetchingNextPage.value;
                     
                     if (controller.isLoading.value && controller.products.isEmpty) {
@@ -488,16 +534,32 @@ class Inventory extends StatelessWidget {
             );
           }
           final product = controller.products[index];
-          return Card(
-            key: ValueKey(product.id),
-            color: AppColor.surface,
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey[800]!),
-            ),
-            elevation: 2,
-            child: Padding(
+          return Obx(() {
+            final isSelected = controller.selectedProducts.contains(product.id);
+            final isSelectionMode = controller.isSelectionMode.value;
+
+            return GestureDetector(
+              onLongPress: () {
+                if (!isSelectionMode) {
+                  controller.toggleSelectionMode();
+                }
+                controller.toggleProductSelection(product.id);
+              },
+              onTap: () {
+                if (isSelectionMode) {
+                  controller.toggleProductSelection(product.id);
+                }
+              },
+              child: Card(
+                key: ValueKey(product.id),
+                color: isSelected ? Colors.grey[850] : AppColor.surface,
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: isSelected ? AppColor.primary : Colors.grey[800]!, width: isSelected ? 2 : 1),
+                ),
+                elevation: 2,
+                child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -522,7 +584,11 @@ class Inventory extends StatelessWidget {
                             constraints: const BoxConstraints(),
                             icon: const Icon(Icons.edit_outlined, color: AppColor.primary, size: 24),
                             onPressed: () {
-                              _showAddProductModal(context, controller, product: product);
+                              if (isSelectionMode) {
+                                controller.toggleProductSelection(product.id);
+                              } else {
+                                _showAddProductModal(context, controller, product: product);
+                              }
                             },
                           ),
                           const SizedBox(width: 8),
@@ -531,28 +597,32 @@ class Inventory extends StatelessWidget {
                             constraints: const BoxConstraints(),
                             icon: const Icon(Icons.delete_outline, color: AppColor.error, size: 24),
                             onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  backgroundColor: AppColor.surface,
-                                  title: Text("Delete Product", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.textPrimary)),
-                                  content: Text("Are you sure you want to delete this product?", style: GoogleFonts.poppins(color: AppColor.textSecondary)),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: Text("Cancel", style: TextStyle(color: AppColor.textPrimary)),
-                                    ),
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(backgroundColor: AppColor.error),
-                                      onPressed: () {
-                                        controller.removeProduct(product.id);
-                                        Navigator.pop(context);
-                                      },
-                                      child: Text("Delete", style: TextStyle(color: AppColor.textOnPrimary)),
-                                    ),
-                                  ],
-                                ),
-                              );
+                              if (isSelectionMode) {
+                                controller.toggleProductSelection(product.id);
+                              } else {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: AppColor.surface,
+                                    title: Text("Delete Product", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.textPrimary)),
+                                    content: Text("Are you sure you want to delete this product?", style: GoogleFonts.poppins(color: AppColor.textSecondary)),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: Text("Cancel", style: TextStyle(color: AppColor.textPrimary)),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(backgroundColor: AppColor.error),
+                                        onPressed: () {
+                                          controller.removeProduct(product.id);
+                                          Navigator.pop(context);
+                                        },
+                                        child: Text("Delete", style: TextStyle(color: AppColor.textOnPrimary)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
                             },
                           ),
                         ],
@@ -594,8 +664,10 @@ class Inventory extends StatelessWidget {
                 ],
               ),
             ),
-          );
-        },
+          ),
+        );
+      });
+    },
       ),
     );
   }
@@ -608,58 +680,107 @@ class ProductDataSource extends DataTableSource {
 
   ProductDataSource(this.context, this.controller, this.onEdit);
 
+  void _toggleSelection(String productId) {
+    controller.toggleProductSelection(productId);
+    notifyListeners();
+  }
+
+  void _enterSelectionMode(String productId) {
+    if (!controller.isSelectionMode.value) {
+      controller.toggleSelectionMode();
+    }
+    controller.toggleProductSelection(productId);
+    notifyListeners();
+  }
+
   @override
   DataRow? getRow(int index) {
     if (index >= controller.products.length) return null;
     final product = controller.products[index];
     final idx = index;
+    
+    final isSelected = controller.selectedProducts.contains(product.id);
+
+    Widget wrapWithListener(Widget child) {
+      return Listener(
+        onPointerDown: (event) {
+          if (event.buttons == 2) {
+            _enterSelectionMode(product.id);
+          }
+        },
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (controller.isSelectionMode.value) {
+              _toggleSelection(product.id);
+            }
+          },
+          child: child,
+        ),
+      );
+    }
+
     return DataRow.byIndex(
       index: index,
+      color: WidgetStateProperty.resolveWith<Color?>((states) {
+        if (isSelected) return Colors.grey[850];
+        return null;
+      }),
       cells: [
-        DataCell(Text('${idx + 1}', style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary))),
-        DataCell(Text(product.name, style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary))),
-        DataCell(Text(product.productId, style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary))),
-        DataCell(Text(product.count.toString(), style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary))),
-        DataCell(Text(product.quantityType, style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary))),
-        DataCell(Text(product.price.toStringAsFixed(2), style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary))),
-        DataCell(Text(product.totalPrice.toStringAsFixed(2), style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: AppColor.primary))),
+        DataCell(wrapWithListener(Text('${idx + 1}', style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary)))),
+        DataCell(wrapWithListener(Text(product.name, style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary)))),
+        DataCell(wrapWithListener(Text(product.productId, style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary)))),
+        DataCell(wrapWithListener(Text(product.count.toString(), style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary)))),
+        DataCell(wrapWithListener(Text(product.quantityType, style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary)))),
+        DataCell(wrapWithListener(Text(product.price.toStringAsFixed(2), style: GoogleFonts.poppins(fontSize: 14, color: AppColor.textPrimary)))),
+        DataCell(wrapWithListener(Text(product.totalPrice.toStringAsFixed(2), style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: AppColor.primary)))),
         DataCell(
-          Row(
+          wrapWithListener(Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
                 icon: const Icon(Icons.edit_outlined, color: AppColor.primary, size: 22),
-                onPressed: () => onEdit(context, product),
+                onPressed: () {
+                  if (controller.isSelectionMode.value) {
+                    _toggleSelection(product.id);
+                  } else {
+                    onEdit(context, product);
+                  }
+                },
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline, color: AppColor.error, size: 22),
                 onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      backgroundColor: AppColor.surface,
-                      title: Text("Delete Product", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.textPrimary)),
-                      content: Text("Are you sure you want to delete this product?", style: GoogleFonts.poppins(color: AppColor.textSecondary)),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text("Cancel", style: TextStyle(color: AppColor.textPrimary)),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: AppColor.error),
-                          onPressed: () {
-                            controller.removeProduct(product.id);
-                            Navigator.pop(context);
-                          },
-                          child: Text("Delete", style: TextStyle(color: AppColor.textOnPrimary)),
-                        ),
-                      ],
-                    ),
-                  );
+                  if (controller.isSelectionMode.value) {
+                    _toggleSelection(product.id);
+                  } else {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        backgroundColor: AppColor.surface,
+                        title: Text("Delete Product", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: AppColor.textPrimary)),
+                        content: Text("Are you sure you want to delete this product?", style: GoogleFonts.poppins(color: AppColor.textSecondary)),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text("Cancel", style: TextStyle(color: AppColor.textPrimary)),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: AppColor.error),
+                            onPressed: () {
+                              controller.removeProduct(product.id);
+                              Navigator.pop(context);
+                            },
+                            child: Text("Delete", style: TextStyle(color: AppColor.textOnPrimary)),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
                 },
               ),
             ],
-          ),
+          )),
         ),
       ],
     );

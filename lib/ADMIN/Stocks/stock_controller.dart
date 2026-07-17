@@ -34,7 +34,7 @@ class StockAvailabilityController extends GetxController {
         allProducts.where((p) => p.name.toLowerCase().contains(q)).toList(),
       );
     }
-    calculateTotal();
+    // calculateTotal() is intentionally removed here so search doesn't override the overall database total
   }
 
   @override
@@ -43,8 +43,14 @@ class StockAvailabilityController extends GetxController {
     loadProducts();
   }
 
-  void calculateTotal() {
-    total.value = products.fold(0, (sumValue, product) => sumValue + product.totalPrice);
+  Future<void> fetchOverallTotal() async {
+    try {
+      final query = _firestore.collection('products');
+      final snapshot = await query.aggregate(sum('totalPrice')).get();
+      total.value = snapshot.getSum('totalPrice') ?? 0.0;
+    } catch (e) {
+      debugPrint('Error fetching overall total: $e');
+    }
   }
 
   DocumentSnapshot? lastDocument;
@@ -63,6 +69,7 @@ class StockAvailabilityController extends GetxController {
       hasMore.value = true;
       allProducts.clear();
       products.clear();
+      fetchOverallTotal();
     }
 
     try {
