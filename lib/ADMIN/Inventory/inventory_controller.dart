@@ -11,6 +11,9 @@ class InventoryController extends GetxController {
   final products = <Product>[].obs;
   final allProducts = <Product>[]; // Store all products for client-side filtering
   final isLoading = false.obs;
+  
+  final tableKey = GlobalKey<PaginatedDataTableState>();
+  
   final total = 0.0.obs;
   final productNameController = TextEditingController();
   final productCountController = TextEditingController();
@@ -94,6 +97,16 @@ class InventoryController extends GetxController {
     return null;
   }
 
+  String? validatePrice(String? value) {
+    if (value == null || value.isEmpty) return 'Price is required';
+    if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(value)) return 'Enter valid price';
+    final numValue = double.tryParse(value);
+    if (numValue == null || numValue < 0) {
+      return 'Price cannot be negative';
+    }
+    return null;
+  }
+
   void addProduct() async {
     if (productNameController.text.isEmpty ||
         productCountController.text.isEmpty ||
@@ -172,6 +185,20 @@ class InventoryController extends GetxController {
       final existingProductIndex = products.indexWhere((p) => p.id == id);
       if (existingProductIndex == -1) return;
       final existingProduct = products[existingProductIndex];
+      
+      String newBarcode = productIdController.text;
+      if (newBarcode != existingProduct.productId) {
+        final existingDoc = await _firestore
+            .collection('products')
+            .where('productId', isEqualTo: newBarcode)
+            .get();
+            
+        if (existingDoc.docs.isNotEmpty) {
+          showToast('Barcode already exists for another product!', Colors.red);
+          isLoading.value = false;
+          return;
+        }
+      }
 
       final updatedProduct = Product(
         id: id,
@@ -225,26 +252,61 @@ class InventoryController extends GetxController {
     }
   }
 
-  void loadInventory() async {
-    try {
-      isLoading.value = true;
+  DocumentSnapshot? lastDocument;
+  final hasMore = true.obs;
+  final isFetchingNextPage = false.obs;
+  static const int pageSize = 20;
 
-      final querySnapshot = await _firestore
+  void loadInventory({bool isLoadMore = false}) async {
+    if (isLoadMore) {
+      if (isFetchingNextPage.value || !hasMore.value) return;
+      isFetchingNextPage.value = true;
+    } else {
+      if (isLoading.value) return;
+      isLoading.value = true;
+      lastDocument = null;
+      hasMore.value = true;
+      allProducts.clear();
+      products.clear();
+    }
+
+    try {
+      Query query = _firestore
           .collection('inventory')
           .orderBy('createdAt', descending: true)
-          .get();
+          .limit(pageSize);
 
-      allProducts.clear();
-      for (var doc in querySnapshot.docs) {
-        final product = Product.fromMap(doc.data());
-        allProducts.add(product);
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument!);
+      }
+
+      final querySnapshot = await query.get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        lastDocument = querySnapshot.docs.last;
+      }
+
+      if (querySnapshot.docs.length < pageSize) {
+        hasMore.value = false;
+      }
+
+      final newProducts = querySnapshot.docs.map((doc) => Product.fromMap(doc.data() as Map<String, dynamic>)).toList();
+      
+      for (var p in newProducts) {
+        if (!allProducts.any((existing) => existing.id == p.id)) {
+          allProducts.add(p);
+        }
       }
 
       _filterProducts();
     } catch (e) {
       showToast('Failed to load products: $e', Colors.red);
     } finally {
-      isLoading.value = false;
+      if (isLoadMore) {
+        isFetchingNextPage.value = false;
+      } else {
+        isLoading.value = false;
+      }
     }
   }
 }

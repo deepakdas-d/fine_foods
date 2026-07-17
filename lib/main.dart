@@ -13,11 +13,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 
-// import 'package:fine_foods/scripts/migration_script.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // MigrationScript.backfillProductCardDiscountExcluded(); 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   GetStorage storage;

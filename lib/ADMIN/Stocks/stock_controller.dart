@@ -9,6 +9,9 @@ class StockAvailabilityController extends GetxController {
   final products = <Product>[].obs;
   final allProducts = <Product>[];
   final isLoading = false.obs;
+  
+  final tableKey = GlobalKey<PaginatedDataTableState>();
+  
   final total = 0.0.obs;
 
   Timer? _debounce;
@@ -44,19 +47,50 @@ class StockAvailabilityController extends GetxController {
     total.value = products.fold(0, (sumValue, product) => sumValue + product.totalPrice);
   }
 
-  void loadProducts() async {
-    try {
-      isLoading.value = true;
+  DocumentSnapshot? lastDocument;
+  final hasMore = true.obs;
+  final isFetchingNextPage = false.obs;
+  static const int pageSize = 20;
 
-      final querySnapshot = await _firestore
+  void loadProducts({bool isLoadMore = false}) async {
+    if (isLoadMore) {
+      if (isFetchingNextPage.value || !hasMore.value) return;
+      isFetchingNextPage.value = true;
+    } else {
+      if (isLoading.value) return;
+      isLoading.value = true;
+      lastDocument = null;
+      hasMore.value = true;
+      allProducts.clear();
+      products.clear();
+    }
+
+    try {
+      Query query = _firestore
           .collection('products')
           .orderBy('createdAt', descending: true)
-          .get();
+          .limit(pageSize);
 
-      allProducts.clear();
-      for (var doc in querySnapshot.docs) {
-        final product = Product.fromMap(doc.data());
-        allProducts.add(product);
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument!);
+      }
+
+      final querySnapshot = await query.get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        lastDocument = querySnapshot.docs.last;
+      }
+
+      if (querySnapshot.docs.length < pageSize) {
+        hasMore.value = false;
+      }
+
+      final newProducts = querySnapshot.docs.map((doc) => Product.fromMap(doc.data() as Map<String, dynamic>)).toList();
+      
+      for (var p in newProducts) {
+        if (!allProducts.any((existing) => existing.id == p.id)) {
+          allProducts.add(p);
+        }
       }
 
       _filterProducts();
@@ -68,7 +102,11 @@ class StockAvailabilityController extends GetxController {
         colorText: Colors.white,
       );
     } finally {
-      isLoading.value = false;
+      if (isLoadMore) {
+        isFetchingNextPage.value = false;
+      } else {
+        isLoading.value = false;
+      }
     }
   }
 }
