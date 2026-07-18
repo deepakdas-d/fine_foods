@@ -9,6 +9,23 @@ class SalesGrowthController extends GetxController {
   var productSales = <ProductSalesData>[].obs;
   var selectedFilter = 'This Month'.obs;
 
+  // Client-side display pagination (doesn't affect dashboard analytics)
+  static const int displayPageSize = 20;
+  final displayCount = 20.obs;
+
+  List<ProductSalesData> get displayedProducts {
+    if (displayCount.value >= productSales.length) return productSales;
+    return productSales.sublist(0, displayCount.value);
+  }
+
+  bool get hasMoreToDisplay => displayCount.value < productSales.length;
+
+  void loadMoreDisplay() {
+    if (!hasMoreToDisplay) return;
+    displayCount.value = (displayCount.value + displayPageSize)
+        .clamp(0, productSales.length);
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -17,6 +34,7 @@ class SalesGrowthController extends GetxController {
 
   void changeFilter(String newFilter) {
     selectedFilter.value = newFilter;
+    displayCount.value = displayPageSize;
     fetchSalesData();
   }
 
@@ -106,6 +124,7 @@ class SalesGrowthController extends GetxController {
       });
 
       productSales.assignAll(mergedList);
+      displayCount.value = displayPageSize.clamp(0, mergedList.length);
     } catch (e) {
       Get.log("Error fetching sales data: $e");
     } finally {

@@ -13,6 +13,12 @@ class InvoiceController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxDouble totalAmount = 0.0.obs;
   final RxString selectedCollection = 'inventory'.obs; // Default to inventory
+  final RxInt totalProductCount = 0.obs;
+
+  DocumentSnapshot? lastDocument;
+  final hasMore = true.obs;
+  final isFetchingNextPage = false.obs;
+  static const int pageSize = 20;
 
   var _lastSnackTime = DateTime.now();
 
@@ -22,18 +28,50 @@ class InvoiceController extends GetxController {
     loadProducts();
   }
 
-  void loadProducts() async {
-    try {
+  void loadProducts({bool isLoadMore = false}) async {
+    if (isLoadMore) {
+      if (isFetchingNextPage.value || !hasMore.value) return;
+      isFetchingNextPage.value = true;
+    } else {
+      if (isLoading.value) return;
       isLoading.value = true;
-      final querySnapshot = await _firestore
+      lastDocument = null;
+      hasMore.value = true;
+      products.clear();
+
+      // Fetch total count for accurate display
+      final countQuery = await _firestore
+          .collection(selectedCollection.value)
+          .count()
+          .get();
+      totalProductCount.value = countQuery.count ?? 0;
+    }
+
+    try {
+      Query query = _firestore
           .collection(selectedCollection.value)
           .orderBy('createdAt', descending: true)
-          .get();
+          .limit(pageSize);
 
-      products.clear();
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument!);
+      }
+
+      final querySnapshot = await query.get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        lastDocument = querySnapshot.docs.last;
+      }
+
+      if (querySnapshot.docs.length < pageSize) {
+        hasMore.value = false;
+      }
+
       for (var doc in querySnapshot.docs) {
-        final product = Product.fromMap(doc.data());
-        products.add(product);
+        final product = Product.fromMap(doc.data() as Map<String, dynamic>);
+        if (!products.any((existing) => existing.id == product.id)) {
+          products.add(product);
+        }
       }
 
       calculateTotal();
@@ -45,7 +83,11 @@ class InvoiceController extends GetxController {
         colorText: Colors.white,
       );
     } finally {
-      isLoading.value = false;
+      if (isLoadMore) {
+        isFetchingNextPage.value = false;
+      } else {
+        isLoading.value = false;
+      }
     }
   }
 
@@ -117,3 +159,4 @@ class InvoiceController extends GetxController {
     );
   }
 }
+

@@ -37,301 +37,338 @@ class InvoiceGenerator extends StatelessWidget {
       body: Obx(
         () => controller.isLoading.value
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: EdgeInsets.all(screenHeight * 0.020),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Collection Selector
-                    Card(
-                      elevation: 4,
-                      color: AppColor.surface,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Select Source',
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                                color: AppColor.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            DropdownButtonFormField<String>(
-                              initialValue: controller.selectedCollection.value,
-                              decoration: InputDecoration(
-                                labelText: 'Collection',
-                                labelStyle: GoogleFonts.poppins(
-                                  color: AppColor.textSecondary,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                    color: AppColor.textSecondary,
-                                  ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                    color: AppColor.textSecondary,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                    color: AppColor.primary,
-                                  ),
-                                ),
-                                prefixIcon: const Icon(
-                                  Icons.category,
+            : NotificationListener<ScrollNotification>(
+                onNotification: (scrollInfo) {
+                  if (scrollInfo is ScrollUpdateNotification &&
+                      scrollInfo.metrics.pixels >=
+                          scrollInfo.metrics.maxScrollExtent - 200 &&
+                      !controller.isFetchingNextPage.value &&
+                      controller.hasMore.value) {
+                    controller.loadProducts(isLoadMore: true);
+                  }
+                  return false;
+                },
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(screenHeight * 0.020),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Collection Selector
+                      Card(
+                        elevation: 4,
+                        color: AppColor.surface,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Select Source',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20,
                                   color: AppColor.primary,
                                 ),
-                                filled: true,
-                                fillColor: AppColor.background,
                               ),
-                              dropdownColor: AppColor.surface,
-                              style: GoogleFonts.poppins(
-                                color: AppColor.textPrimary,
-                              ),
-                              items: ['inventory', 'products'].map((
-                                String collection,
-                              ) {
-                                return DropdownMenuItem<String>(
-                                  value: collection,
-                                  child: Text(
-                                    collection.capitalizeFirst!,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      color: AppColor.textPrimary,
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                initialValue: controller.selectedCollection.value,
+                                decoration: InputDecoration(
+                                  labelText: 'Collection',
+                                  labelStyle: GoogleFonts.poppins(
+                                    color: AppColor.textSecondary,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(
+                                      color: AppColor.textSecondary,
                                     ),
                                   ),
-                                );
-                              }).toList(),
-                              onChanged: (value) {
-                                if (value != null) {
-                                  controller.selectedCollection.value = value;
-                                  controller.loadProducts();
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Products List
-                    Card(
-                      elevation: 4,
-                      color: AppColor.surface,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Products (${controller.products.length})',
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(
+                                      color: AppColor.textSecondary,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(
+                                      color: AppColor.primary,
+                                    ),
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.category,
                                     color: AppColor.primary,
                                   ),
+                                  filled: true,
+                                  fillColor: AppColor.background,
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            controller.products.isEmpty
-                                ? Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(32.0),
-                                      child: Text(
-                                        'No products available',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 16,
-                                          color: AppColor.textSecondary,
-                                        ),
+                                dropdownColor: AppColor.surface,
+                                style: GoogleFonts.poppins(
+                                  color: AppColor.textPrimary,
+                                ),
+                                items: ['inventory', 'products'].map((
+                                  String collection,
+                                ) {
+                                  return DropdownMenuItem<String>(
+                                    value: collection,
+                                    child: Text(
+                                      collection.capitalizeFirst!,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        color: AppColor.textPrimary,
                                       ),
                                     ),
-                                  )
-                                : ListView.builder(
-                                    shrinkWrap: true,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    itemCount: controller.products.length,
-                                    itemBuilder: (context, index) {
-                                      final product =
-                                          controller.products[index];
-                                      return Card(
-                                        margin: const EdgeInsets.symmetric(
-                                          vertical: 4,
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    controller.selectedCollection.value = value;
+                                    controller.loadProducts();
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Products List
+                      Card(
+                        elevation: 4,
+                        color: AppColor.surface,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Products (${controller.products.length} of ${controller.totalProductCount.value})',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 20,
+                                      color: AppColor.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              controller.products.isEmpty
+                                  ? Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(32.0),
+                                        child: Text(
+                                          'No products available',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 16,
+                                            color: AppColor.textSecondary,
+                                          ),
                                         ),
-                                        color: AppColor.background,
-                                        child: Material(
-                                          color: Colors.transparent,
-                                          child: ListTile(
-                                            leading: CircleAvatar(
-                                              backgroundColor: AppColor.primary
-                                                  .withValues(alpha: 0.2),
-                                              child: Text(
-                                                product.name[0].toUpperCase(),
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      itemCount: controller.products.length,
+                                      itemBuilder: (context, index) {
+                                        final product =
+                                            controller.products[index];
+                                        return Card(
+                                          margin: const EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
+                                          color: AppColor.background,
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: ListTile(
+                                              leading: CircleAvatar(
+                                                backgroundColor: AppColor.primary
+                                                    .withValues(alpha: 0.2),
+                                                child: Text(
+                                                  product.name[0].toUpperCase(),
+                                                  style: GoogleFonts.poppins(
+                                                    color: AppColor.primary,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                              title: Text(
+                                                product.name,
                                                 style: GoogleFonts.poppins(
-                                                  color: AppColor.primary,
                                                   fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                  color: AppColor.textPrimary,
+                                                ),
+                                              ),
+                                              subtitle: Text(
+                                                'Qty: ${product.count} ${product.quantityType} × ₹${product.price.toStringAsFixed(2)}',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 14,
+                                                  color: AppColor.textSecondary,
+                                                ),
+                                              ),
+                                              trailing: Text(
+                                                '₹${product.totalPrice.toStringAsFixed(2)}',
+                                                style: GoogleFonts.poppins(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                  color: AppColor.textPrimary,
                                                 ),
                                               ),
                                             ),
-                                            title: Text(
-                                              product.name,
-                                              style: GoogleFonts.poppins(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                                color: AppColor.textPrimary,
-                                              ),
-                                            ),
-                                            subtitle: Text(
-                                              'Qty: ${product.count} ${product.quantityType} × ₹${product.price.toStringAsFixed(2)}',
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 14,
-                                                color: AppColor.textSecondary,
-                                              ),
-                                            ),
-                                            trailing: Text(
-                                              '₹${product.totalPrice.toStringAsFixed(2)}',
-                                              style: GoogleFonts.poppins(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                                color: AppColor.textPrimary,
-                                              ),
-                                            ),
                                           ),
-                                        ),
-                                      );
-                                    },
+                                        );
+                                      },
+                                    ),
+                              // Load more indicator
+                              if (controller.isFetchingNextPage.value)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
                                   ),
-                          ],
+                                ),
+                              if (!controller.hasMore.value &&
+                                  controller.products.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12.0,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'All products loaded',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        color: AppColor.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // Total and Generate Invoice Buttons
-                    Card(
-                      elevation: 4,
-                      color: AppColor.surface,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Total Amount:',
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: AppColor.textPrimary,
-                                  ),
-                                ),
-                                Text(
-                                  '₹${controller.totalAmount.value.toStringAsFixed(2)}',
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: AppColor.success,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed:
-                                        controller.products.isEmpty ||
-                                            controller
-                                                    .selectedCollection
-                                                    .value !=
-                                                'inventory'
-                                        ? null
-                                        : () => controller.generateInvoice(
-                                            'inventory',
-                                          ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColor.success,
-                                      foregroundColor: AppColor.textPrimary,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      disabledBackgroundColor: AppColor.success
-                                          .withValues(alpha: 0.3),
-                                    ),
-                                    child: Text(
-                                      'Generate from Inventory',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor
-                                            .textOnPrimary, // Assuming white/black on success? white is safe
-                                      ),
+                      // Total and Generate Invoice Buttons
+                      Card(
+                        elevation: 4,
+                        color: AppColor.surface,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Total Amount (${controller.products.length} of ${controller.totalProductCount.value} items):',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: AppColor.textPrimary,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed:
-                                        controller.products.isEmpty ||
-                                            controller
-                                                    .selectedCollection
-                                                    .value !=
-                                                'products'
-                                        ? null
-                                        : () => controller.generateInvoice(
-                                            'products',
-                                          ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColor.primary,
-                                      foregroundColor: AppColor.background,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      disabledBackgroundColor: AppColor.primary
-                                          .withValues(alpha: 0.3),
+                                  Text(
+                                    '₹${controller.totalAmount.value.toStringAsFixed(2)}',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: AppColor.success,
                                     ),
-                                    child: Text(
-                                      'Generate from Products',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColor.background,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed:
+                                          controller.products.isEmpty ||
+                                              controller
+                                                      .selectedCollection
+                                                      .value !=
+                                                  'inventory'
+                                          ? null
+                                          : () => controller.generateInvoice(
+                                              'inventory',
+                                            ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColor.success,
+                                        foregroundColor: AppColor.textPrimary,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        disabledBackgroundColor: AppColor.success
+                                            .withValues(alpha: 0.3),
+                                      ),
+                                      child: Text(
+                                        'Generate from Inventory',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColor
+                                              .textOnPrimary, // Assuming white/black on success? white is safe
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed:
+                                          controller.products.isEmpty ||
+                                              controller
+                                                      .selectedCollection
+                                                      .value !=
+                                                  'products'
+                                          ? null
+                                          : () => controller.generateInvoice(
+                                              'products',
+                                            ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColor.primary,
+                                        foregroundColor: AppColor.background,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        disabledBackgroundColor: AppColor.primary
+                                            .withValues(alpha: 0.3),
+                                      ),
+                                      child: Text(
+                                        'Generate from Products',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColor.background,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
       ),
     );
   }
 }
+

@@ -63,30 +63,30 @@ class SalesGrowth extends StatelessWidget {
           const SizedBox(width: 16),
         ],
       ),
-      body: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Obx(() {
+            if (controller.isLoading.value) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-        if (controller.productSales.isEmpty) {
-          return Center(
-            child: Text(
-              "No sales data available.",
-              style: GoogleFonts.poppins(color: AppColor.textSecondary),
-            ),
-          );
-        }
+            if (controller.productSales.isEmpty) {
+              return Center(
+                child: Text(
+                  "No sales data available.",
+                  style: GoogleFonts.poppins(color: AppColor.textSecondary),
+                ),
+              );
+            }
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
             if (constraints.maxWidth > 600) {
               return _buildDesktopTable(controller, context);
             } else {
               return _buildMobileList(controller, context);
             }
-          },
-        );
-      }),
+          });
+        },
+      ),
     );
   }
 
@@ -119,7 +119,7 @@ class SalesGrowth extends StatelessWidget {
                 ],
               ),
             ),
-            ...controller.productSales.asMap().entries.map((entryMap) {
+            ...controller.displayedProducts.asMap().entries.map((entryMap) {
               int idx = entryMap.key;
               var entry = entryMap.value;
               return Material(
@@ -154,6 +154,39 @@ class SalesGrowth extends StatelessWidget {
                 ),
               );
             }),
+            // Load More button or "All loaded" text
+            if (controller.hasMoreToDisplay)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                child: Center(
+                  child: TextButton.icon(
+                    onPressed: () => controller.loadMoreDisplay(),
+                    icon: const Icon(Icons.expand_more, color: AppColor.primary),
+                    label: Text(
+                      'Load More (${controller.displayedProducts.length} of ${controller.productSales.length})',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: AppColor.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            if (!controller.hasMoreToDisplay &&
+                controller.productSales.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                child: Center(
+                  child: Text(
+                    'All ${controller.productSales.length} items loaded',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: AppColor.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -163,11 +196,46 @@ class SalesGrowth extends StatelessWidget {
   Widget _buildMobileList(SalesGrowthController controller, BuildContext context) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: controller.productSales.length,
+      itemCount: controller.displayedProducts.length +
+          (controller.hasMoreToDisplay ? 1 : (controller.productSales.isNotEmpty ? 1 : 0)),
       itemBuilder: (context, index) {
-        final entry = controller.productSales[index];
+        if (index >= controller.displayedProducts.length) {
+          if (controller.hasMoreToDisplay) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Center(
+                child: TextButton.icon(
+                  onPressed: () => controller.loadMoreDisplay(),
+                  icon: const Icon(Icons.expand_more, color: AppColor.primary),
+                  label: Text(
+                    'Load More (${controller.displayedProducts.length} of ${controller.productSales.length})',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: AppColor.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          } else {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: Center(
+                child: Text(
+                  'All ${controller.productSales.length} items loaded',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: AppColor.textSecondary,
+                  ),
+                ),
+              ),
+            );
+          }
+        }
+        final entry = controller.displayedProducts[index];
         bool isLow = entry.remainingQty < 10;
-        
+      
         return Card(
           color: AppColor.surface,
           margin: const EdgeInsets.only(bottom: 12),

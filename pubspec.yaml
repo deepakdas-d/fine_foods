@@ -85,6 +85,7 @@ msix_config:
   publisher: CN=F9B34059-13E3-48E0-B232-0ABC94423C59
   logo_path: assets/images/logo.png
   capabilities: internetClient, bluetooth, location
+  store: true
 
 flutter:
   uses-material-design: true
