@@ -3,7 +3,7 @@ description: "A new Flutter project."
 
 publish_to: "none"
 
-version: 1.0.0+2
+version: 1.0.0+3
 
 environment:
   sdk: ^3.8.1
@@ -81,7 +81,7 @@ msix_config:
   display_name: Fine Foods POS
   publisher_display_name: Deepak Das
   identity_name: DeepakDas.FineFoodsPOS
-  msix_version: 1.0.1.0
+  msix_version: 1.0.2.0
   publisher: CN=F9B34059-13E3-48E0-B232-0ABC94423C59
   logo_path: assets/images/logo.png
   capabilities: internetClient, bluetooth, location

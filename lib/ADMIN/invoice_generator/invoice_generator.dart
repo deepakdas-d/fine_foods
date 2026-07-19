@@ -72,7 +72,8 @@ class InvoiceGenerator extends StatelessWidget {
                               ),
                               const SizedBox(height: 12),
                               DropdownButtonFormField<String>(
-                                initialValue: controller.selectedCollection.value,
+                                initialValue:
+                                    controller.selectedCollection.value,
                                 decoration: InputDecoration(
                                   labelText: 'Collection',
                                   labelStyle: GoogleFonts.poppins(
@@ -144,7 +145,8 @@ class InvoiceGenerator extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'Products (${controller.products.length} of ${controller.totalProductCount.value})',
@@ -187,7 +189,8 @@ class InvoiceGenerator extends StatelessWidget {
                                             color: Colors.transparent,
                                             child: ListTile(
                                               leading: CircleAvatar(
-                                                backgroundColor: AppColor.primary
+                                                backgroundColor: AppColor
+                                                    .primary
                                                     .withValues(alpha: 0.2),
                                                 child: Text(
                                                   product.name[0].toUpperCase(),
@@ -264,22 +267,33 @@ class InvoiceGenerator extends StatelessWidget {
                           child: Column(
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'Total Amount (${controller.products.length} of ${controller.totalProductCount.value} items):',
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                      color: AppColor.textPrimary,
+                                  Expanded(
+                                    child: Text(
+                                      'Total Amount (${controller.products.length} of ${controller.totalProductCount.value} items):',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: AppColor.textPrimary,
+                                      ),
                                     ),
                                   ),
-                                  Text(
-                                    '₹${controller.totalAmount.value.toStringAsFixed(2)}',
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                      color: AppColor.success,
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerRight,
+                                      child: Text(
+                                        '₹${controller.totalAmount.value.toStringAsFixed(2)}',
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                          color: AppColor.success,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -306,9 +320,12 @@ class InvoiceGenerator extends StatelessWidget {
                                           vertical: 12,
                                         ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
-                                        disabledBackgroundColor: AppColor.success
+                                        disabledBackgroundColor: AppColor
+                                            .success
                                             .withValues(alpha: 0.3),
                                       ),
                                       child: Text(
@@ -342,9 +359,12 @@ class InvoiceGenerator extends StatelessWidget {
                                           vertical: 12,
                                         ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
-                                        disabledBackgroundColor: AppColor.primary
+                                        disabledBackgroundColor: AppColor
+                                            .primary
                                             .withValues(alpha: 0.3),
                                       ),
                                       child: Text(
@@ -371,4 +391,3 @@ class InvoiceGenerator extends StatelessWidget {
     );
   }
 }
-

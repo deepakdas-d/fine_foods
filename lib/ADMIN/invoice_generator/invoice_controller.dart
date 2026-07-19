@@ -110,6 +110,7 @@ class InvoiceController extends GetxController {
         products: products.toList(),
         createdAt: DateTime.now(),
         totalAmount: totalAmount.value,
+        sourceCollection: collection,
       );
 
       // Save invoice to Firebase

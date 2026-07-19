@@ -21,7 +21,7 @@ class InvoiceViewPage extends StatelessWidget {
       backgroundColor: AppColor.background,
       appBar: AppBar(
         title: Text(
-          'Invoice View',
+          '${invoice.displayTitle} Invoice',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
             color: AppColor.background,
@@ -47,7 +47,7 @@ class InvoiceViewPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'INVOICE',
+                          invoice.displayTitle.toUpperCase(),
                           style: GoogleFonts.poppins(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
@@ -95,7 +95,7 @@ class InvoiceViewPage extends StatelessWidget {
 
               // Products Table
               Text(
-                'Products',
+                invoice.displayTitle,
                 style: GoogleFonts.poppins(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -214,7 +214,7 @@ class InvoiceViewPage extends StatelessWidget {
                       );
                       await controller.downloadInvoicePdf(
                         pdfBytes,
-                        'invoice_${invoice.createdAt}.pdf',
+                        '${invoice.displayTitle.replaceAll(' ', '_').toLowerCase()}_${invoice.createdAt}.pdf',
                       );
                       Get.snackbar(
                         'Download Complete',

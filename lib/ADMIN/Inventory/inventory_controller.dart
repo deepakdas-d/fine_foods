@@ -5,15 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:async';
 import 'package:uuid/uuid.dart';
+
 class InventoryController extends GetxController {
   final _firestore = FirebaseFirestore.instance;
   final _uuid = Uuid();
   final products = <Product>[].obs;
-  final allProducts = <Product>[]; // Store all products for client-side filtering
+  final allProducts =
+      <Product>[]; // Store all products for client-side filtering
   final isLoading = false.obs;
-  
+
   final tableKey = GlobalKey<PaginatedDataTableState>();
-  
+
   final total = 0.0.obs;
   final productNameController = TextEditingController();
   final productCountController = TextEditingController();
@@ -22,7 +24,7 @@ class InventoryController extends GetxController {
   final quantityType = 'Nos'.obs; // Added quantityType observable
   final cardDiscountExcluded = false.obs;
   final formKey = GlobalKey<FormState>();
-  
+
   final isSelectionMode = false.obs;
   final selectedProducts = <String>{}.obs;
 
@@ -46,7 +48,7 @@ class InventoryController extends GetxController {
         allProducts.where((p) => p.name.toLowerCase().contains(q)).toList(),
       );
     }
-    calculateTotal();
+    // Overall total is fetched via fetchOverallTotal(), not recalculated locally
   }
 
   @override
@@ -55,8 +57,20 @@ class InventoryController extends GetxController {
     loadInventory();
   }
 
-  void calculateTotal() {
-    total.value = products.fold(0, (sumValue, product) => sumValue + product.totalPrice);
+  Future<void> fetchOverallTotal() async {
+    try {
+      final allDocs = await _firestore.collection('inventory').get();
+      double calculatedTotal = 0.0;
+      for (var doc in allDocs.docs) {
+        final data = doc.data();
+        final qty = (data['count'] as num?)?.toInt() ?? 0;
+        final price = (data['price'] as num?)?.toDouble() ?? 0.0;
+        calculatedTotal += qty * price;
+      }
+      total.value = calculatedTotal;
+    } catch (e) {
+      debugPrint('Error fetching overall total: $e');
+    }
   }
 
   void toggleSelectionMode() {
@@ -79,11 +93,11 @@ class InventoryController extends GetxController {
 
   void deleteSelectedProducts() async {
     if (selectedProducts.isEmpty) return;
-    
+
     try {
       isLoading.value = true;
       final productIds = selectedProducts.toList();
-      
+
       // Batch limit is 500 operations, 2 per product = 250 products max per batch
       for (var i = 0; i < productIds.length; i += 250) {
         final batch = _firestore.batch();
@@ -94,10 +108,10 @@ class InventoryController extends GetxController {
         }
         await batch.commit();
       }
-      
+
       allProducts.removeWhere((p) => selectedProducts.contains(p.id));
       _filterProducts();
-      
+
       isSelectionMode.value = false;
       selectedProducts.clear();
       showToast('Selected products removed successfully', Colors.green);
@@ -174,7 +188,7 @@ class InventoryController extends GetxController {
       // Additional safety check against Firebase to prevent concurrent duplicates
       String barcode = productIdController.text;
       bool isUniqueInDb = false;
-      
+
       while (!isUniqueInDb) {
         final existingDoc = await _firestore
             .collection('products')
@@ -188,7 +202,7 @@ class InventoryController extends GetxController {
           do {
             barcode = (100000 + Random().nextInt(900000)).toString();
           } while (products.any((p) => p.productId == barcode));
-          
+
           productIdController.text = barcode; // Update UI just in case
         }
       }
@@ -233,18 +247,18 @@ class InventoryController extends GetxController {
 
     try {
       isLoading.value = true;
-      
+
       final existingProductIndex = products.indexWhere((p) => p.id == id);
       if (existingProductIndex == -1) return;
       final existingProduct = products[existingProductIndex];
-      
+
       String newBarcode = productIdController.text;
       if (newBarcode != existingProduct.productId) {
         final existingDoc = await _firestore
             .collection('products')
             .where('productId', isEqualTo: newBarcode)
             .get();
-            
+
         if (existingDoc.docs.isNotEmpty) {
           showToast('Barcode already exists for another product!', Colors.red);
           isLoading.value = false;
@@ -264,8 +278,14 @@ class InventoryController extends GetxController {
       );
 
       await Future.wait([
-        _firestore.collection('products').doc(id).update(updatedProduct.toMap()),
-        _firestore.collection('inventory').doc(id).update(updatedProduct.toMap()),
+        _firestore
+            .collection('products')
+            .doc(id)
+            .update(updatedProduct.toMap()),
+        _firestore
+            .collection('inventory')
+            .doc(id)
+            .update(updatedProduct.toMap()),
       ]);
 
       final allIndex = allProducts.indexWhere((p) => p.id == id);
@@ -320,6 +340,7 @@ class InventoryController extends GetxController {
       hasMore.value = true;
       allProducts.clear();
       products.clear();
+      fetchOverallTotal();
     }
 
     try {
@@ -342,8 +363,10 @@ class InventoryController extends GetxController {
         hasMore.value = false;
       }
 
-      final newProducts = querySnapshot.docs.map((doc) => Product.fromMap(doc.data() as Map<String, dynamic>)).toList();
-      
+      final newProducts = querySnapshot.docs
+          .map((doc) => Product.fromMap(doc.data() as Map<String, dynamic>))
+          .toList();
+
       for (var p in newProducts) {
         if (!allProducts.any((existing) => existing.id == p.id)) {
           allProducts.add(p);

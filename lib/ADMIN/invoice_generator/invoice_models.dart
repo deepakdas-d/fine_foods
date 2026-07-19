@@ -5,13 +5,19 @@ class Invoice {
   final List<Product> products;
   final DateTime createdAt;
   final double totalAmount;
+  final String sourceCollection;
 
   Invoice({
     required this.id,
     required this.products,
     required this.createdAt,
     required this.totalAmount,
+    this.sourceCollection = 'inventory',
   });
+
+  /// Returns a display-friendly title based on the source collection.
+  String get displayTitle =>
+      sourceCollection == 'inventory' ? 'Inventory' : 'Stocks Availability';
 
   Map<String, dynamic> toMap() {
     return {
@@ -19,6 +25,7 @@ class Invoice {
       'products': products.map((p) => p.toMap()).toList(),
       'createdAt': createdAt.toIso8601String(),
       'totalAmount': totalAmount,
+      'sourceCollection': sourceCollection,
     };
   }
 }

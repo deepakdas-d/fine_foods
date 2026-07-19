@@ -15,7 +15,7 @@ class SalesGrowth extends StatelessWidget {
       backgroundColor: AppColor.background,
       appBar: AppBar(
         title: Text(
-          "Sales Growth",
+          "Sale Growth",
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
             color: AppColor.background,
