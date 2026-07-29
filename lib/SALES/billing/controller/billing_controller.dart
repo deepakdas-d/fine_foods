@@ -41,6 +41,10 @@ class BillingController extends GetxController {
   final ScrollController scrollController = ScrollController();
   final RxList<Map<String, dynamic>> allCustomers = <Map<String, dynamic>>[].obs;
 
+  /// All products fetched so far (used for client-side numeric search)
+  final RxList<Product> _allProductsCache = <Product>[].obs;
+  bool _allProductsFetched = false;
+
   @override
   void onInit() {
     super.onInit();
@@ -62,15 +66,75 @@ class BillingController extends GetxController {
 
   void _onScroll() {
     if (scrollController.position.pixels >= scrollController.position.maxScrollExtent - 200) {
-      fetchProducts();
+      // Only paginate when there is no active search query (browse mode)
+      if (searchQuery.value.trim().isEmpty) {
+        fetchProducts();
+      }
+    }
+  }
+
+  /// Fetches ALL products from Firestore into _allProductsCache (one-time).
+  Future<void> _ensureAllProductsCached() async {
+    if (_allProductsFetched) return;
+    try {
+      final snapshot = await _firestore.collection('products').orderBy('name').get();
+      _allProductsCache.assignAll(
+        snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList(),
+      );
+      // Also update the main products list
+      for (var item in _allProductsCache) {
+        if (!products.any((p) => p.id == item.id)) {
+          products.add(item);
+        }
+      }
+      _allProductsFetched = true;
+    } catch (e) {
+      developer.log('Failed to fetch all products for cache: $e');
+    }
+  }
+
+  /// Client-side search across name, price, and productId.
+  Future<void> _searchClientSide(String query) async {
+    try {
+      await _ensureAllProductsCached();
+
+      final trimmed = query.trim();
+      final lowerQuery = trimmed.toLowerCase();
+      final numericValue = double.tryParse(trimmed);
+
+      filteredProducts.assignAll(
+        _allProductsCache.where((product) {
+          // Match by name (case-insensitive substring / full match)
+          if (product.name.toLowerCase().contains(lowerQuery)) return true;
+          // Match by exact price
+          if (numericValue != null && product.price == numericValue) return true;
+          // Match by productId prefix
+          if (product.productId.startsWith(trimmed)) return true;
+          return false;
+        }).toList(),
+      );
+
+      hasMore.value = false; // no pagination for client-side results
+    } catch (e) {
+      developer.log('Failed client-side search: $e');
+    } finally {
+      isLoading.value = false;
+      isFetchingMore.value = false;
     }
   }
 
   Future<void> fetchProducts({bool refresh = false}) async {
+    // If there's an active search query, use client-side search for all fields
+    if (searchQuery.value.trim().isNotEmpty) {
+      if (refresh) filteredProducts.clear();
+      await _searchClientSide(searchQuery.value);
+      return;
+    }
+
+    // No search query → paginated Firestore browse
     if (refresh) {
       lastDocument = null;
       hasMore.value = true;
-      // Do not clear filteredProducts or set isLoading = true here to prevent UI blink during search
     }
 
     if (!hasMore.value || (isFetchingMore.value && !refresh)) return;
@@ -78,18 +142,7 @@ class BillingController extends GetxController {
     if (!refresh) isFetchingMore.value = true;
 
     try {
-      Query query = _firestore.collection('products').orderBy('name');
-
-      if (searchQuery.value.trim().isNotEmpty) {
-        String searchPrefix = searchQuery.value.trim();
-        // Capitalize the first letter to match Firestore's case-sensitive strings
-        searchPrefix = searchPrefix[0].toUpperCase() + searchPrefix.substring(1).toLowerCase();
-        
-        query = query.where('name', isGreaterThanOrEqualTo: searchPrefix)
-                     .where('name', isLessThanOrEqualTo: '$searchPrefix\uf8ff');
-      }
-
-      query = query.limit(20);
+      Query query = _firestore.collection('products').orderBy('name').limit(20);
 
       if (lastDocument != null) {
         query = query.startAfterDocument(lastDocument!);

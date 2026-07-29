@@ -18,7 +18,7 @@ class CustomerView extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E2329),
         title: Text(
-          'Customers',
+          'Our Customers',
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.w600,
