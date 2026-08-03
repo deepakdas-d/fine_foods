@@ -574,7 +574,8 @@ class Inventory extends StatelessWidget {
                 rowsPerPage: InventoryController.pageSize,
                 availableRowsPerPage: const [InventoryController.pageSize],
                 onPageChanged: (firstRowIndex) {
-                  if (firstRowIndex + InventoryController.pageSize >=
+                  if (controller.searchQuery.value.isEmpty &&
+                      firstRowIndex + InventoryController.pageSize >=
                           controller.products.length &&
                       controller.hasMore.value) {
                     controller.loadInventory(isLoadMore: true);
@@ -1176,11 +1177,11 @@ class ProductDataSource extends DataTableSource {
   }
 
   @override
-  bool get isRowCountApproximate => controller.hasMore.value;
+  bool get isRowCountApproximate => controller.searchQuery.value.isEmpty && controller.hasMore.value;
 
   @override
   int get rowCount =>
-      controller.products.length + (controller.hasMore.value ? 1 : 0);
+      controller.products.length + (controller.searchQuery.value.isEmpty && controller.hasMore.value ? 1 : 0);
 
   @override
   int get selectedRowCount => 0;

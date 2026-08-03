@@ -18,6 +18,9 @@ class BillingController extends GetxController {
   final customerName = TextEditingController();
   TextEditingController customerPhone = TextEditingController();
   var customerDiscount = ''.obs;
+  final discountController = TextEditingController();
+  /// Incrementing this forces the Autocomplete widget to rebuild with a fresh controller.
+  final RxInt autocompleteKey = 0.obs;
   var cardDiscountPercent = 0.0.obs;
   var cardTierUsed = RxnString();
   final RxList<Map<String, dynamic>> foundCustomers = <Map<String, dynamic>>[].obs;
@@ -241,10 +244,12 @@ class BillingController extends GetxController {
     selectedProducts.clear();
     customPrices.clear();
     customerName.clear();
-    customerPhone.clear();
     customerDiscount.value = '';
+    discountController.clear();
     cardDiscountPercent.value = 0.0;
     cardTierUsed.value = null;
+    // Increment key to force Autocomplete widget to rebuild with a fresh controller
+    autocompleteKey.value++;
   }
 
   Future<void> searchCustomerByPhone(String phone) async {
@@ -856,7 +861,7 @@ class BillingController extends GetxController {
   @override
   void onClose() {
     customerName.dispose();
-    customerPhone.dispose();
+    discountController.dispose();
     scrollController.dispose();
     _debounce?.cancel();
     _customersSub?.cancel();

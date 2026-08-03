@@ -337,15 +337,17 @@ class BillingScreen extends StatelessWidget {
     );
   });
 
-  Widget _buildCartSidebar() => Container(
-    width: 350,
-    decoration: BoxDecoration(
-      color: AppColor.surface,
-      boxShadow: [
-        BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10),
-      ],
+  Widget _buildCartSidebar() => Expanded(
+    flex: 2,
+    child: Container(
+      decoration: BoxDecoration(
+        color: AppColor.surface,
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10),
+        ],
+      ),
+      child: _buildCartContent(),
     ),
-    child: _buildCartContent(),
   );
 
   Widget _buildCartContent() => Column(
@@ -549,14 +551,21 @@ class BillingScreen extends StatelessWidget {
           children: [
             // Discount
             TextFormField(
-              initialValue: controller.customerDiscount.value.isEmpty
-                  ? null
-                  : controller.customerDiscount.value,
+              controller: controller.discountController,
               onChanged: (v) => controller.customerDiscount.value = v,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 labelText: 'Discount (₹)',
                 prefixIcon: const Icon(Icons.discount_outlined, size: 20),
+                suffixIcon: controller.discountController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          controller.discountController.clear();
+                          controller.customerDiscount.value = '';
+                        },
+                      )
+                    : null,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 border: OutlineInputBorder(
@@ -570,77 +579,92 @@ class BillingScreen extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Autocomplete<Map<String, dynamic>>(
-                    optionsBuilder: (TextEditingValue textEditingValue) {
-                      if (textEditingValue.text.length < 3) {
-                        return const Iterable<Map<String, dynamic>>.empty();
-                      }
-                      return controller.allCustomers.where((customer) {
-                        final phone = customer['phone'] as String? ?? '';
-                        return phone.contains(textEditingValue.text);
-                      });
-                    },
-                    displayStringForOption: (option) => option['phone'] ?? '',
-                    onSelected: (Map<String, dynamic> selection) {
-                      controller.customerPhone.text = selection['phone'] ?? '';
-                      controller.applySelectedCustomer(selection);
-                    },
-                    fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-                      // Use the Autocomplete's controller as the primary one to avoid listener memory leaks
-                      if (controller.customerPhone != textEditingController) {
+                  child: Obx(() {
+                    // Rebuild Autocomplete with a fresh key when cart is cleared
+                    final key = controller.autocompleteKey.value;
+                    return Autocomplete<Map<String, dynamic>>(
+                      key: ValueKey(key),
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        if (textEditingValue.text.length < 3) {
+                          return const Iterable<Map<String, dynamic>>.empty();
+                        }
+                        return controller.allCustomers.where((customer) {
+                          final phone = customer['phone'] as String? ?? '';
+                          return phone.contains(textEditingValue.text);
+                        });
+                      },
+                      displayStringForOption: (option) => option['phone'] ?? '',
+                      onSelected: (Map<String, dynamic> selection) {
+                        controller.customerPhone.text = selection['phone'] ?? '';
+                        controller.applySelectedCustomer(selection);
+                      },
+                      fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                        // Sync the Autocomplete's controller with the billing controller
                         controller.customerPhone = textEditingController;
-                      }
 
-                      return TextField(
-                        controller: textEditingController,
-                        focusNode: focusNode,
-                        keyboardType: TextInputType.phone,
-                        decoration: InputDecoration(
-                          labelText: 'Phone (Autocomplete)',
-                          prefixIcon: const Icon(Icons.phone_outlined, size: 18),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.search, size: 18, color: AppColor.primary),
-                            onPressed: () {
-                              controller.searchCustomerByPhone(textEditingController.text);
-                            },
-                          ),
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      );
-                    },
-                    optionsViewBuilder: (context, onSelected, options) {
-                      return Align(
-                        alignment: Alignment.topLeft,
-                        child: Material(
-                          elevation: 4.0,
-                          borderRadius: BorderRadius.circular(8),
-                          color: AppColor.surface,
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 200, maxWidth: 250),
-                            child: ListView.builder(
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              itemCount: options.length,
-                              itemBuilder: (BuildContext context, int index) {
-                                final option = options.elementAt(index);
-                                return ListTile(
-                                  title: Text(option['phone'] ?? '', style: const TextStyle(color: AppColor.textPrimary)),
-                                  subtitle: Text(option['name'] ?? '', style: const TextStyle(color: AppColor.textSecondary)),
-                                  onTap: () {
-                                    onSelected(option);
+                        return TextField(
+                          controller: textEditingController,
+                          focusNode: focusNode,
+                          keyboardType: TextInputType.phone,
+                          decoration: InputDecoration(
+                            labelText: 'Phone (Autocomplete)',
+                            prefixIcon: const Icon(Icons.phone_outlined, size: 18),
+                            suffixIcon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.clear, size: 18, color: Colors.grey),
+                                  onPressed: () {
+                                    textEditingController.clear();
+                                    controller.applySelectedCustomer(null);
                                   },
-                                );
-                              },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.search, size: 18, color: AppColor.primary),
+                                  onPressed: () {
+                                    controller.searchCustomerByPhone(textEditingController.text);
+                                  },
+                                ),
+                              ],
+                            ),
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4.0,
+                            borderRadius: BorderRadius.circular(8),
+                            color: AppColor.surface,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 200, maxWidth: 250),
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                itemBuilder: (BuildContext context, int index) {
+                                  final option = options.elementAt(index);
+                                  return ListTile(
+                                    title: Text(option['phone'] ?? '', style: const TextStyle(color: AppColor.textPrimary)),
+                                    subtitle: Text(option['name'] ?? '', style: const TextStyle(color: AppColor.textSecondary)),
+                                    onTap: () {
+                                      onSelected(option);
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }),
                 ),
                 const SizedBox(width: 8),
                 Expanded(

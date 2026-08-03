@@ -153,7 +153,7 @@ class Stocks extends StatelessWidget {
         rowsPerPage: StockAvailabilityController.pageSize,
         availableRowsPerPage: const [StockAvailabilityController.pageSize],
         onPageChanged: (firstRowIndex) {
-          if (firstRowIndex + StockAvailabilityController.pageSize >= controller.products.length && controller.hasMore.value) {
+          if (controller.searchQuery.value.isEmpty && firstRowIndex + StockAvailabilityController.pageSize >= controller.products.length && controller.hasMore.value) {
             controller.loadProducts(isLoadMore: true);
           }
         },
@@ -351,10 +351,10 @@ class StockDataSource extends DataTableSource {
   }
 
   @override
-  bool get isRowCountApproximate => controller.hasMore.value;
+  bool get isRowCountApproximate => controller.searchQuery.value.isEmpty && controller.hasMore.value;
 
   @override
-  int get rowCount => controller.products.length + (controller.hasMore.value ? 1 : 0);
+  int get rowCount => controller.products.length + (controller.searchQuery.value.isEmpty && controller.hasMore.value ? 1 : 0);
 
   @override
   int get selectedRowCount => 0;
