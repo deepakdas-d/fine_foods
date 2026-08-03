@@ -10,10 +10,12 @@ class StockAvailabilityController extends GetxController {
   final allProducts = <Product>[]; // Store paginated products for browse mode
   final isLoading = false.obs;
   final isSearching = false.obs;
+  final isCalculatingTotal = false.obs;
 
   /// One-time cache of ALL products for global search
   final List<Product> _allProductsCache = [];
   bool _allProductsFetched = false;
+  Future<void>? _cacheFuture;
 
   final tableKey = GlobalKey<PaginatedDataTableState>();
 
@@ -30,11 +32,21 @@ class StockAvailabilityController extends GetxController {
     });
   }
 
-  /// Fetches ALL products into cache on first search (one-time cost).
+  /// Fetches ALL products into cache (one-time cost).
   Future<void> _ensureAllProductsCached() async {
     if (_allProductsFetched) return;
+    if (_cacheFuture != null) {
+      await _cacheFuture;
+      return;
+    }
+
+    _cacheFuture = _fetchAndCacheAllProducts();
+    await _cacheFuture;
+    _cacheFuture = null;
+  }
+
+  Future<void> _fetchAndCacheAllProducts() async {
     try {
-      isSearching.value = true;
       final snapshot = await _firestore
           .collection('products')
           .orderBy('createdAt', descending: true)
@@ -55,8 +67,6 @@ class StockAvailabilityController extends GetxController {
       _allProductsFetched = true;
     } catch (e) {
       debugPrint('Error caching all products: $e');
-    } finally {
-      isSearching.value = false;
     }
   }
 
@@ -65,16 +75,20 @@ class StockAvailabilityController extends GetxController {
       products.assignAll(allProducts);
     } else {
       // Global search: cache all products first, then filter client-side
-      await _ensureAllProductsCached();
-      final q = searchQuery.value.toLowerCase();
-      products.assignAll(
-        _allProductsCache.where((p) =>
-          p.name.toLowerCase().contains(q) ||
-          p.productId.contains(q)
-        ).toList(),
-      );
+      isSearching.value = !_allProductsFetched;
+      try {
+        await _ensureAllProductsCached();
+        final q = searchQuery.value.toLowerCase();
+        products.assignAll(
+          _allProductsCache.where((p) =>
+            p.name.toLowerCase().contains(q) ||
+            p.productId.contains(q)
+          ).toList(),
+        );
+      } finally {
+        isSearching.value = false;
+      }
     }
-    // calculateTotal() is intentionally removed here so search doesn't override the overall database total
   }
 
   @override
@@ -85,6 +99,7 @@ class StockAvailabilityController extends GetxController {
 
   Future<void> fetchOverallTotal() async {
     try {
+      isCalculatingTotal.value = true;
       if (_allProductsFetched) {
         // Calculate from cache — no network call needed
         total.value = _allProductsCache.fold(
@@ -96,6 +111,8 @@ class StockAvailabilityController extends GetxController {
       }
     } catch (e) {
       debugPrint('Error fetching overall total: $e');
+    } finally {
+      isCalculatingTotal.value = false;
     }
   }
 
@@ -160,6 +177,8 @@ class StockAvailabilityController extends GetxController {
         isFetchingNextPage.value = false;
       } else {
         isLoading.value = false;
+        // After first page is loaded and displayed, asynchronously fetch total & warm cache in the background
+        fetchOverallTotal();
       }
     }
   }

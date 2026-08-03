@@ -47,8 +47,8 @@ class Stocks extends StatelessWidget {
                 children: [
                   Obx(
                     () {
-                      final isCalculating = controller.total.value == 0.0 &&
-                          (controller.isLoading.value || controller.isSearching.value);
+                      final isCalculating = controller.isCalculatingTotal.value ||
+                          (controller.total.value == 0.0 && controller.isLoading.value);
                       if (isCalculating) {
                         return const ShimmerTotalValue();
                       }

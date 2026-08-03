@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:fine_foods/appcolor.dart';
 import 'package:printing/printing.dart';
+import 'package:shimmer/shimmer.dart';
 
 class BillingScreen extends StatelessWidget {
   final controller = Get.put(BillingController());
@@ -28,15 +29,11 @@ class BillingScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColor.background,
       appBar: _buildAppBar(),
-      body: Obx(
-        () => controller.isLoading.value
-            ? const Center(child: CircularProgressIndicator())
-            : Row(
-                children: [
-                  _buildProductsArea(),
-                  if (isLargeScreen) _buildCartSidebar(),
-                ],
-              ),
+      body: Row(
+        children: [
+          _buildProductsArea(),
+          if (isLargeScreen) _buildCartSidebar(),
+        ],
       ),
       floatingActionButton: !isLargeScreen ? _buildFAB(context) : null,
     );
@@ -93,86 +90,141 @@ class BillingScreen extends StatelessWidget {
         _buildSearchBar(),
         Expanded(
           child: Obx(
-            () => controller.filteredProducts.isEmpty
-                ? RefreshIndicator(
-                    onRefresh: () => controller.fetchProducts(refresh: true),
-                    color: AppColor.primary,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
-                        SizedBox(height: 100),
-                        Center(
-                          child: Text(
-                            "No products found",
-                            style: TextStyle(fontSize: 18, color: Colors.grey),
-                          ),
+            () {
+              if (controller.isLoading.value || controller.isSearching.value) {
+                return _buildShimmerGrid();
+              }
+
+              if (controller.filteredProducts.isEmpty) {
+                return RefreshIndicator(
+                  onRefresh: () => controller.fetchProducts(refresh: true),
+                  color: AppColor.primary,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(height: 100),
+                      Center(
+                        child: Text(
+                          "No products found",
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
                         ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: () => controller.fetchProducts(refresh: true),
-                    color: AppColor.primary,
-                    child: GridView.builder(
-                      controller: controller.scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 350,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        mainAxisExtent: 260,
                       ),
-                      itemCount: controller.filteredProducts.length +
-                          (controller.isFetchingMore.value ? 4 : 0),
-                      itemBuilder: (context, index) {
-                        if (index >= controller.filteredProducts.length) {
-                          return _buildSkeletonCard();
-                        }
-                        return _buildProductCard(
-                          controller.filteredProducts[index],
-                        );
-                      },
-                    ),
+                    ],
                   ),
+                );
+              }
+
+              return RefreshIndicator(
+                onRefresh: () => controller.fetchProducts(refresh: true),
+                color: AppColor.primary,
+                child: GridView.builder(
+                  controller: controller.scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 350,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    mainAxisExtent: 260,
+                  ),
+                  itemCount: controller.filteredProducts.length +
+                      (controller.isFetchingMore.value ? 4 : 0),
+                  itemBuilder: (context, index) {
+                    if (index >= controller.filteredProducts.length) {
+                      return _buildSkeletonCard();
+                    }
+                    return _buildProductCard(
+                      controller.filteredProducts[index],
+                    );
+                  },
+                ),
+              );
+            },
           ),
         ),
       ],
     ),
   );
 
-  Widget _buildSkeletonCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColor.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColor.textSecondary.withValues(alpha: 0.1)),
-      ),
+  Widget _buildShimmerGrid() {
+    return GridView.builder(
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 60,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 350,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+        mainAxisExtent: 260,
+      ),
+      itemCount: 8,
+      itemBuilder: (context, index) => _buildSkeletonCard(),
+    );
+  }
+
+  Widget _buildSkeletonCard() {
+    return Shimmer.fromColors(
+      baseColor: AppColor.surface,
+      highlightColor: Colors.grey[700]!,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColor.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColor.textSecondary.withValues(alpha: 0.1)),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 60,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColor.surface,
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Container(height: 16, width: 120, color: Colors.grey.withValues(alpha: 0.2)),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(height: 16, width: 60, color: Colors.grey.withValues(alpha: 0.2)),
-              Container(height: 24, width: 60, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12))),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(height: 40, width: double.infinity, decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8))),
-        ],
+            const SizedBox(height: 12),
+            Container(
+              height: 16,
+              width: 120,
+              decoration: BoxDecoration(
+                color: AppColor.surface,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  height: 16,
+                  width: 60,
+                  decoration: BoxDecoration(
+                    color: AppColor.surface,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                Container(
+                  height: 24,
+                  width: 60,
+                  decoration: BoxDecoration(
+                    color: AppColor.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              height: 40,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColor.surface,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -186,13 +238,28 @@ class BillingScreen extends StatelessWidget {
         BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10),
       ],
     ),
-    child: TextField(
-      onChanged: controller.searchProducts,
-      decoration: const InputDecoration(
-        hintText: 'Search products...',
-        prefixIcon: Icon(Icons.search, color: AppColor.primary),
-        border: InputBorder.none,
-        contentPadding: EdgeInsets.all(16),
+    child: Obx(
+      () => TextField(
+        onChanged: controller.searchProducts,
+        decoration: InputDecoration(
+          hintText: 'Search products...',
+          prefixIcon: const Icon(Icons.search, color: AppColor.primary),
+          suffixIcon: controller.isSearching.value
+              ? const Padding(
+                  padding: EdgeInsets.all(12.0),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColor.primary,
+                    ),
+                  ),
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.all(16),
+        ),
       ),
     ),
   );

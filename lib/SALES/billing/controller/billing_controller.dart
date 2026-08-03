@@ -40,6 +40,7 @@ class BillingController extends GetxController {
   DocumentSnapshot? lastDocument;
   final RxBool isFetchingMore = false.obs;
   final RxBool hasMore = true.obs;
+  final RxBool isSearching = false.obs;
   Timer? _debounce;
   final ScrollController scrollController = ScrollController();
   final RxList<Map<String, dynamic>> allCustomers = <Map<String, dynamic>>[].obs;
@@ -80,6 +81,7 @@ class BillingController extends GetxController {
   Future<void> _ensureAllProductsCached() async {
     if (_allProductsFetched) return;
     try {
+      isSearching.value = true;
       final snapshot = await _firestore.collection('products').orderBy('name').get();
       _allProductsCache.assignAll(
         snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList(),
@@ -93,12 +95,17 @@ class BillingController extends GetxController {
       _allProductsFetched = true;
     } catch (e) {
       developer.log('Failed to fetch all products for cache: $e');
+    } finally {
+      isSearching.value = false;
     }
   }
 
   /// Client-side search across name, price, and productId.
   Future<void> _searchClientSide(String query) async {
     try {
+      if (!_allProductsFetched) {
+        isSearching.value = true;
+      }
       await _ensureAllProductsCached();
 
       final trimmed = query.trim();
@@ -121,6 +128,7 @@ class BillingController extends GetxController {
     } catch (e) {
       developer.log('Failed client-side search: $e');
     } finally {
+      isSearching.value = false;
       isLoading.value = false;
       isFetchingMore.value = false;
     }
@@ -189,7 +197,10 @@ class BillingController extends GetxController {
 
   void searchProducts(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 500), () {
+    if (query.trim().isNotEmpty && !_allProductsFetched) {
+      isSearching.value = true;
+    }
+    _debounce = Timer(const Duration(milliseconds: 300), () {
       searchQuery.value = query;
       fetchProducts(refresh: true);
     });
