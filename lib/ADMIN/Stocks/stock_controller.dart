@@ -7,11 +7,16 @@ import 'package:get/get.dart';
 class StockAvailabilityController extends GetxController {
   final _firestore = FirebaseFirestore.instance;
   final products = <Product>[].obs;
-  final allProducts = <Product>[];
+  final allProducts = <Product>[]; // Store paginated products for browse mode
   final isLoading = false.obs;
-  
+  final isSearching = false.obs;
+
+  /// One-time cache of ALL products for global search
+  final List<Product> _allProductsCache = [];
+  bool _allProductsFetched = false;
+
   final tableKey = GlobalKey<PaginatedDataTableState>();
-  
+
   final total = 0.0.obs;
 
   Timer? _debounce;
@@ -25,13 +30,48 @@ class StockAvailabilityController extends GetxController {
     });
   }
 
-  void _filterProducts() {
+  /// Fetches ALL products into cache on first search (one-time cost).
+  Future<void> _ensureAllProductsCached() async {
+    if (_allProductsFetched) return;
+    try {
+      isSearching.value = true;
+      final snapshot = await _firestore
+          .collection('products')
+          .orderBy('createdAt', descending: true)
+          .get();
+      _allProductsCache.clear();
+      _allProductsCache.addAll(
+        snapshot.docs
+            .map((doc) => Product.fromMap(doc.data()))
+            .toList(),
+      );
+      // Sync paginated allProducts with the full cache
+      allProducts.clear();
+      allProducts.addAll(_allProductsCache);
+      // Compute total from cache (avoids a separate full-collection read)
+      total.value = _allProductsCache.fold(
+        0.0, (acc, p) => acc + p.totalPrice,
+      );
+      _allProductsFetched = true;
+    } catch (e) {
+      debugPrint('Error caching all products: $e');
+    } finally {
+      isSearching.value = false;
+    }
+  }
+
+  Future<void> _filterProducts() async {
     if (searchQuery.value.isEmpty) {
       products.assignAll(allProducts);
     } else {
+      // Global search: cache all products first, then filter client-side
+      await _ensureAllProductsCached();
       final q = searchQuery.value.toLowerCase();
       products.assignAll(
-        allProducts.where((p) => p.name.toLowerCase().contains(q)).toList(),
+        _allProductsCache.where((p) =>
+          p.name.toLowerCase().contains(q) ||
+          p.productId.contains(q)
+        ).toList(),
       );
     }
     // calculateTotal() is intentionally removed here so search doesn't override the overall database total
@@ -45,15 +85,15 @@ class StockAvailabilityController extends GetxController {
 
   Future<void> fetchOverallTotal() async {
     try {
-      final allDocs = await _firestore.collection('products').get();
-      double calculatedTotal = 0.0;
-      for (var doc in allDocs.docs) {
-        final data = doc.data();
-        final qty = (data['count'] as num?)?.toInt() ?? 0;
-        final price = (data['price'] as num?)?.toDouble() ?? 0.0;
-        calculatedTotal += qty * price;
+      if (_allProductsFetched) {
+        // Calculate from cache — no network call needed
+        total.value = _allProductsCache.fold(
+          0.0, (acc, p) => acc + p.totalPrice,
+        );
+      } else {
+        // Cache all products (one-time), then compute total
+        await _ensureAllProductsCached();
       }
-      total.value = calculatedTotal;
     } catch (e) {
       debugPrint('Error fetching overall total: $e');
     }
@@ -75,7 +115,8 @@ class StockAvailabilityController extends GetxController {
       hasMore.value = true;
       allProducts.clear();
       products.clear();
-      fetchOverallTotal();
+      _allProductsCache.clear();
+      _allProductsFetched = false;
     }
 
     try {
@@ -99,7 +140,7 @@ class StockAvailabilityController extends GetxController {
       }
 
       final newProducts = querySnapshot.docs.map((doc) => Product.fromMap(doc.data() as Map<String, dynamic>)).toList();
-      
+
       for (var p in newProducts) {
         if (!allProducts.any((existing) => existing.id == p.id)) {
           allProducts.add(p);

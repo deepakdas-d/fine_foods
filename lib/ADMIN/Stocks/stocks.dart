@@ -1,4 +1,5 @@
 import 'package:fine_foods/ADMIN/Stocks/stock_controller.dart';
+import 'package:fine_foods/ADMIN/widgets/shimmer_widgets.dart';
 import 'package:fine_foods/appcolor.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -45,41 +46,63 @@ class Stocks extends StatelessWidget {
                 alignment: WrapAlignment.spaceBetween,
                 children: [
                   Obx(
-                    () => Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColor.surface,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColor.primary.withValues(alpha: 0.5)),
-                      ),
-                      child: Text(
-                        'Total Value: ₹${controller.total.value.toStringAsFixed(2)}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColor.primary,
+                    () {
+                      final isCalculating = controller.total.value == 0.0 &&
+                          (controller.isLoading.value || controller.isSearching.value);
+                      if (isCalculating) {
+                        return const ShimmerTotalValue();
+                      }
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColor.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColor.primary.withValues(alpha: 0.5)),
                         ),
-                      ),
-                    ),
+                        child: Text(
+                          'Total Value: ₹${controller.total.value.toStringAsFixed(2)}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColor.primary,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   SizedBox(
                     width: 300,
-                    child: TextField(
-                      onChanged: controller.onSearchChanged,
-                      style: GoogleFonts.poppins(color: AppColor.textPrimary),
-                      decoration: InputDecoration(
-                        hintText: 'Search products...',
-                        hintStyle: TextStyle(color: AppColor.textSecondary),
-                        prefixIcon: const Icon(Icons.search, color: AppColor.primary),
-                        filled: true,
-                        fillColor: AppColor.surface,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.grey[700]!),
-                          borderRadius: BorderRadius.circular(8),
+                    child: Obx(
+                      () => TextField(
+                        onChanged: controller.onSearchChanged,
+                        style: GoogleFonts.poppins(color: AppColor.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Search products...',
+                          hintStyle: TextStyle(color: AppColor.textSecondary),
+                          prefixIcon: const Icon(Icons.search, color: AppColor.primary),
+                          suffixIcon: controller.isSearching.value
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12.0),
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColor.primary,
+                                    ),
+                                  ),
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: AppColor.surface,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: Colors.grey[700]!),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
@@ -92,9 +115,18 @@ class Stocks extends StatelessWidget {
                   () {
                     final _ = controller.products.length;
                     controller.isFetchingNextPage.value;
+                    controller.isSearching.value;
                     
                     if (controller.isLoading.value && controller.products.isEmpty) {
-                      return const Center(child: CircularProgressIndicator());
+                      return LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth >= 900) {
+                            return const ShimmerTableSkeleton();
+                          } else {
+                            return const ShimmerCardList();
+                          }
+                        },
+                      );
                     }
                     
                     return LayoutBuilder(
