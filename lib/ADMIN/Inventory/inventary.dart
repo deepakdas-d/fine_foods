@@ -220,6 +220,379 @@ class Inventory extends StatelessWidget {
     );
   }
 
+  void _showRestockModal(
+    BuildContext context,
+    InventoryController controller,
+    Product product,
+  ) {
+    final qtyController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final isAddMode = ValueNotifier<bool>(true);
+    final qtyChangeNotifier = ValueNotifier<int>(0);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColor.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: AppColor.primary.withValues(alpha: 0.3)),
+          ),
+          title: Row(
+            children: [
+              ValueListenableBuilder<bool>(
+                valueListenable: isAddMode,
+                builder: (context, addMode, _) {
+                  return Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: addMode
+                          ? AppColor.primary.withValues(alpha: 0.15)
+                          : AppColor.error.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      addMode ? Icons.add_shopping_cart : Icons.remove_shopping_cart,
+                      color: addMode ? AppColor.primary : AppColor.error,
+                      size: 24,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Stock Adjustment',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: AppColor.primary,
+                      ),
+                    ),
+                    Text(
+                      product.name,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: AppColor.textSecondary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 380,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Mode Toggle (Add vs Reduce)
+                  ValueListenableBuilder<bool>(
+                    valueListenable: isAddMode,
+                    builder: (context, addMode, _) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: AppColor.background,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey[800]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  isAddMode.value = true;
+                                  formKey.currentState?.validate();
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: addMode
+                                        ? AppColor.primary.withValues(alpha: 0.2)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: addMode
+                                        ? Border.all(color: AppColor.primary)
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.add_circle,
+                                        size: 18,
+                                        color: addMode
+                                            ? AppColor.primary
+                                            : AppColor.textSecondary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Add Stock (+)',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 13,
+                                          fontWeight: addMode
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                          color: addMode
+                                              ? AppColor.primary
+                                              : AppColor.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  isAddMode.value = false;
+                                  formKey.currentState?.validate();
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: !addMode
+                                        ? AppColor.error.withValues(alpha: 0.2)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: !addMode
+                                        ? Border.all(color: AppColor.error)
+                                        : null,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.remove_circle,
+                                        size: 18,
+                                        color: !addMode
+                                            ? AppColor.error
+                                            : AppColor.textSecondary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Reduce Stock (-)',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 13,
+                                          fontWeight: !addMode
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                          color: !addMode
+                                              ? AppColor.error
+                                              : AppColor.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColor.background,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[800]!),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Current In-Stock:',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: AppColor.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          '${product.count} ${product.quantityType}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: product.count == 0
+                                ? AppColor.error
+                                : (product.count <= 5
+                                    ? AppColor.warning
+                                    : AppColor.primary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: isAddMode,
+                    builder: (context, addMode, _) {
+                      return TextFormField(
+                        controller: qtyController,
+                        autofocus: true,
+                        keyboardType: TextInputType.number,
+                        style: GoogleFonts.poppins(color: AppColor.textPrimary),
+                        decoration: InputDecoration(
+                          labelText: addMode ? 'Quantity to Add' : 'Quantity to Reduce',
+                          hintText: 'e.g. 5',
+                          labelStyle: GoogleFonts.poppins(
+                            color: AppColor.textSecondary,
+                          ),
+                          prefixIcon: Icon(
+                            addMode ? Icons.add_circle_outline : Icons.remove_circle_outline,
+                            color: addMode ? AppColor.primary : AppColor.error,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: addMode ? Colors.grey[700]! : AppColor.error.withValues(alpha: 0.5),
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          filled: true,
+                          fillColor: AppColor.background,
+                        ),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return addMode
+                                ? 'Enter quantity to add'
+                                : 'Enter quantity to reduce';
+                          }
+                          final n = int.tryParse(val.trim());
+                          if (n == null || n <= 0) {
+                            return 'Must be a positive whole number';
+                          }
+                          if (!addMode && n > product.count) {
+                            return 'Cannot reduce more than current stock (${product.count})';
+                          }
+                          return null;
+                        },
+                        onChanged: (val) {
+                          final n = int.tryParse(val.trim()) ?? 0;
+                          qtyChangeNotifier.value = n > 0 ? n : 0;
+                        },
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  AnimatedBuilder(
+                    animation: Listenable.merge([isAddMode, qtyChangeNotifier]),
+                    builder: (context, _) {
+                      final addMode = isAddMode.value;
+                      final enteredQty = qtyChangeNotifier.value;
+                      final newTotal = addMode
+                          ? (product.count + enteredQty)
+                          : (product.count - enteredQty);
+                      final isInvalid = newTotal < 0;
+
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: addMode
+                              ? AppColor.primary.withValues(alpha: 0.1)
+                              : (isInvalid
+                                  ? AppColor.error.withValues(alpha: 0.15)
+                                  : AppColor.warning.withValues(alpha: 0.1)),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: addMode
+                                ? AppColor.primary.withValues(alpha: 0.3)
+                                : (isInvalid
+                                    ? AppColor.error
+                                    : AppColor.warning.withValues(alpha: 0.3)),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'New Total Stock:',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColor.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              isInvalid
+                                  ? 'Invalid (Below 0)'
+                                  : '$newTotal ${product.quantityType}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: isInvalid
+                                    ? AppColor.error
+                                    : (addMode
+                                        ? AppColor.primary
+                                        : AppColor.warning),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: AppColor.textSecondary),
+              ),
+            ),
+            ValueListenableBuilder<bool>(
+              valueListenable: isAddMode,
+              builder: (context, addMode, _) {
+                return ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: addMode ? AppColor.primary : AppColor.error,
+                    foregroundColor: addMode ? Colors.black : Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      final qty = int.parse(qtyController.text.trim());
+                      final delta = addMode ? qty : -qty;
+                      Navigator.pop(context);
+                      await controller.adjustStock(product.id, delta);
+                    }
+                  },
+                  child: Text(
+                    addMode ? 'Add Stock' : 'Reduce Stock',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showAddProductModal(
     BuildContext context,
     InventoryController controller, {
@@ -297,6 +670,38 @@ class Inventory extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (product != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColor.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColor.primary.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.info_outline,
+                            color: AppColor.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Tip: To add inward stock received from suppliers, use the Restock (+) button. Changing quantity here sets a direct stock override.',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: AppColor.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   TextField(
                     controller: controller.productNameController,
@@ -684,6 +1089,7 @@ class Inventory extends StatelessWidget {
                   context,
                   controller,
                   (c, p) => _showAddProductModal(c, controller, product: p),
+                  (c, p) => _showRestockModal(c, controller, p),
                 ),
               ),
             ),
@@ -805,6 +1211,30 @@ class Inventory extends StatelessWidget {
                                 ),
                                 Row(
                                   children: [
+                                    IconButton(
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      tooltip: 'Adjust Stock',
+                                      icon: const Icon(
+                                        Icons.add_shopping_cart,
+                                        color: Colors.greenAccent,
+                                        size: 22,
+                                      ),
+                                      onPressed: () {
+                                        if (isSelectionMode) {
+                                          controller.toggleProductSelection(
+                                            product.id,
+                                          );
+                                        } else {
+                                          _showRestockModal(
+                                            context,
+                                            controller,
+                                            product,
+                                          );
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(width: 10),
                                     IconButton(
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(),
@@ -994,8 +1424,14 @@ class ProductDataSource extends DataTableSource {
   final BuildContext context;
   final InventoryController controller;
   final Function(BuildContext, Product) onEdit;
+  final Function(BuildContext, Product) onRestock;
 
-  ProductDataSource(this.context, this.controller, this.onEdit);
+  ProductDataSource(
+    this.context,
+    this.controller,
+    this.onEdit,
+    this.onRestock,
+  );
 
   void _toggleSelection(String productId) {
     controller.toggleProductSelection(productId);
@@ -1132,6 +1568,21 @@ class ProductDataSource extends DataTableSource {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                IconButton(
+                  tooltip: 'Adjust Stock',
+                  icon: const Icon(
+                    Icons.add_shopping_cart,
+                    color: Colors.greenAccent,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    if (controller.isSelectionMode.value) {
+                      _toggleSelection(product.id);
+                    } else {
+                      onRestock(context, product);
+                    }
+                  },
+                ),
                 IconButton(
                   icon: const Icon(
                     Icons.edit_outlined,

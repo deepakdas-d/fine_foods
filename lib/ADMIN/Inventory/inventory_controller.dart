@@ -62,7 +62,7 @@ class InventoryController extends GetxController {
   Future<void> _fetchAndCacheAllProducts() async {
     try {
       final snapshot = await _firestore
-          .collection('inventory')
+          .collection('products')
           .orderBy('createdAt', descending: true)
           .get();
       _allProductsCache.clear();
@@ -358,6 +358,20 @@ class InventoryController extends GetxController {
         }
       }
       _filterProducts();
+
+      // Recalculate total
+      if (_allProductsFetched) {
+        total.value = _allProductsCache.fold(
+          0.0,
+          (acc, p) => acc + p.totalPrice,
+        );
+      } else {
+        total.value = allProducts.fold(
+          0.0,
+          (acc, p) => acc + p.totalPrice,
+        );
+      }
+
       clearForm();
 
       showToast('Product updated successfully', Colors.green);
@@ -367,6 +381,95 @@ class InventoryController extends GetxController {
       isLoading.value = false;
     }
   }
+
+  Future<bool> adjustStock(String id, int quantityDelta) async {
+    if (quantityDelta == 0) {
+      showToast('Quantity change cannot be 0', Colors.red);
+      return false;
+    }
+
+    try {
+      isLoading.value = true;
+
+      // Find existing product in loaded products or cache
+      Product? existingProduct;
+      final existingProductIndex = products.indexWhere((p) => p.id == id);
+      if (existingProductIndex != -1) {
+        existingProduct = products[existingProductIndex];
+      } else {
+        final cacheIndex = _allProductsCache.indexWhere((p) => p.id == id);
+        if (cacheIndex != -1) {
+          existingProduct = _allProductsCache[cacheIndex];
+        }
+      }
+
+      if (existingProduct == null) {
+        showToast('Product not found', Colors.red);
+        return false;
+      }
+
+      final newCount = existingProduct.count + quantityDelta;
+      if (newCount < 0) {
+        showToast('Cannot reduce stock below 0', Colors.red);
+        return false;
+      }
+
+      await Future.wait([
+        _firestore.collection('products').doc(id).update({
+          'count': FieldValue.increment(quantityDelta),
+          'totalPrice': newCount * existingProduct.price,
+        }),
+        _firestore.collection('inventory').doc(id).update({
+          'count': FieldValue.increment(quantityDelta),
+          'totalPrice': newCount * existingProduct.price,
+        }),
+      ]);
+
+      final updatedProduct = existingProduct.copyWith(count: newCount);
+
+      final allIndex = allProducts.indexWhere((p) => p.id == id);
+      if (allIndex != -1) {
+        allProducts[allIndex] = updatedProduct;
+      }
+      if (_allProductsFetched) {
+        final cacheIndex = _allProductsCache.indexWhere((p) => p.id == id);
+        if (cacheIndex != -1) {
+          _allProductsCache[cacheIndex] = updatedProduct;
+        }
+      }
+      _filterProducts();
+
+      // Recalculate total
+      if (_allProductsFetched) {
+        total.value = _allProductsCache.fold(
+          0.0,
+          (acc, p) => acc + p.totalPrice,
+        );
+      } else {
+        total.value = allProducts.fold(
+          0.0,
+          (acc, p) => acc + p.totalPrice,
+        );
+      }
+
+      final actionText = quantityDelta > 0
+          ? 'Successfully added $quantityDelta units.'
+          : 'Successfully reduced ${-quantityDelta} units.';
+      showToast(
+        '$actionText New Total: $newCount',
+        Colors.green,
+      );
+      return true;
+    } catch (e) {
+      showToast('Failed to adjust stock: $e', Colors.red);
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> restockProduct(String id, int addedQuantity) =>
+      adjustStock(id, addedQuantity);
 
   void removeProduct(String productId) async {
     try {
@@ -412,7 +515,7 @@ class InventoryController extends GetxController {
 
     try {
       Query query = _firestore
-          .collection('inventory')
+          .collection('products')
           .orderBy('createdAt', descending: true)
           .limit(pageSize);
 

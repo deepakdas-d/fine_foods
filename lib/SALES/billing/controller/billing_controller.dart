@@ -505,6 +505,9 @@ class BillingController extends GetxController {
         batch.update(_firestore.collection('products').doc(product.id), {
           'count': FieldValue.increment(-entry.value),
         });
+        batch.update(_firestore.collection('inventory').doc(product.id), {
+          'count': FieldValue.increment(-entry.value),
+        });
 
         final index = products.indexOf(product);
         if (index != -1) {

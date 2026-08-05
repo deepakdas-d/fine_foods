@@ -23,6 +23,7 @@ class StockAvailabilityController extends GetxController {
 
   Timer? _debounce;
   final searchQuery = ''.obs;
+  final searchController = TextEditingController();
 
   void onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
@@ -30,6 +31,16 @@ class StockAvailabilityController extends GetxController {
       searchQuery.value = query;
       _filterProducts();
     });
+  }
+
+  Future<void> refreshProducts() async {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    searchQuery.value = '';
+    searchController.clear();
+    try {
+      tableKey.currentState?.pageTo(0);
+    } catch (_) {}
+    await loadProducts();
   }
 
   /// Fetches ALL products into cache (one-time cost).
@@ -97,6 +108,13 @@ class StockAvailabilityController extends GetxController {
     loadProducts();
   }
 
+  @override
+  void onClose() {
+    _debounce?.cancel();
+    searchController.dispose();
+    super.onClose();
+  }
+
   Future<void> fetchOverallTotal() async {
     try {
       isCalculatingTotal.value = true;
@@ -121,7 +139,7 @@ class StockAvailabilityController extends GetxController {
   final isFetchingNextPage = false.obs;
   static const int pageSize = 20;
 
-  void loadProducts({bool isLoadMore = false}) async {
+  Future<void> loadProducts({bool isLoadMore = false}) async {
     if (isLoadMore) {
       if (isFetchingNextPage.value || !hasMore.value) return;
       isFetchingNextPage.value = true;
@@ -134,6 +152,7 @@ class StockAvailabilityController extends GetxController {
       products.clear();
       _allProductsCache.clear();
       _allProductsFetched = false;
+      _cacheFuture = null;
     }
 
     try {
@@ -182,4 +201,115 @@ class StockAvailabilityController extends GetxController {
       }
     }
   }
+
+  Future<bool> adjustStock(String id, int quantityDelta) async {
+    if (quantityDelta == 0) {
+      Get.snackbar(
+        'Invalid Quantity',
+        'Quantity change cannot be 0',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return false;
+    }
+
+    try {
+      isLoading.value = true;
+
+      // Find existing product in loaded products or cache
+      Product? existingProduct;
+      final existingProductIndex = products.indexWhere((p) => p.id == id);
+      if (existingProductIndex != -1) {
+        existingProduct = products[existingProductIndex];
+      } else {
+        final cacheIndex = _allProductsCache.indexWhere((p) => p.id == id);
+        if (cacheIndex != -1) {
+          existingProduct = _allProductsCache[cacheIndex];
+        }
+      }
+
+      if (existingProduct == null) {
+        Get.snackbar(
+          'Error',
+          'Product not found',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return false;
+      }
+
+      final newCount = existingProduct.count + quantityDelta;
+      if (newCount < 0) {
+        Get.snackbar(
+          'Error',
+          'Cannot reduce stock below 0',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return false;
+      }
+
+      await Future.wait([
+        _firestore.collection('products').doc(id).update({
+          'count': FieldValue.increment(quantityDelta),
+          'totalPrice': newCount * existingProduct.price,
+        }),
+        _firestore.collection('inventory').doc(id).update({
+          'count': FieldValue.increment(quantityDelta),
+          'totalPrice': newCount * existingProduct.price,
+        }),
+      ]);
+
+      final updatedProduct = existingProduct.copyWith(count: newCount);
+
+      final allIndex = allProducts.indexWhere((p) => p.id == id);
+      if (allIndex != -1) {
+        allProducts[allIndex] = updatedProduct;
+      }
+      if (_allProductsFetched) {
+        final cacheIndex = _allProductsCache.indexWhere((p) => p.id == id);
+        if (cacheIndex != -1) {
+          _allProductsCache[cacheIndex] = updatedProduct;
+        }
+      }
+      _filterProducts();
+
+      // Recalculate total
+      if (_allProductsFetched) {
+        total.value = _allProductsCache.fold(
+          0.0,
+          (acc, p) => acc + p.totalPrice,
+        );
+      } else {
+        total.value = allProducts.fold(
+          0.0,
+          (acc, p) => acc + p.totalPrice,
+        );
+      }
+
+      final actionText = quantityDelta > 0
+          ? 'Added $quantityDelta units.'
+          : 'Reduced ${-quantityDelta} units.';
+      Get.snackbar(
+        'Stock Updated',
+        '$actionText New Total: $newCount',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+      return true;
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to adjust stock: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> restockProduct(String id, int addedQuantity) =>
+      adjustStock(id, addedQuantity);
 }
