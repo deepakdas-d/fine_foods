@@ -128,18 +128,15 @@ class BillingList extends StatelessWidget {
                   return SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
-                        if (index >= bills.length - 5 &&
-                            controller.hasMore.value && !controller.isSearching) {
-                          controller.loadMore();
-                        }
-
                         if (index == bills.length) {
-                          if (!controller.isSearching) {
+                          if (controller.isLoadingMore.value) {
                             return const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Center(child: CircularProgressIndicator()),
+                              padding: EdgeInsets.symmetric(vertical: 16.0),
+                              child: Center(
+                                child: CircularProgressIndicator(color: AppColor.primary),
+                              ),
                             );
-                          } else {
+                          } else if (controller.isSearching && controller.hasMore.value) {
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 16.0),
                               child: Center(
@@ -151,6 +148,14 @@ class BillingList extends StatelessWidget {
                               ),
                             );
                           }
+                          return const SizedBox.shrink();
+                        }
+
+                        // Lazy loading trigger when user reaches end of currently loaded bills
+                        if (index == bills.length - 1 && !controller.isSearching && controller.hasMore.value) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            controller.loadMore();
+                          });
                         }
 
                         return BillCard(
@@ -159,7 +164,7 @@ class BillingList extends StatelessWidget {
                         );
                       },
                       childCount: bills.length +
-                          (controller.hasMore.value || (controller.isSearching && controller.hasMore.value) ? 1 : 0),
+                          (controller.isLoadingMore.value || (controller.isSearching && controller.hasMore.value) ? 1 : 0),
                     ),
                   );
                 }),
@@ -199,6 +204,7 @@ class BillingList extends StatelessWidget {
             ),
           );
         }),
+
       ],
     );
   }

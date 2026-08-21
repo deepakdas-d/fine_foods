@@ -24,6 +24,7 @@ class BillListController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool hasMore = true.obs;
   final RxBool isFetching = false.obs; // To prevent concurrent fetches
+  final RxBool isLoadingMore = false.obs; // Tracks pagination loading
   final RxString searchQuery = ''.obs;
   final RxString searchText = ''.obs;
 
@@ -127,11 +128,11 @@ class BillListController extends GetxController {
       bills.clear();
       _lastDoc = null;
       hasMore.value = true;
+      isFetching.value = true;
+    } else {
+      if (!hasMore.value || isLoadingMore.value || isFetching.value) return;
+      isLoadingMore.value = true;
     }
-
-    if (isFetching.value || !hasMore.value) return;
-
-    isFetching.value = true;
 
     try {
       Query query = _firestore
@@ -201,20 +202,25 @@ class BillListController extends GetxController {
         return data;
       }).toList();
 
-      bills.addAll(newBills);
+      if (reset) {
+        bills.assignAll(newBills);
+      } else {
+        bills.addAll(newBills);
+      }
+
       _lastDoc = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
       hasMore.value = snapshot.docs.length == pageSize;
     } catch (e, s) {
       log('Fetch error: $e\n$s');
+      hasMore.value = false;
     } finally {
       isFetching.value = false;
+      isLoadingMore.value = false;
     }
   }
 
   Future<void> loadMore() async {
-    if (!isLoading.value && hasMore.value) {
-      await fetchBills(reset: false);
-    }
+    await fetchBills(reset: false);
   }
 
   // ────────────────────────────────

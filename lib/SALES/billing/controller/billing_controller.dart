@@ -263,6 +263,35 @@ class BillingController extends GetxController {
     autocompleteKey.value++;
   }
 
+  /// Adds an ad-hoc quick item (not from inventory) to the cart.
+  void addQuickItem({
+    required String name,
+    required double price,
+    required int quantity,
+    required String quantityType,
+  }) {
+    final id = 'quick_${DateTime.now().millisecondsSinceEpoch}';
+    final quickProduct = Product(
+      id: id,
+      name: name,
+      productId: '',
+      count: 999, // unlimited stock for quick items
+      price: price,
+      createdAt: DateTime.now().toIso8601String(),
+      quantityType: quantityType,
+    );
+
+    // Add product to the products list so it can be found during bill creation
+    products.add(quickProduct);
+    filteredProducts.add(quickProduct);
+
+    // Add to cart with requested quantity
+    selectedProducts[id] = quantity;
+    customPrices[id] = price;
+
+    _showFeedback('$name added to cart');
+  }
+
   Future<void> searchCustomerByPhone(String phone) async {
     if (phone.trim().length != 10) {
       Get.snackbar('Error', 'Enter a valid 10-digit phone number');

@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:fine_foods/appcolor.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fine_foods/bottom_navigation.dart';
@@ -124,6 +125,11 @@ class MyApp extends StatelessWidget {
 }
 
 Future<void> requestLocationPermission() async {
+  // permission_handler location APIs are only supported on mobile platforms
+  if (kIsWeb) return;
+  // Skip on desktop platforms (Windows, macOS, Linux)
+  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) return;
+
   var status = await Permission.location.status;
 
   if (status.isDenied || status.isRestricted) {

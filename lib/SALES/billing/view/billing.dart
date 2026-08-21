@@ -51,6 +51,14 @@ class BillingScreen extends StatelessWidget {
     ),
     foregroundColor: AppColor.textPrimary,
     actions: [
+      IconButton(
+        onPressed: () => _showAddQuickItemDialog(Get.context!),
+        icon: const Icon(
+          Icons.flash_on,
+          color: AppColor.primary,
+        ),
+        tooltip: 'Add Quick Item',
+      ),
       Obx(
         () => Stack(
           children: [
@@ -96,17 +104,56 @@ class BillingScreen extends StatelessWidget {
               }
 
               if (controller.filteredProducts.isEmpty) {
+                final query = controller.searchQuery.value.trim();
                 return RefreshIndicator(
                   onRefresh: () => controller.fetchProducts(refresh: true),
                   color: AppColor.primary,
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    children: const [
-                      SizedBox(height: 100),
+                    children: [
+                      const SizedBox(height: 80),
+                      const Center(
+                        child: Icon(
+                          Icons.inventory_2_outlined,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       Center(
                         child: Text(
-                          "No products found",
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                          query.isNotEmpty
+                              ? 'No inventory products matching "$query"'
+                              : 'No products found',
+                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Center(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showAddQuickItemDialog(
+                            Get.context!,
+                            initialName: query,
+                          ),
+                          icon: const Icon(Icons.flash_on, size: 20),
+                          label: Text(
+                            query.isNotEmpty
+                                ? 'Add "$query" as Quick Item'
+                                : 'Add Quick / Custom Item',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColor.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -230,37 +277,65 @@ class BillingScreen extends StatelessWidget {
   }
 
   Widget _buildSearchBar() => Container(
-    margin: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: AppColor.surface,
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10),
-      ],
-    ),
-    child: Obx(
-      () => TextField(
-        onChanged: controller.searchProducts,
-        decoration: InputDecoration(
-          hintText: 'Search products...',
-          prefixIcon: const Icon(Icons.search, color: AppColor.primary),
-          suffixIcon: controller.isSearching.value
-              ? const Padding(
-                  padding: EdgeInsets.all(12.0),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColor.primary,
-                    ),
-                  ),
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(16),
+    margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+    child: Row(
+      children: [
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColor.surface,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                ),
+              ],
+            ),
+            child: Obx(
+              () => TextField(
+                onChanged: controller.searchProducts,
+                decoration: InputDecoration(
+                  hintText: 'Search products by name or product ID...',
+                  prefixIcon: const Icon(Icons.search, color: AppColor.primary),
+                  suffixIcon: controller.isSearching.value
+                      ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColor.primary,
+                            ),
+                          ),
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+              ),
+            ),
+          ),
         ),
-      ),
+        const SizedBox(width: 12),
+        ElevatedButton.icon(
+          onPressed: () => _showAddQuickItemDialog(
+            Get.context!,
+            initialName: controller.searchQuery.value.trim(),
+          ),
+          icon: const Icon(Icons.flash_on, size: 18),
+          label: const Text('+ Quick Item'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColor.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      ],
     ),
   );
 
@@ -484,6 +559,7 @@ class BillingScreen extends StatelessWidget {
   );
 
   Widget _buildCartItem(Product product, int quantity) {
+    final isQuickItem = product.id.startsWith('custom_');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -491,7 +567,11 @@ class BillingScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColor.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColor.textSecondary.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: isQuickItem
+              ? Colors.amber.withValues(alpha: 0.4)
+              : AppColor.textSecondary.withValues(alpha: 0.2),
+        ),
       ),
       child: Row(
         children: [
@@ -499,12 +579,14 @@ class BillingScreen extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppColor.primary.withValues(alpha: 0.1),
+              color: isQuickItem
+                  ? Colors.amber.withValues(alpha: 0.15)
+                  : AppColor.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
-              Icons.inventory_2_outlined,
-              color: AppColor.primary,
+            child: Icon(
+              isQuickItem ? Icons.flash_on : Icons.inventory_2_outlined,
+              color: isQuickItem ? Colors.amber[700] : AppColor.primary,
             ),
           ),
           const SizedBox(width: 12),
@@ -512,10 +594,35 @@ class BillingScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  product.name,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                  maxLines: 2,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        product.name,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        maxLines: 2,
+                      ),
+                    ),
+                    if (isQuickItem)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'Quick Item',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber[700],
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 Text(
                   '₹${product.price.toStringAsFixed(2)}',
@@ -1300,6 +1407,161 @@ class BillingScreen extends StatelessWidget {
         ),
         pw.Text('Date: $formattedDate', style: pw.TextStyle(font: robotoFont)),
       ],
+    );
+  }
+
+  void _showAddQuickItemDialog(BuildContext context, {String initialName = ''}) {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController(text: initialName);
+    final priceController = TextEditingController();
+    final quantityController = TextEditingController(text: '1');
+    final selectedType = 'unit'.obs;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColor.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColor.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.flash_on, color: AppColor.primary, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Add Quick Item',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: AppColor.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameController,
+                  autofocus: initialName.isEmpty,
+                  style: const TextStyle(color: AppColor.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Item Name',
+                    hintText: 'e.g. Special Box, Custom Cake',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    prefixIcon: const Icon(Icons.label_outline),
+                    isDense: true,
+                  ),
+                  validator: (val) =>
+                      val == null || val.trim().isEmpty ? 'Item name cannot be empty' : null,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        controller: priceController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        style: const TextStyle(color: AppColor.textPrimary),
+                        decoration: InputDecoration(
+                          labelText: 'Price (₹)',
+                          hintText: '0.00',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          prefixIcon: const Icon(Icons.currency_rupee, size: 18),
+                          isDense: true,
+                        ),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) return 'Enter price';
+                          final price = double.tryParse(val.trim());
+                          return price == null || price <= 0 ? 'Invalid price' : null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: quantityController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                        style: const TextStyle(color: AppColor.textPrimary),
+                        decoration: InputDecoration(
+                          labelText: 'Qty',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          isDense: true,
+                        ),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) return 'Enter qty';
+                          final qty = int.tryParse(val.trim());
+                          return qty == null || qty <= 0 ? 'Invalid' : null;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Obx(
+                  () => DropdownButtonFormField<String>(
+                    initialValue: selectedType.value,
+                    dropdownColor: AppColor.surface,
+                    style: const TextStyle(color: AppColor.textPrimary),
+                    decoration: InputDecoration(
+                      labelText: 'Unit / Type',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      isDense: true,
+                    ),
+                    items: ['unit', 'kg', 'pack', 'meter', 'box', 'piece']
+                        .map(
+                          (type) => DropdownMenuItem(value: type, child: Text(type)),
+                        )
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) selectedType.value = val;
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppColor.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColor.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                final name = nameController.text.trim();
+                final price = double.parse(priceController.text.trim());
+                final quantity = int.parse(quantityController.text.trim());
+                controller.addQuickItem(
+                  name: name,
+                  price: price,
+                  quantity: quantity,
+                  quantityType: selectedType.value,
+                );
+                Navigator.of(ctx).pop();
+              }
+            },
+            child: const Text('Add to Cart', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
   }
 }
