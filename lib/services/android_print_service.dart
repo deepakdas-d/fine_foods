@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io' show Platform;
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'print_service.dart';
@@ -26,6 +28,9 @@ class AndroidPrintService extends PrintService {
   Stream<bool> get connectionStatus => _connectionStatusController.stream;
 
   Future<bool> _requestPermissions() async {
+    if (kIsWeb || Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      return false;
+    }
     log('[AndroidPrintService] Requesting Bluetooth permissions...');
     final status = await [
       Permission.bluetoothScan,

@@ -19,6 +19,4 @@ class DesktopNavController extends GetxController {
   /// 9 = Sales Bill
   final selectedIndex = 0.obs;
 
-  /// Tracks whether the user is logged into the admin section on desktop.
-  final isLoggedIn = false.obs;
 }

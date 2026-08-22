@@ -51,7 +51,7 @@ class Home extends StatelessWidget {
               onPressed: () => Get.to(() => const UserBills()),
             ),
 
-          if (!kIsWeb) // Hide on Web & Windows
+          if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) // Hide on Web & Desktop
             Obx(() {
               return Row(
                 children: [
@@ -583,7 +583,9 @@ class Home extends StatelessWidget {
                           ),
                           IconButton(
                             icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+                            onPressed: () {
+                              if (Get.isDialogOpen ?? false) Get.back();
+                            },
                           ),
                         ],
                       ),
@@ -611,7 +613,9 @@ class Home extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
-                            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+                            onPressed: () {
+                              if (Get.isDialogOpen ?? false) Get.back();
+                            },
                             child: const Text('Close'),
                           ),
                           const SizedBox(width: 8),
@@ -619,9 +623,7 @@ class Home extends StatelessWidget {
                             onPressed: () async {
                               final scaffoldMessenger = ScaffoldMessenger.of(context);
                               if (kIsWeb) {
-                                if (context.mounted) {
-                                  Navigator.of(context, rootNavigator: true).pop();
-                                }
+                                if (Get.isDialogOpen ?? false) Get.back();
                                 scaffoldMessenger.showSnackBar(
                                   const SnackBar(
                                     content: Text('Not supported on Web'),
@@ -632,9 +634,7 @@ class Home extends StatelessWidget {
                               }
                               
                               if (!printerController.isConnected.value) {
-                                if (context.mounted) {
-                                  Navigator.of(context, rootNavigator: true).pop();
-                                }
+                                if (Get.isDialogOpen ?? false) Get.back();
                                 scaffoldMessenger.showSnackBar(
                                   const SnackBar(
                                     content: Text('No printer connected'),
@@ -649,9 +649,7 @@ class Home extends StatelessWidget {
                                   billData,
                                 );
                                 
-                                if (context.mounted) {
-                                  Navigator.of(context, rootNavigator: true).pop();
-                                }
+                                if (Get.isDialogOpen ?? false) Get.back();
                                 
                                 developer.log('[Home] PrintInvoice completed');
                                 
@@ -668,9 +666,7 @@ class Home extends StatelessWidget {
                                   level: 1000,
                                 );
                                 
-                                if (context.mounted) {
-                                  Navigator.of(context, rootNavigator: true).pop();
-                                }
+                                if (Get.isDialogOpen ?? false) Get.back();
                                 
                                 scaffoldMessenger.showSnackBar(
                                   const SnackBar(
@@ -727,7 +723,9 @@ class Home extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
-                            onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+                            onPressed: () {
+                              if (Get.isDialogOpen ?? false) Get.back();
+                            },
                             child: const Text('Close'),
                           ),
                           const SizedBox(width: 8),
@@ -735,9 +733,7 @@ class Home extends StatelessWidget {
                             onPressed: () async {
                               final scaffoldMessenger = ScaffoldMessenger.of(context);
                               if (kIsWeb) {
-                                if (context.mounted) {
-                                  Navigator.of(context, rootNavigator: true).pop();
-                                }
+                                if (Get.isDialogOpen ?? false) Get.back();
                                 scaffoldMessenger.showSnackBar(
                                   const SnackBar(
                                     content: Text('Not supported on Web'),
@@ -748,9 +744,7 @@ class Home extends StatelessWidget {
                               }
                               
                               if (!printerController.isConnected.value) {
-                                if (context.mounted) {
-                                  Navigator.of(context, rootNavigator: true).pop();
-                                }
+                                if (Get.isDialogOpen ?? false) Get.back();
                                 scaffoldMessenger.showSnackBar(
                                   const SnackBar(
                                     content: Text('No printer connected'),
@@ -765,9 +759,7 @@ class Home extends StatelessWidget {
                                   billData,
                                 );
                                 
-                                if (context.mounted) {
-                                  Navigator.of(context, rootNavigator: true).pop();
-                                }
+                                if (Get.isDialogOpen ?? false) Get.back();
                                 
                                 scaffoldMessenger.showSnackBar(
                                   const SnackBar(
@@ -777,9 +769,7 @@ class Home extends StatelessWidget {
                                   ),
                                 );
                               } catch (e) {
-                                if (context.mounted) {
-                                  Navigator.of(context, rootNavigator: true).pop();
-                                }
+                                if (Get.isDialogOpen ?? false) Get.back();
                                 
                                 scaffoldMessenger.showSnackBar(
                                   const SnackBar(

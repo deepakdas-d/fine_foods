@@ -91,7 +91,11 @@ class BluetoothList extends StatelessWidget {
                         : null,
                     onTap: () async {
                       await controller.connectPrinter(printer);
-                      if (controller.isConnected.value) Get.back();
+                      if (context.mounted &&
+                          controller.isConnected.value &&
+                          Navigator.of(context).canPop()) {
+                        Get.back();
+                      }
                     },
                   ),
                 ),

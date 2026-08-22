@@ -90,16 +90,6 @@ class DesktopSidebar extends StatelessWidget {
     return Obx(() {
       final items = List<_SidebarItem>.from(_items);
 
-      if (!kIsWeb && Get.find<AuthController>().isAdminLoggedIn.value) {
-        items.add(
-          const _SidebarItem(
-            label: 'Bluetooth / Printer',
-            icon: Icons.bluetooth_rounded,
-            index: 7,
-          ),
-        );
-      }
-
       return Container(
         width: 260,
         decoration: BoxDecoration(

@@ -28,10 +28,10 @@ class BillingScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColor.background,
-      appBar: _buildAppBar(),
+      appBar: _buildAppBar(context),
       body: Row(
         children: [
-          _buildProductsArea(),
+          _buildProductsArea(context),
           if (isLargeScreen) _buildCartSidebar(),
         ],
       ),
@@ -39,7 +39,7 @@ class BillingScreen extends StatelessWidget {
     );
   }
 
-  AppBar _buildAppBar() => AppBar(
+  AppBar _buildAppBar(BuildContext context) => AppBar(
     elevation: 0,
     backgroundColor: AppColor.background,
     title: const Text(
@@ -52,7 +52,7 @@ class BillingScreen extends StatelessWidget {
     foregroundColor: AppColor.textPrimary,
     actions: [
       IconButton(
-        onPressed: () => _showAddQuickItemDialog(Get.context!),
+        onPressed: () => _showAddQuickItemDialog(context),
         icon: const Icon(
           Icons.flash_on,
           color: AppColor.primary,
@@ -63,7 +63,7 @@ class BillingScreen extends StatelessWidget {
         () => Stack(
           children: [
             IconButton(
-              onPressed: () => _showCartSheet(Get.context!),
+              onPressed: () => _showCartSheet(context),
               icon: const Icon(
                 Icons.shopping_cart_outlined,
                 color: AppColor.textPrimary,
@@ -91,11 +91,11 @@ class BillingScreen extends StatelessWidget {
     ],
   );
 
-  Widget _buildProductsArea() => Expanded(
+  Widget _buildProductsArea(BuildContext context) => Expanded(
     flex: 3,
     child: Column(
       children: [
-        _buildSearchBar(),
+        _buildSearchBar(context),
         Expanded(
           child: Obx(
             () {
@@ -133,7 +133,7 @@ class BillingScreen extends StatelessWidget {
                       Center(
                         child: ElevatedButton.icon(
                           onPressed: () => _showAddQuickItemDialog(
-                            Get.context!,
+                            context,
                             initialName: query,
                           ),
                           icon: const Icon(Icons.flash_on, size: 20),
@@ -276,7 +276,7 @@ class BillingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSearchBar() => Container(
+  Widget _buildSearchBar(BuildContext context) => Container(
     margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
     child: Row(
       children: [
@@ -321,7 +321,7 @@ class BillingScreen extends StatelessWidget {
         const SizedBox(width: 12),
         ElevatedButton.icon(
           onPressed: () => _showAddQuickItemDialog(
-            Get.context!,
+            context,
             initialName: controller.searchQuery.value.trim(),
           ),
           icon: const Icon(Icons.flash_on, size: 18),

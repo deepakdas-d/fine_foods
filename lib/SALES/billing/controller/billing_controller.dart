@@ -528,15 +528,19 @@ class BillingController extends GetxController {
       // Save bill
       batch.set(_firestore.collection('bills').doc(billId), billData);
 
-      // Update stock
+      // Update stock (skip quick items — they don't exist in Firestore)
       for (var entry in selectedProducts.entries) {
         final product = products.firstWhere((p) => p.id == entry.key);
-        batch.update(_firestore.collection('products').doc(product.id), {
-          'count': FieldValue.increment(-entry.value),
-        });
-        batch.update(_firestore.collection('inventory').doc(product.id), {
-          'count': FieldValue.increment(-entry.value),
-        });
+
+        // Quick items are ad-hoc and have no Firestore document
+        if (!entry.key.startsWith('quick_')) {
+          batch.update(_firestore.collection('products').doc(product.id), {
+            'count': FieldValue.increment(-entry.value),
+          });
+          batch.update(_firestore.collection('inventory').doc(product.id), {
+            'count': FieldValue.increment(-entry.value),
+          });
+        }
 
         final index = products.indexOf(product);
         if (index != -1) {
