@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:developer' as developer;
 import 'dart:typed_data';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
+import 'package:fine_foods/services/invoice_sequence_service.dart';
 
 class QuickbillController extends GetxController {
   void _showErrorSnackbar(String message) {
@@ -126,12 +127,8 @@ class QuickbillController extends GetxController {
     return (subtotal - calculateDiscountAmount()).clamp(0, double.infinity);
   }
 
-  String generateInvoiceNumber() {
-    final now = DateTime.now();
-    final formatter = DateFormat('yyyyMMdd');
-    final dateString = formatter.format(now);
-    final timeString = DateFormat('HHmmss').format(now);
-    return 'INV-$dateString-$timeString';
+  Future<String> generateInvoiceNumber() async {
+    return await InvoiceSequenceService.getNextInvoiceNumber();
   }
 
   //////------------------------------------------------Create Bill Function------------------------------------------------//////
@@ -167,7 +164,7 @@ class QuickbillController extends GetxController {
 
     try {
       final billId = const Uuid().v4();
-      final invoiceNumber = generateInvoiceNumber();
+      final invoiceNumber = await generateInvoiceNumber();
       final batch = _firestore.batch();
 
       final totalAmount = calculateTotal();

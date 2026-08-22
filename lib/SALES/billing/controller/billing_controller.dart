@@ -12,6 +12,7 @@ import 'package:fine_foods/home/printer_controller.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
+import 'package:fine_foods/services/invoice_sequence_service.dart';
 
 class BillingController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -403,12 +404,8 @@ class BillingController extends GetxController {
     return (total - discount).clamp(0, double.infinity);
   }
 
-  String generateInvoiceNumber() {
-    final now = DateTime.now();
-    final formatter = DateFormat('yyyyMMdd');
-    final dateString = formatter.format(now);
-    final timeString = DateFormat('HHmmss').format(now);
-    return 'INV-$dateString-$timeString';
+  Future<String> generateInvoiceNumber() async {
+    return await InvoiceSequenceService.getNextInvoiceNumber();
   }
 
   Future<Map<String, dynamic>?> createBill() async {
@@ -441,7 +438,7 @@ class BillingController extends GetxController {
 
     try {
       final billId = const Uuid().v4();
-      final invoiceNumber = generateInvoiceNumber();
+      final invoiceNumber = await generateInvoiceNumber();
       final batch = _firestore.batch();
 
       final totalAmount = calculateTotal();
