@@ -1083,48 +1083,62 @@ class BillingScreen extends StatelessWidget {
         print('[GenerateInvoice] 6. Showing Windows preview dialog...');
         await Get.dialog(
           Dialog(
+            backgroundColor: const Color(0xFF1E232A),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 800, maxHeight: 800),
+              constraints: const BoxConstraints(maxWidth: 440, maxHeight: 680),
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           'Invoice #${billData['invoiceNumber']} Preview',
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close),
+                          icon: const Icon(Icons.close, color: Colors.white70, size: 20),
                           onPressed: () => Get.back(),
                         ),
                       ],
                     ),
                   ),
+                  const Divider(height: 1, color: Colors.white12),
                   Expanded(
-                    child: PdfPreview(
-                      build: (format) {
-                        developer.log('[GenerateInvoice] 7. PdfPreview.build called. Saving PDF bytes...');
-                        print('[GenerateInvoice] 7. PdfPreview.build called. Saving PDF bytes...');
-                        return pdf.save();
-                      },
-                      allowPrinting: false,
-                      allowSharing: false,
-                      canChangeOrientation: false,
-                      canChangePageFormat: false,
-                      initialPageFormat: const PdfPageFormat(
-                        80 * PdfPageFormat.mm,
-                        250 * PdfPageFormat.mm,
-                        marginAll: 5 * PdfPageFormat.mm,
+                    child: Container(
+                      color: const Color(0xFF14171C),
+                      padding: const EdgeInsets.all(8),
+                      child: PdfPreview(
+                        build: (format) {
+                          developer.log('[GenerateInvoice] 7. PdfPreview.build called. Saving PDF bytes...');
+                          print('[GenerateInvoice] 7. PdfPreview.build called. Saving PDF bytes...');
+                          return pdf.save();
+                        },
+                        allowPrinting: false,
+                        allowSharing: false,
+                        canChangeOrientation: false,
+                        canChangePageFormat: false,
+                        canDebug: false,
+                        maxPageWidth: 300,
+                        previewPageMargin: const EdgeInsets.symmetric(vertical: 4),
+                        initialPageFormat: const PdfPageFormat(
+                          80 * PdfPageFormat.mm,
+                          250 * PdfPageFormat.mm,
+                          marginAll: 4 * PdfPageFormat.mm,
+                        ),
+                        actions: const [],
                       ),
-                      actions: const [],
                     ),
                   ),
+                  const Divider(height: 1, color: Colors.white12),
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
@@ -1134,8 +1148,8 @@ class BillingScreen extends StatelessWidget {
                           onPressed: () => Get.back(),
                           child: const Text('Close'),
                         ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
                           onPressed: () async {
                             final printerController =
                                 Get.find<PrinterController>();
@@ -1178,7 +1192,13 @@ class BillingScreen extends StatelessWidget {
                               );
                             }
                           },
-                          child: const Text('Print'),
+                          icon: const Icon(Icons.print, size: 18),
+                          label: const Text('Print'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColor.primary,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          ),
                         ),
                       ],
                     ),
@@ -1200,7 +1220,7 @@ class BillingScreen extends StatelessWidget {
         await Get.dialog(
           Dialog(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+              constraints: const BoxConstraints(maxWidth: 440, maxHeight: 680),
               child: Column(
                 children: [
                   Padding(
@@ -1208,7 +1228,7 @@ class BillingScreen extends StatelessWidget {
                     child: Text(
                       'Invoice #${billData['invoiceNumber']} Preview',
                       style: const TextStyle(
-                        fontSize: 20,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -1304,147 +1324,265 @@ class BillingScreen extends StatelessWidget {
     final formattedDate = DateFormat('yyyy-MM-dd HH:mm').format(createdAt);
 
     return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
       children: [
+        // Store Header
         pw.Text(
-          'Invoice #${billData['invoiceNumber']}',
+          'FINE FOODS',
           style: pw.TextStyle(
-            fontSize: 24,
+            fontSize: 13,
             fontWeight: pw.FontWeight.bold,
             font: robotoFont,
           ),
+          textAlign: pw.TextAlign.center,
         ),
-        pw.SizedBox(height: 16),
         pw.Text(
-          'Customer: ${billData['customerName']}',
-          style: pw.TextStyle(font: robotoFont),
-        ),
-        if (billData['customerPhone'] != null &&
-            billData['customerPhone'].toString().isNotEmpty)
-          pw.Text(
-            'Phone: ${billData['customerPhone']}',
-            style: pw.TextStyle(font: robotoFont),
-          ),
-        pw.SizedBox(height: 16),
-        pw.Text(
-          'Products:',
+          'CRAFTS & GIFT',
           style: pw.TextStyle(
-            fontSize: 16,
+            fontSize: 10.5,
             fontWeight: pw.FontWeight.bold,
             font: robotoFont,
           ),
+          textAlign: pw.TextAlign.center,
         ),
-        pw.Table(
-          border: pw.TableBorder.all(),
-          columnWidths: {
-            0: const pw.FlexColumnWidth(4), // Product name - wider
-            1: const pw.FlexColumnWidth(1), // Qty
-            2: const pw.FlexColumnWidth(2), // Price
-            3: const pw.FlexColumnWidth(2), // Total
-          },
-          defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
+        pw.Text(
+          'Main Road Alathur',
+          style: pw.TextStyle(fontSize: 8.5, font: robotoFont),
+          textAlign: pw.TextAlign.center,
+        ),
+        pw.Text(
+          '7907609118',
+          style: pw.TextStyle(fontSize: 8.5, font: robotoFont),
+          textAlign: pw.TextAlign.center,
+        ),
+        pw.SizedBox(height: 6),
+        pw.Divider(thickness: 0.5, borderStyle: pw.BorderStyle.dashed),
+        pw.SizedBox(height: 4),
+
+        // Bill Info
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            // Header Row
-            pw.TableRow(
-              decoration: const pw.BoxDecoration(color: PdfColors.grey300),
-              children: ['Product', 'Qty', 'Price', 'Total']
-                  .map(
-                    (text) => pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        text,
-                        style: pw.TextStyle(
-                          font: robotoFont,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
+            pw.Text(
+              'Invoice #${billData['invoiceNumber']}',
+              style: pw.TextStyle(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold,
+                font: robotoFont,
+              ),
             ),
-            // Product Rows - null-safe mapping
-            ...((billData['products'] as List?) ?? []).map<pw.TableRow>(
-              (product) {
-                final p = (product is Map<String, dynamic>)
-                    ? product
-                    : <String, dynamic>{};
-                final priceNum = (p['price'] as num?)?.toDouble() ?? 0.0;
-                final totalNum = (p['total'] as num?)?.toDouble() ?? 0.0;
-                return pw.TableRow(
-                  children: [
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        p['productName']?.toString() ?? '',
-                        style: pw.TextStyle(font: robotoFont),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        p['quantity']?.toString() ?? '1',
-                        textAlign: pw.TextAlign.center,
-                        style: pw.TextStyle(font: robotoFont),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Rs. ${priceNum.toStringAsFixed(2)}',
-                        textAlign: pw.TextAlign.right,
-                        style: pw.TextStyle(font: robotoFont),
-                      ),
-                    ),
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text(
-                        'Rs. ${totalNum.toStringAsFixed(2)}',
-                        textAlign: pw.TextAlign.right,
-                        style: pw.TextStyle(
-                          font: robotoFont,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
+            pw.Text(
+              formattedDate,
+              style: pw.TextStyle(fontSize: 8, font: robotoFont),
             ),
           ],
         ),
-        pw.SizedBox(height: 16),
+        if (billData['customerName'] != null &&
+            billData['customerName'].toString() != 'Walk-in Customer')
+          pw.Align(
+            alignment: pw.Alignment.centerLeft,
+            child: pw.Text(
+              'Customer: ${billData['customerName']}',
+              style: pw.TextStyle(fontSize: 8.5, font: robotoFont),
+            ),
+          ),
+        if (billData['customerPhone'] != null &&
+            billData['customerPhone'].toString().trim().isNotEmpty)
+          pw.Align(
+            alignment: pw.Alignment.centerLeft,
+            child: pw.Text(
+              'Phone: ${billData['customerPhone']}',
+              style: pw.TextStyle(fontSize: 8.5, font: robotoFont),
+            ),
+          ),
+        pw.SizedBox(height: 4),
+        pw.Divider(thickness: 0.5, borderStyle: pw.BorderStyle.dashed),
+        pw.SizedBox(height: 4),
+
+        // Table Header
         pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.end,
           children: [
-            pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.end,
+            pw.Expanded(
+              flex: 5,
+              child: pw.Text(
+                'Item',
+                style: pw.TextStyle(
+                  fontSize: 8.5,
+                  fontWeight: pw.FontWeight.bold,
+                  font: robotoFont,
+                ),
+              ),
+            ),
+            pw.Expanded(
+              flex: 2,
+              child: pw.Text(
+                'Qty',
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                  fontSize: 8.5,
+                  fontWeight: pw.FontWeight.bold,
+                  font: robotoFont,
+                ),
+              ),
+            ),
+            pw.Expanded(
+              flex: 3,
+              child: pw.Text(
+                'Price',
+                textAlign: pw.TextAlign.right,
+                style: pw.TextStyle(
+                  fontSize: 8.5,
+                  fontWeight: pw.FontWeight.bold,
+                  font: robotoFont,
+                ),
+              ),
+            ),
+            pw.Expanded(
+              flex: 3,
+              child: pw.Text(
+                'Total',
+                textAlign: pw.TextAlign.right,
+                style: pw.TextStyle(
+                  fontSize: 8.5,
+                  fontWeight: pw.FontWeight.bold,
+                  font: robotoFont,
+                ),
+              ),
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 2),
+        pw.Divider(thickness: 0.5),
+
+        // Items List
+        ...((billData['products'] as List?) ?? []).map<pw.Widget>((product) {
+          final p = (product is Map<String, dynamic>) ? product : <String, dynamic>{};
+          final name = p['productName']?.toString() ?? '';
+          final qty = p['quantity']?.toString() ?? '1';
+          final priceNum = (p['price'] as num?)?.toDouble() ?? 0.0;
+          final totalNum = (p['total'] as num?)?.toDouble() ?? 0.0;
+
+          return pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(vertical: 2),
+            child: pw.Row(
               children: [
-                pw.Text(
-                  'Subtotal: Rs. ${subtotal.toStringAsFixed(2)}',
-                  style: pw.TextStyle(font: robotoFont),
+                pw.Expanded(
+                  flex: 5,
+                  child: pw.Text(
+                    name,
+                    style: pw.TextStyle(fontSize: 8.5, font: robotoFont),
+                  ),
                 ),
-                pw.Text(
-                  'Discount: Rs. ${discount.toStringAsFixed(2)}',
-                  style: pw.TextStyle(font: robotoFont),
+                pw.Expanded(
+                  flex: 2,
+                  child: pw.Text(
+                    qty,
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(fontSize: 8.5, font: robotoFont),
+                  ),
                 ),
-                pw.Text(
-                  'Total: Rs. ${finalTotal.toStringAsFixed(2)}',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    font: robotoFont,
+                pw.Expanded(
+                  flex: 3,
+                  child: pw.Text(
+                    priceNum.toStringAsFixed(2),
+                    textAlign: pw.TextAlign.right,
+                    style: pw.TextStyle(fontSize: 8.5, font: robotoFont),
+                  ),
+                ),
+                pw.Expanded(
+                  flex: 3,
+                  child: pw.Text(
+                    totalNum.toStringAsFixed(2),
+                    textAlign: pw.TextAlign.right,
+                    style: pw.TextStyle(fontSize: 8.5, font: robotoFont),
                   ),
                 ),
               ],
             ),
+          );
+        }),
+
+        pw.SizedBox(height: 4),
+        pw.Divider(thickness: 0.5, borderStyle: pw.BorderStyle.dashed),
+        pw.SizedBox(height: 4),
+
+        // Totals
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text(
+              'Subtotal:',
+              style: pw.TextStyle(fontSize: 8.5, font: robotoFont),
+            ),
+            pw.Text(
+              'Rs ${subtotal.toStringAsFixed(2)}',
+              style: pw.TextStyle(fontSize: 8.5, font: robotoFont),
+            ),
           ],
         ),
+        if (discount > 0)
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'Discount:',
+                style: pw.TextStyle(fontSize: 8.5, font: robotoFont),
+              ),
+              pw.Text(
+                '-Rs ${discount.toStringAsFixed(2)}',
+                style: pw.TextStyle(fontSize: 8.5, font: robotoFont),
+              ),
+            ],
+          ),
+        pw.SizedBox(height: 2),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text(
+              'Total:',
+              style: pw.TextStyle(
+                fontSize: 10.5,
+                fontWeight: pw.FontWeight.bold,
+                font: robotoFont,
+              ),
+            ),
+            pw.Text(
+              'Rs ${finalTotal.toStringAsFixed(2)}',
+              style: pw.TextStyle(
+                fontSize: 10.5,
+                fontWeight: pw.FontWeight.bold,
+                font: robotoFont,
+              ),
+            ),
+          ],
+        ),
+
+        // Payment Info
+        if (billData['paymentType'] != null) ...[
+          pw.SizedBox(height: 4),
+          pw.Divider(thickness: 0.5, borderStyle: pw.BorderStyle.dashed),
+          pw.SizedBox(height: 2),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'Payment: ${billData['paymentMethod'] ?? 'Cash'} (${billData['paymentType']})',
+                style: pw.TextStyle(fontSize: 8, font: robotoFont),
+              ),
+              pw.Text(
+                'Paid: Rs ${(billData['totalPaid'] as num?)?.toStringAsFixed(2) ?? finalTotal.toStringAsFixed(2)}',
+                style: pw.TextStyle(fontSize: 8, font: robotoFont),
+              ),
+            ],
+          ),
+        ],
+
         pw.SizedBox(height: 8),
         pw.Text(
-          'Items: ${billData['itemCount']}',
-          style: pw.TextStyle(font: robotoFont),
+          '*** Thank You! Visit Again ***',
+          style: pw.TextStyle(fontSize: 8, font: robotoFont),
+          textAlign: pw.TextAlign.center,
         ),
-        pw.Text('Date: $formattedDate', style: pw.TextStyle(font: robotoFont)),
       ],
     );
   }
