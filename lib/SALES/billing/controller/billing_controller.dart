@@ -59,14 +59,13 @@ class BillingController extends GetxController {
     fetchAllCustomers();
   }
 
-  StreamSubscription? _customersSub;
-
-  void fetchAllCustomers() {
-    _customersSub = _firestore.collection('customers').snapshots().listen((snap) {
+  Future<void> fetchAllCustomers() async {
+    try {
+      final snap = await _firestore.collection('customers').get();
       allCustomers.assignAll(snap.docs.map((e) => e.data()).toList());
-    }, onError: (e) {
-      developer.log('Failed to listen to customers: $e');
-    });
+    } catch (e) {
+      developer.log('Failed to fetch customers: $e');
+    }
   }
 
   void _onScroll() {
@@ -382,12 +381,23 @@ class BillingController extends GetxController {
     }
   }
 
+  Product? getProductById(String id) {
+    for (var p in products) {
+      if (p.id == id) return p;
+    }
+    for (var p in _allProductsCache) {
+      if (p.id == id) return p;
+    }
+    return null;
+  }
+
   double calculateTotal() {
     double total = 0;
-    for (var product in products) {
-      if (selectedProducts.containsKey(product.id)) {
+    for (var entry in selectedProducts.entries) {
+      final product = getProductById(entry.key);
+      if (product != null) {
         final price = getCustomPrice(product);
-        final qty = selectedProducts[product.id]!;
+        final qty = entry.value;
         final lineSubtotal = price * qty;
         
         double lineCardDiscount = 0.0;
@@ -396,11 +406,14 @@ class BillingController extends GetxController {
         }
         
         total += (lineSubtotal - lineCardDiscount);
+      } else {
+        final customPrice = customPrices[entry.key] ?? 0.0;
+        total += customPrice * entry.value;
       }
     }
-    final discount = customerDiscount.trim().isEmpty
+    final discount = customerDiscount.value.trim().isEmpty
         ? 0.0
-        : double.tryParse(customerDiscount.trim()) ?? 0.0;
+        : double.tryParse(customerDiscount.value.trim()) ?? 0.0;
     return (total - discount).clamp(0, double.infinity);
   }
 
@@ -438,7 +451,11 @@ class BillingController extends GetxController {
 
     try {
       final billId = const Uuid().v4();
+      developer.log('[createBill] Requesting next sequential invoice number...');
+      print('[createBill] Requesting next sequential invoice number...');
       final invoiceNumber = await generateInvoiceNumber();
+      developer.log('[createBill] Received invoice number: $invoiceNumber, billId: $billId');
+      print('[createBill] Received invoice number: $invoiceNumber, billId: $billId');
       final batch = _firestore.batch();
 
       final totalAmount = calculateTotal();
@@ -447,6 +464,8 @@ class BillingController extends GetxController {
           : double.parse(customerDiscount.value.trim());
 
       if (totalAmount <= 0) {
+        developer.log('[createBill] Validation failed: totalAmount is $totalAmount');
+        print('[createBill] Validation failed: totalAmount is $totalAmount');
         Get.snackbar('Error', 'Total amount must be greater than 0');
         return null;
       }
@@ -482,22 +501,26 @@ class BillingController extends GetxController {
 
         // ✅ FIXED PRODUCTS LIST
         'products': selectedProducts.entries.map((entry) {
-          final product = products.firstWhere((p) => p.id == entry.key);
-          final price = getCustomPrice(product);
+          final product = getProductById(entry.key);
+          final name = product?.name ?? 'Item';
+          final price = product != null
+              ? getCustomPrice(product)
+              : (customPrices[entry.key] ?? 0.0);
           final lineSubtotal = price * entry.value;
-          
+          final cardExcluded = product?.cardDiscountExcluded ?? false;
+
           double cardDiscountAmount = 0.0;
-          if (!product.cardDiscountExcluded && cardDiscountPercent.value > 0) {
+          if (!cardExcluded && cardDiscountPercent.value > 0) {
             cardDiscountAmount = lineSubtotal * (cardDiscountPercent.value / 100);
           }
 
           return {
-            'productId': product.id,
-            'productName': product.name,
+            'productId': entry.key,
+            'productName': name,
             'quantity': entry.value,
             'price': price,
             'total': lineSubtotal - cardDiscountAmount,
-            'cardDiscountExcluded': product.cardDiscountExcluded,
+            'cardDiscountExcluded': cardExcluded,
             'cardDiscountAmount': cardDiscountAmount,
           };
         }).toList(),
@@ -527,7 +550,8 @@ class BillingController extends GetxController {
 
       // Update stock (skip quick items — they don't exist in Firestore)
       for (var entry in selectedProducts.entries) {
-        final product = products.firstWhere((p) => p.id == entry.key);
+        final product = getProductById(entry.key);
+        if (product == null) continue;
 
         // Quick items are ad-hoc and have no Firestore document
         if (!entry.key.startsWith('quick_')) {
@@ -556,10 +580,10 @@ class BillingController extends GetxController {
 
       final Map<String, dynamic> salesIncrements = {};
       for (var entry in selectedProducts.entries) {
-        final product = products.firstWhere((p) => p.id == entry.key);
+        final product = getProductById(entry.key);
         salesIncrements[entry.key] = {
           'qty': FieldValue.increment(entry.value),
-          'name': product.name,
+          'name': product?.name ?? 'Item',
         };
       }
 
@@ -569,7 +593,11 @@ class BillingController extends GetxController {
       batch.set(_firestore.collection('sales_stats').doc('all_time'), salesIncrements, SetOptions(merge: true));
       // -----------------------------------------------
 
+      developer.log('[createBill] Committing Firestore batch write...');
+      print('[createBill] Committing Firestore batch write...');
       await batch.commit();
+      developer.log('[createBill] Batch write committed successfully!');
+      print('[createBill] Batch write committed successfully!');
 
       Get.snackbar(
         'Success',
@@ -581,12 +609,13 @@ class BillingController extends GetxController {
       clearCart();
       fetchProducts(refresh: true);
       if (Get.isBottomSheetOpen == true) {
-        Navigator.of(Get.overlayContext!, rootNavigator: true).pop();
+        Get.back();
       }
 
       return billData;
-    } catch (e) {
-      developer.log('Failed to create bill: $e');
+    } catch (e, stackTrace) {
+      developer.log('[createBill] Failed to create bill: $e\n$stackTrace', error: e, stackTrace: stackTrace);
+      print('[createBill] Failed to create bill: $e\n$stackTrace');
       Get.snackbar('Error', 'Failed to create invoice: $e');
       return null;
     } finally {
@@ -908,7 +937,6 @@ class BillingController extends GetxController {
     discountController.dispose();
     scrollController.dispose();
     _debounce?.cancel();
-    _customersSub?.cancel();
     super.onClose();
   }
 }

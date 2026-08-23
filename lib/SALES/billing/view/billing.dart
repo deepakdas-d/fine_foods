@@ -12,6 +12,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'dart:developer' as developer;
 import 'package:fine_foods/appcolor.dart';
 import 'package:printing/printing.dart';
 import 'package:shimmer/shimmer.dart';
@@ -1038,20 +1039,48 @@ class BillingScreen extends StatelessWidget {
   );
 
   Future<void> _generateInvoice() async {
+    developer.log('[GenerateInvoice] 1. Generate Invoice button clicked. Calling controller.createBill()...');
+    print('[GenerateInvoice] 1. Generate Invoice button clicked. Calling controller.createBill()...');
     try {
       final billData = await controller.createBill();
-      if (billData == null) return;
+      if (billData == null) {
+        developer.log('[GenerateInvoice] createBill() returned null. Aborting.');
+        print('[GenerateInvoice] createBill() returned null. Aborting.');
+        return;
+      }
 
-      final pdf = pw.Document();
+      developer.log('[GenerateInvoice] 2. Bill created successfully. InvoiceNumber: ${billData['invoiceNumber']}');
+      print('[GenerateInvoice] 2. Bill created successfully. InvoiceNumber: ${billData['invoiceNumber']}');
+
+      developer.log('[GenerateInvoice] 3. Loading Roboto font from assets/fonts/Roboto-Regular.ttf...');
+      print('[GenerateInvoice] 3. Loading Roboto font from assets/fonts/Roboto-Regular.ttf...');
       final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
       final robotoFont = pw.Font.ttf(fontData);
 
+      developer.log('[GenerateInvoice] 4. Building PDF document and adding page...');
+      print('[GenerateInvoice] 4. Building PDF document and adding page...');
+      final pdf = pw.Document();
       pdf.addPage(
-        pw.Page(build: (context) => _buildPDFContent(billData, robotoFont)),
+        pw.Page(
+          pageFormat: const PdfPageFormat(
+            80 * PdfPageFormat.mm,
+            250 * PdfPageFormat.mm,
+            marginAll: 5 * PdfPageFormat.mm,
+          ),
+          build: (context) {
+            developer.log('[GenerateInvoice] 4a. Rendering PDF content callback...');
+            return _buildPDFContent(billData, robotoFont);
+          },
+        ),
       );
+
+      developer.log('[GenerateInvoice] 5. PDF page added. Opening dialog for Platform: ${Platform.operatingSystem}...');
+      print('[GenerateInvoice] 5. PDF page added. Opening dialog for Platform: ${Platform.operatingSystem}...');
 
       // ================= WINDOWS =================
       if (Platform.isWindows) {
+        developer.log('[GenerateInvoice] 6. Showing Windows preview dialog...');
+        print('[GenerateInvoice] 6. Showing Windows preview dialog...');
         await Get.dialog(
           Dialog(
             child: ConstrainedBox(
@@ -1079,14 +1108,18 @@ class BillingScreen extends StatelessWidget {
                   ),
                   Expanded(
                     child: PdfPreview(
-                      build: (format) => pdf.save(),
+                      build: (format) {
+                        developer.log('[GenerateInvoice] 7. PdfPreview.build called. Saving PDF bytes...');
+                        print('[GenerateInvoice] 7. PdfPreview.build called. Saving PDF bytes...');
+                        return pdf.save();
+                      },
                       allowPrinting: false,
                       allowSharing: false,
                       canChangeOrientation: false,
                       canChangePageFormat: false,
-                      initialPageFormat: PdfPageFormat(
+                      initialPageFormat: const PdfPageFormat(
                         80 * PdfPageFormat.mm,
-                        double.infinity,
+                        250 * PdfPageFormat.mm,
                         marginAll: 5 * PdfPageFormat.mm,
                       ),
                       actions: const [],
@@ -1286,7 +1319,8 @@ class BillingScreen extends StatelessWidget {
           'Customer: ${billData['customerName']}',
           style: pw.TextStyle(font: robotoFont),
         ),
-        if (billData['customerPhone'].isNotEmpty)
+        if (billData['customerPhone'] != null &&
+            billData['customerPhone'].toString().isNotEmpty)
           pw.Text(
             'Phone: ${billData['customerPhone']}',
             style: pw.TextStyle(font: robotoFont),
@@ -1328,49 +1362,54 @@ class BillingScreen extends StatelessWidget {
                   )
                   .toList(),
             ),
-            // Product Rows - FIXED: removed .values and added .toList()
-            ...billData['products']
-                .map<pw.TableRow>(
-                  (product) => pw.TableRow(
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          product['productName'] ?? '',
-                          style: pw.TextStyle(font: robotoFont),
+            // Product Rows - null-safe mapping
+            ...((billData['products'] as List?) ?? []).map<pw.TableRow>(
+              (product) {
+                final p = (product is Map<String, dynamic>)
+                    ? product
+                    : <String, dynamic>{};
+                final priceNum = (p['price'] as num?)?.toDouble() ?? 0.0;
+                final totalNum = (p['total'] as num?)?.toDouble() ?? 0.0;
+                return pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(
+                        p['productName']?.toString() ?? '',
+                        style: pw.TextStyle(font: robotoFont),
+                      ),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(
+                        p['quantity']?.toString() ?? '1',
+                        textAlign: pw.TextAlign.center,
+                        style: pw.TextStyle(font: robotoFont),
+                      ),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(
+                        'Rs. ${priceNum.toStringAsFixed(2)}',
+                        textAlign: pw.TextAlign.right,
+                        style: pw.TextStyle(font: robotoFont),
+                      ),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(
+                        'Rs. ${totalNum.toStringAsFixed(2)}',
+                        textAlign: pw.TextAlign.right,
+                        style: pw.TextStyle(
+                          font: robotoFont,
+                          fontWeight: pw.FontWeight.bold,
                         ),
                       ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          product['quantity'].toString(),
-                          textAlign: pw.TextAlign.center,
-                          style: pw.TextStyle(font: robotoFont),
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          '₹${(product['price'] as num).toStringAsFixed(2)}',
-                          textAlign: pw.TextAlign.right,
-                          style: pw.TextStyle(font: robotoFont),
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Text(
-                          '₹${(product['total'] as num).toStringAsFixed(2)}',
-                          textAlign: pw.TextAlign.right,
-                          style: pw.TextStyle(
-                            font: robotoFont,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-                .toList(),
+                    ),
+                  ],
+                );
+              },
+            ),
           ],
         ),
         pw.SizedBox(height: 16),
@@ -1381,15 +1420,15 @@ class BillingScreen extends StatelessWidget {
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
                 pw.Text(
-                  'Subtotal: ₹${subtotal.toStringAsFixed(2)}',
+                  'Subtotal: Rs. ${subtotal.toStringAsFixed(2)}',
                   style: pw.TextStyle(font: robotoFont),
                 ),
                 pw.Text(
-                  'Discount: ₹${discount.toStringAsFixed(2)}',
+                  'Discount: Rs. ${discount.toStringAsFixed(2)}',
                   style: pw.TextStyle(font: robotoFont),
                 ),
                 pw.Text(
-                  'Total: ₹${finalTotal.toStringAsFixed(2)}',
+                  'Total: Rs. ${finalTotal.toStringAsFixed(2)}',
                   style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,

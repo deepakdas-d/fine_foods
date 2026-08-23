@@ -554,7 +554,14 @@ class Home extends StatelessWidget {
         );
         final robotoFont = pw.Font.ttf(fontData);
         pdf.addPage(
-          pw.Page(build: (context) => _buildPDFContent(billData, robotoFont)),
+          pw.Page(
+            pageFormat: const PdfPageFormat(
+              80 * PdfPageFormat.mm,
+              250 * PdfPageFormat.mm,
+              marginAll: 5 * PdfPageFormat.mm,
+            ),
+            build: (context) => _buildPDFContent(billData, robotoFont),
+          ),
         );
 
         // Platform specific preview logic
@@ -598,9 +605,9 @@ class Home extends StatelessWidget {
                         canChangeOrientation: false,
                         canChangePageFormat: false,
                         // Removed custom action from toolbar\
-                        initialPageFormat: PdfPageFormat(
+                        initialPageFormat: const PdfPageFormat(
                           80 * PdfPageFormat.mm,
-                          double.infinity,
+                          250 * PdfPageFormat.mm,
                           marginAll: 5 * PdfPageFormat.mm,
                         ),
                         actions:
@@ -901,14 +908,14 @@ class Home extends StatelessWidget {
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
                     child: pw.Text(
-                      '₹${product['price'].toStringAsFixed(2)}',
+                      'Rs. ${product['price'].toStringAsFixed(2)}',
                       style: pw.TextStyle(font: robotoFont),
                     ),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(8),
                     child: pw.Text(
-                      '₹${product['total'].toStringAsFixed(2)}',
+                      'Rs. ${product['total'].toStringAsFixed(2)}',
                       style: pw.TextStyle(font: robotoFont),
                     ),
                   ),
@@ -925,16 +932,16 @@ class Home extends StatelessWidget {
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
                 pw.Text(
-                  'Subtotal: ₹${subtotal.toStringAsFixed(2)}',
+                  'Subtotal: Rs. ${subtotal.toStringAsFixed(2)}',
                   style: pw.TextStyle(font: robotoFont),
                 ),
                 if (discount > 0)
                   pw.Text(
-                    'Discount: ₹${discount.toStringAsFixed(2)}',
+                    'Discount: Rs. ${discount.toStringAsFixed(2)}',
                     style: pw.TextStyle(font: robotoFont),
                   ),
                 pw.Text(
-                  'Total: ₹${finalTotal.toStringAsFixed(2)}',
+                  'Total: Rs. ${finalTotal.toStringAsFixed(2)}',
                   style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
