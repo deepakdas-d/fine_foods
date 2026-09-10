@@ -4,9 +4,11 @@ import 'dart:developer' as developer;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fine_foods/ADMIN/invoice_generator/product_models.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
+import 'package:fine_foods/SALES/billing/models/queued_bill_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
 import 'package:fine_foods/home/printer_controller.dart';
 import 'package:uuid/uuid.dart';
@@ -16,6 +18,9 @@ import 'package:fine_foods/services/invoice_sequence_service.dart';
 
 class BillingController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static const String _queuedBillsKey = 'held_bills_queue';
+  final RxList<QueuedBill> queuedBills = <QueuedBill>[].obs;
+  final RxBool isProcessingQueue = false.obs;
   final customerName = TextEditingController();
   TextEditingController customerPhone = TextEditingController();
   var customerDiscount = ''.obs;
@@ -57,6 +62,7 @@ class BillingController extends GetxController {
     isLoading.value = true;
     fetchProducts(refresh: true);
     fetchAllCustomers();
+    _loadQueuedBills();
   }
 
   Future<void> fetchAllCustomers() async {
@@ -251,14 +257,205 @@ class BillingController extends GetxController {
     }
   }
 
+  GetStorage get _storage {
+    try {
+      return Get.find<GetStorage>();
+    } catch (_) {
+      return GetStorage('GetStorage');
+    }
+  }
+
+  void _loadQueuedBills() {
+    try {
+      final stored = _storage.read<List<dynamic>>(_queuedBillsKey);
+      if (stored != null) {
+        queuedBills.assignAll(
+          stored
+              .map((e) => QueuedBill.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList(),
+        );
+      }
+    } catch (e) {
+      developer.log('Failed to load queued bills from storage: $e');
+    }
+  }
+
+  void _saveQueuedBills() {
+    try {
+      final list = queuedBills.map((b) => b.toJson()).toList();
+      _storage.write(_queuedBillsKey, list);
+    } catch (e) {
+      developer.log('Failed to save queued bills to storage: $e');
+    }
+  }
+
+  bool holdCurrentBill({String? note}) {
+    if (isProcessingQueue.value) return false;
+    if (selectedProducts.isEmpty) {
+      Get.snackbar(
+        'Empty Cart',
+        'Cannot pause an empty bill. Add products first.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return false;
+    }
+
+    isProcessingQueue.value = true;
+    try {
+      final snapshots = <Map<String, dynamic>>[];
+      final summaries = <String>[];
+      final lockedPrices = <String, double>{};
+
+      for (var entry in selectedProducts.entries) {
+        final product = getProductById(entry.key);
+        final name = product?.name ?? 'Item';
+        summaries.add('$name x${entry.value}');
+
+        // Issue 5: Lock price as of hold time into customPrices
+        final effectivePrice = product != null
+            ? getCustomPrice(product)
+            : (customPrices[entry.key] ?? 0.0);
+        lockedPrices[entry.key] = effectivePrice;
+
+        // Issue 1: Capture snapshot of ALL products for crash-free restore
+        if (product != null) {
+          snapshots.add(product.toMap());
+        }
+      }
+
+      final total = calculateTotal();
+      final count = selectedProducts.values.fold(0, (a, b) => a + b);
+
+      final bill = QueuedBill(
+        id: const Uuid().v4(),
+        customerName: customerName.text.trim(),
+        customerPhone: customerPhone.text.trim(),
+        cardTierUsed: cardTierUsed.value,
+        cardDiscountPercent: cardDiscountPercent.value,
+        customerDiscount: customerDiscount.value,
+        selectedPaymentType: selectedPaymentType.value,
+        paymentMethod: paymentMethod.value,
+        cashReceived: cashReceived.value,
+        onlineReceived: onlineReceived.value,
+        heldAt: DateTime.now(),
+        note: (note != null && note.trim().isNotEmpty) ? note.trim() : null,
+        totalAmount: total,
+        itemCount: count,
+        selectedProducts: Map<String, int>.from(selectedProducts),
+        customPrices: lockedPrices,
+        productSnapshots: snapshots,
+        itemSummaries: summaries,
+      );
+
+      queuedBills.insert(0, bill);
+      _saveQueuedBills();
+
+      clearCart();
+      _showFeedback('Bill placed on hold in queue');
+      return true;
+    } finally {
+      isProcessingQueue.value = false;
+    }
+  }
+
+  void resumeQueuedBill(QueuedBill bill) {
+    if (isProcessingQueue.value) return;
+    isProcessingQueue.value = true;
+
+    try {
+      clearCart();
+
+      // Issue 1: Re-register ALL products from snapshots so getProductById never returns null
+      for (var pMap in bill.productSnapshots) {
+        final p = Product.fromMap(pMap);
+        if (!products.any((existing) => existing.id == p.id)) {
+          products.add(p);
+        }
+        if (!filteredProducts.any((existing) => existing.id == p.id)) {
+          filteredProducts.add(p);
+        }
+      }
+
+      selectedProducts.assignAll(bill.selectedProducts);
+      customPrices.assignAll(bill.customPrices);
+      customerName.text = bill.customerName;
+      customerPhone.text = bill.customerPhone;
+      cardTierUsed.value = bill.cardTierUsed;
+      cardDiscountPercent.value = bill.cardDiscountPercent;
+      customerDiscount.value = bill.customerDiscount;
+      discountController.text = bill.customerDiscount;
+      selectedPaymentType.value = bill.selectedPaymentType;
+      paymentMethod.value = bill.paymentMethod;
+      cashReceived.value = bill.cashReceived;
+      onlineReceived.value = bill.onlineReceived;
+      autocompleteKey.value++;
+
+      queuedBills.removeWhere((b) => b.id == bill.id);
+      _saveQueuedBills();
+
+      // Issue 2: Verify stock availability upon resume and warn if depleted
+      final List<String> depletedItems = [];
+      for (var entry in bill.selectedProducts.entries) {
+        if (!entry.key.startsWith('quick_')) {
+          final p = getProductById(entry.key);
+          if (p != null && p.count < entry.value) {
+            depletedItems.add('${p.name} (Available: ${p.count}, In Cart: ${entry.value})');
+          }
+        }
+      }
+
+      if (depletedItems.isNotEmpty) {
+        Get.snackbar(
+          'Stock Depleted While On Hold',
+          'Insufficient stock for:\n${depletedItems.join('\n')}',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red[800],
+          colorText: Colors.white,
+          duration: const Duration(seconds: 5),
+        );
+      } else {
+        _showFeedback(
+          'Resumed bill for ${bill.customerName.isEmpty ? "Walk-in Customer" : bill.customerName}',
+        );
+      }
+    } finally {
+      isProcessingQueue.value = false;
+    }
+  }
+
+  void deleteQueuedBill(String id) {
+    queuedBills.removeWhere((b) => b.id == id);
+    _saveQueuedBills();
+    _showFeedback('Held bill removed');
+  }
+
+  void clearStaleQueuedBills({int olderThanHours = 24}) {
+    final cutoff = DateTime.now().subtract(Duration(hours: olderThanHours));
+    final initialCount = queuedBills.length;
+    queuedBills.removeWhere((b) => b.heldAt.isBefore(cutoff));
+    if (queuedBills.length < initialCount) {
+      _saveQueuedBills();
+      _showFeedback('Cleared ${initialCount - queuedBills.length} stale bill(s)');
+    } else {
+      _showFeedback('No stale bills older than $olderThanHours hours');
+    }
+  }
+
   void clearCart() {
     selectedProducts.clear();
     customPrices.clear();
     customerName.clear();
+    customerPhone.clear();
     customerDiscount.value = '';
     discountController.clear();
     cardDiscountPercent.value = 0.0;
     cardTierUsed.value = null;
+    selectedPaymentType.value = 'Full';
+    paymentMethod.value = 'Cash';
+    cashReceived.value = '';
+    onlineReceived.value = '';
     // Increment key to force Autocomplete widget to rebuild with a fresh controller
     autocompleteKey.value++;
   }
@@ -444,6 +641,23 @@ class BillingController extends GetxController {
       if (disc > calculateTotal()) {
         Get.snackbar('Error', 'Discount cannot exceed total amount');
         return null;
+      }
+    }
+    // Issue 2: Stock validation before billing to prevent negative stock
+    for (var entry in selectedProducts.entries) {
+      if (!entry.key.startsWith('quick_')) {
+        final product = getProductById(entry.key);
+        if (product != null && product.count < entry.value) {
+          Get.snackbar(
+            'Insufficient Stock',
+            'Cannot generate invoice: "${product.name}" only has ${product.count} in stock (requested ${entry.value}).',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 4),
+          );
+          return null;
+        }
       }
     }
 

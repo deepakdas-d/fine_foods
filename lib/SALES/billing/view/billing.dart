@@ -1,4 +1,5 @@
 import 'package:fine_foods/SALES/billing/controller/billing_controller.dart';
+import 'package:fine_foods/SALES/billing/models/queued_bill_model.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
 import 'package:fine_foods/home/printer_controller.dart';
 import 'package:flutter/foundation.dart';
@@ -59,6 +60,40 @@ class BillingScreen extends StatelessWidget {
           color: AppColor.primary,
         ),
         tooltip: 'Add Quick Item',
+      ),
+      Obx(
+        () => Stack(
+          children: [
+            IconButton(
+              onPressed: () => _showQueueSheet(context),
+              icon: const Icon(
+                Icons.pause_circle_outline,
+                color: AppColor.textPrimary,
+              ),
+              tooltip: 'Held Bills Queue',
+            ),
+            if (controller.queuedBills.isNotEmpty)
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[800],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${controller.queuedBills.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
       Obx(
         () => Stack(
@@ -542,11 +577,12 @@ class BillingScreen extends StatelessWidget {
                         itemBuilder: (context, index) {
                           final productId = controller.selectedProducts.keys
                               .elementAt(index);
-                          final product = controller.products.firstWhere(
-                            (p) => p.id == productId,
-                          );
+                          final product = controller.getProductById(productId);
                           final quantity =
                               controller.selectedProducts[productId]!;
+                          if (product == null) {
+                            return _buildMissingCartItem(productId, quantity);
+                          }
                           return _buildCartItem(product, quantity);
                         },
                       ),
@@ -661,6 +697,58 @@ class BillingScreen extends StatelessWidget {
               fontWeight: FontWeight.bold,
               color: AppColor.primary,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMissingCartItem(String productId, int quantity) {
+    final customPrice = controller.customPrices[productId] ?? 0.0;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColor.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.warning_amber_rounded, color: Colors.red),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Item #$productId',
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: AppColor.textPrimary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '₹${customPrice.toStringAsFixed(2)} x $quantity',
+                  style: const TextStyle(fontSize: 14, color: AppColor.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () {
+              controller.selectedProducts.remove(productId);
+              controller.customPrices.remove(productId);
+            },
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            tooltip: 'Remove Item',
           ),
         ],
       ),
@@ -968,27 +1056,62 @@ class BillingScreen extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        // Generate Invoice Button
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: controller.selectedProducts.isEmpty
-                ? null
-                : _generateInvoice,
-            icon: const Icon(Icons.receipt_long),
-            label: const Text(
-              'Generate Invoice',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColor.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+        // Action Buttons: Hold Bill & Generate Invoice
+        Row(
+          children: [
+            Expanded(
+              flex: 1,
+              child: Obx(
+                () => OutlinedButton.icon(
+                  onPressed: controller.selectedProducts.isEmpty ||
+                          controller.isProcessingQueue.value
+                      ? null
+                      : _promptHoldBill,
+                  icon: const Icon(Icons.pause_circle_outline, size: 18),
+                  label: const Text(
+                    'Hold',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.orange[800],
+                    disabledForegroundColor: Colors.grey,
+                    side: BorderSide(
+                      color: controller.selectedProducts.isEmpty ||
+                              controller.isProcessingQueue.value
+                          ? Colors.grey.withValues(alpha: 0.3)
+                          : Colors.orange,
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton.icon(
+                onPressed: controller.selectedProducts.isEmpty
+                    ? null
+                    : _generateInvoice,
+                icon: const Icon(Icons.receipt_long),
+                label: const Text(
+                  'Generate Invoice',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColor.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     ),
@@ -1741,4 +1864,525 @@ class BillingScreen extends StatelessWidget {
       ),
     );
   }
+
+  void _promptHoldBill() {
+    final noteController = TextEditingController();
+    final customerDesc = controller.customerName.text.trim().isNotEmpty
+        ? controller.customerName.text.trim()
+        : (controller.customerPhone.text.trim().isNotEmpty
+            ? controller.customerPhone.text.trim()
+            : 'Walk-in Customer');
+
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: AppColor.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.pause_circle_outline, color: Colors.orange[800], size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Hold / Pause Bill',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColor.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Put bill for "$customerDesc" (${controller.selectedProducts.length} items, ₹${controller.calculateTotal().toStringAsFixed(2)}) on hold?',
+              style: const TextStyle(fontSize: 14, color: AppColor.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: noteController,
+              style: const TextStyle(color: AppColor.textPrimary),
+              decoration: InputDecoration(
+                labelText: 'Optional Note / Identifier',
+                hintText: 'e.g. Went to pick more items',
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel', style: TextStyle(color: AppColor.textSecondary)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              final note = noteController.text.trim();
+              Get.back();
+              final success = controller.holdCurrentBill(note: note);
+              if (success && Get.isBottomSheetOpen == true) {
+                Get.back();
+              }
+            },
+            icon: const Icon(Icons.pause, size: 18),
+            label: const Text('Hold Bill'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange[800],
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatHeldTime(DateTime heldAt) {
+    final diff = DateTime.now().difference(heldAt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return DateFormat('dd MMM, hh:mm a').format(heldAt);
+  }
+
+  void _showQueueSheet(BuildContext context) {
+    Get.bottomSheet(
+      DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        minChildSize: 0.4,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: AppColor.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                height: 4,
+                width: 40,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.pause_circle_outline, color: Colors.orange[800], size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Held Bills Queue',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColor.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Obx(
+                      () => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${controller.queuedBills.length}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange[800],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Obx(() {
+                      if (controller.queuedBills.isEmpty) return const SizedBox.shrink();
+                      return PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: AppColor.textSecondary),
+                        tooltip: 'Queue Actions',
+                        onSelected: (val) {
+                          if (val == 'clear_stale') {
+                            controller.clearStaleQueuedBills(olderThanHours: 24);
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: 'clear_stale',
+                            child: Row(
+                              children: [
+                                Icon(Icons.cleaning_services_outlined, size: 18, color: Colors.orange),
+                                SizedBox(width: 8),
+                                Text('Clear Bills > 24h old'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: AppColor.textSecondary),
+                      onPressed: () => Get.back(),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: Obx(() {
+                  if (controller.queuedBills.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.pause_circle_outline, size: 64, color: Colors.grey[400]),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No bills currently on hold',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppColor.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'When a customer pauses checkout to continue shopping, tap "Hold" to pause their cart and attend the next customer.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 13, color: AppColor.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: controller.queuedBills.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final bill = controller.queuedBills[index];
+                      return _buildQueuedBillCard(context, bill);
+                    },
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
+
+  Widget _buildQueuedBillCard(BuildContext context, QueuedBill bill) {
+    final customerDisplay = bill.customerName.isNotEmpty
+        ? bill.customerName
+        : (bill.customerPhone.isNotEmpty ? bill.customerPhone : 'Walk-in Customer');
+
+    final isStale = DateTime.now().difference(bill.heldAt).inHours >= 2;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColor.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isStale
+              ? Colors.red.withValues(alpha: 0.4)
+              : AppColor.textSecondary.withValues(alpha: 0.2),
+        ),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.person_outline, size: 18, color: AppColor.primary),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        customerDisplay,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: AppColor.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (bill.cardTierUsed != null) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          bill.cardTierUsed!.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isStale) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Old (${DateTime.now().difference(bill.heldAt).inHours}h+)',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(
+                    _formatHeldTime(bill.heldAt),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isStale ? Colors.red : AppColor.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (bill.customerPhone.isNotEmpty && bill.customerName.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.phone_outlined, size: 14, color: AppColor.textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  bill.customerPhone,
+                  style: const TextStyle(fontSize: 12, color: AppColor.textSecondary),
+                ),
+              ],
+            ),
+          ],
+          if (bill.note != null && bill.note!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.notes, size: 14, color: Colors.amber[800]),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      bill.note!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.amber[900],
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          if (bill.itemSummaries.isNotEmpty)
+            Text(
+              bill.itemSummaries.join(' • '),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: AppColor.textSecondary),
+            ),
+          const SizedBox(height: 12),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${bill.itemCount} item${bill.itemCount == 1 ? '' : 's'}',
+                    style: const TextStyle(fontSize: 12, color: AppColor.textSecondary),
+                  ),
+                  Text(
+                    '₹${bill.totalAmount.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: AppColor.primary,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () => _confirmDeleteQueuedBill(bill),
+                    icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                    tooltip: 'Delete Bill',
+                  ),
+                  const SizedBox(width: 6),
+                  Obx(
+                    () => ElevatedButton.icon(
+                      onPressed: controller.isProcessingQueue.value
+                          ? null
+                          : () => _handleResumeQueuedBill(bill),
+                      icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                      label: const Text('Resume'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColor.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleResumeQueuedBill(QueuedBill bill) {
+    if (controller.selectedProducts.isNotEmpty) {
+      Get.dialog(
+        AlertDialog(
+          backgroundColor: AppColor.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Cart Not Empty', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Text(
+            'There is already an active bill in the cart (${controller.selectedProducts.length} items). What would you like to do before resuming this held bill?',
+            style: const TextStyle(color: AppColor.textSecondary, fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(),
+              child: const Text('Cancel', style: TextStyle(color: AppColor.textSecondary)),
+            ),
+            OutlinedButton(
+              onPressed: () {
+                Get.back();
+                controller.holdCurrentBill(note: 'Swapped for resumed bill');
+                controller.resumeQueuedBill(bill);
+                if (Get.isBottomSheetOpen == true) {
+                  Get.back();
+                }
+              },
+              child: const Text('Hold Current & Resume'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Get.back();
+                controller.resumeQueuedBill(bill);
+                if (Get.isBottomSheetOpen == true) {
+                  Get.back();
+                }
+              },
+              child: const Text('Discard Current & Resume'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      controller.resumeQueuedBill(bill);
+      if (Get.isBottomSheetOpen == true) {
+        Get.back();
+      }
+    }
+  }
+
+  void _confirmDeleteQueuedBill(QueuedBill bill) {
+    final customer = bill.customerName.isNotEmpty ? bill.customerName : 'Walk-in Customer';
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: AppColor.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Held Bill?'),
+        content: Text(
+          'Are you sure you want to delete the held bill for "$customer" (₹${bill.totalAmount.toStringAsFixed(2)})?',
+          style: const TextStyle(color: AppColor.textSecondary, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel', style: TextStyle(color: AppColor.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Get.back();
+              controller.deleteQueuedBill(bill.id);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
