@@ -5,75 +5,80 @@ import 'package:fine_foods/ADMIN/sales_data/sales_growth.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list.dart';
 import 'package:fine_foods/ADMIN/DiscountCards/discount_cards_view.dart';
 import 'package:fine_foods/ADMIN/Customers/customer_view.dart';
-import 'package:fine_foods/appcolor.dart'; // Import AppColor
+import 'package:fine_foods/appcolor.dart';
 import 'package:fine_foods/bottom_navigation.dart';
 import 'package:fine_foods/widgets/responsive.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:fine_foods/home/bills_analytics_widget.dart';
 import 'package:fine_foods/home/bills_analytics_controller.dart';
-import 'dashboard_stock_chart.dart';
 
 class Dashboard extends StatelessWidget {
   const Dashboard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Ensure controllers are available
-    Get.put(BillsAnalyticsController());
+    // Ensure analytics controller is active
+    final analyticsController = Get.put(BillsAnalyticsController());
 
-    final screenHeight = MediaQuery.of(context).size.height;
     final isDesktop = Responsive.isDesktop(context);
 
     final List<_DashboardItem> menuItems = [
       _DashboardItem(
         title: "Inventory",
+        subtitle: "Items & stock levels",
         icon: Icons.inventory_2_rounded,
-        color: AppColor.primary, // Yellow
+        color: AppColor.primary,
         page: const Inventory(),
       ),
       _DashboardItem(
         title: "Stocks",
+        subtitle: "Track inventory counts",
         icon: Icons.store_rounded,
-        color: const Color(0xFFFF9800), // Orange (Warning/Action)
+        color: const Color(0xFFFF9800),
         page: const Stocks(),
       ),
       _DashboardItem(
-        title: "Invoice",
+        title: "Bills History",
+        subtitle: "All receipts & invoices",
         icon: Icons.receipt_long_rounded,
-        color: Colors.blueAccent, // Keep distinct color for invoice
-        page: const InvoiceGenerator(),
-      ),
-      _DashboardItem(
-        title: "Sales Data",
-        icon: Icons.bar_chart_outlined,
-        color: AppColor.success, // Green
-        page: const SalesGrowth(),
-      ),
-      _DashboardItem(
-        title: "Bills",
-        icon: Icons.receipt_long_outlined,
-        color: const Color(0xFF9C27B0), // Purple for Bills
+        color: const Color(0xFF9C27B0),
         page: const BillingList(),
       ),
       _DashboardItem(
+        title: "Sales Data",
+        subtitle: "Product performance",
+        icon: Icons.trending_up_rounded,
+        color: AppColor.success,
+        page: const SalesGrowth(),
+      ),
+      _DashboardItem(
         title: "Customers",
+        subtitle: "Client accounts & history",
         icon: Icons.people_alt_rounded,
-        color: Colors.teal, // Teal for Customers
+        color: Colors.teal,
         page: CustomerView(),
       ),
       _DashboardItem(
         title: "Discount Cards",
+        subtitle: "Membership tier rules",
         icon: Icons.card_giftcard_rounded,
-        color: Colors.pinkAccent, // Pink for Discount Cards
+        color: Colors.pinkAccent,
         page: DiscountCardsView(),
+      ),
+      _DashboardItem(
+        title: "Invoice Creator",
+        subtitle: "Generate custom invoices",
+        icon: Icons.post_add_rounded,
+        color: const Color(0xFF2196F3),
+        page: const InvoiceGenerator(),
       ),
     ];
 
-    // On desktop, the sidebar handles navigation — no WillPopScope needed.
-    final body = _buildBody(context, screenHeight, isDesktop, menuItems);
+    final body = _buildBody(context, isDesktop, menuItems, analyticsController);
     if (isDesktop) return body;
 
     return PopScope(
@@ -84,6 +89,7 @@ class Dashboard extends StatelessWidget {
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: AppColor.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Text(
               "Go to Home",
               style: GoogleFonts.poppins(
@@ -107,7 +113,7 @@ class Dashboard extends StatelessWidget {
                 onPressed: () => Get.offAll(() => BottomNavPage()),
                 child: Text(
                   "Yes",
-                  style: GoogleFonts.poppins(color: AppColor.primary),
+                  style: GoogleFonts.poppins(color: AppColor.primary, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -122,105 +128,305 @@ class Dashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, double screenHeight, bool isDesktop, List<_DashboardItem> menuItems) {
+  Widget _buildBody(
+    BuildContext context,
+    bool isDesktop,
+    List<_DashboardItem> menuItems,
+    BillsAnalyticsController analyticsController,
+  ) {
+    final now = DateTime.now();
+    final dateStr = DateFormat('EEEE, d MMMM yyyy').format(now);
+
     return Scaffold(
-        backgroundColor: AppColor.background, // Dark Background
-        drawer: isDesktop ? null : _buildDrawer(context, menuItems),
-        appBar: AppBar(
-          title: Text(
-            "Admin Dashboard",
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              color: AppColor.background,
-            ),
+      backgroundColor: AppColor.background,
+      drawer: isDesktop ? null : _buildDrawer(context, menuItems),
+      appBar: AppBar(
+        title: Text(
+          "Admin Dashboard",
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            color: AppColor.background,
           ),
-          centerTitle: true,
-          backgroundColor: AppColor.primary, // Yellow Header
-          elevation: 0,
-          foregroundColor: AppColor.background, // Black icons/text on yellow
-          actions: [
-            if (kIsWeb)
-              IconButton(
-                icon: const Icon(Icons.logout_outlined),
-                onPressed: () {
-                  Get.offAll(() => BottomNavPage());
-                },
-              ),
+        ),
+        centerTitle: true,
+        backgroundColor: AppColor.primary,
+        elevation: 0,
+        foregroundColor: AppColor.background,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: "Refresh Analytics",
+            onPressed: () => analyticsController.fetchAnalytics(),
+          ),
+          if (kIsWeb)
+            IconButton(
+              icon: const Icon(Icons.logout_outlined),
+              tooltip: "Exit",
+              onPressed: () => Get.offAll(() => BottomNavPage()),
+            ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 🔹 Welcome & Status Header
+            _buildWelcomeHeader(dateStr, analyticsController),
+
+            const SizedBox(height: 20),
+
+            // 🔹 Quick Access Hub
+            _buildQuickAccessSection(context, menuItems),
+
+            const SizedBox(height: 28),
+
+            // 🔹 Analytics Section Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColor.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.analytics_rounded, color: AppColor.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  "Business Performance",
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColor.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => analyticsController.fetchAnalytics(),
+                  icon: const Icon(Icons.refresh, size: 16, color: AppColor.primary),
+                  label: Text(
+                    "Reload",
+                    style: GoogleFonts.poppins(fontSize: 13, color: AppColor.primary),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // 🔹 Main Analytics (Stat cards, Filters, Donut Chart, Bar Chart)
+            const BillsAnalyticsWidget(),
           ],
         ),
-        body: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 20.0,
-            ),
+      ),
+    );
+  }
+
+  Widget _buildWelcomeHeader(String dateStr, BillsAnalyticsController c) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColor.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColor.textSecondary.withValues(alpha: 0.1)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColor.surface,
+            AppColor.surface.withValues(alpha: 0.8),
+            AppColor.primary.withValues(alpha: 0.05),
+          ],
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                /// 🔹 Welcome Text
-                Text(
-                  "Welcome, Admin!",
-                  style: GoogleFonts.poppins(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: AppColor.textPrimary, // White
-                  ),
-                ),
-                Text(
-                  "Manage your business efficiently",
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    color: AppColor.textSecondary, // Grey
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                /// 🔹 Dashboard Layout
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    if (constraints.maxWidth > 800) {
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
+                  children: [
+                    Text(
+                      "Welcome, Admin",
+                      style: GoogleFonts.poppins(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColor.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColor.success.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColor.success.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Left Column (70%) - Main Analytics
-                          Expanded(
-                            flex: 7,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                BillsAnalyticsWidget(),
-                              ],
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: AppColor.success,
+                              shape: BoxShape.circle,
                             ),
                           ),
-                          const SizedBox(width: 24),
-                          // Right Column (30%) - Top Sales & Low Stock
-                          Expanded(
-                            flex: 3,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                DashboardStockSection(),
-                              ],
+                          const SizedBox(width: 5),
+                          Text(
+                            "Active",
+                            style: GoogleFonts.poppins(
+                              color: AppColor.success,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
-                      );
-                    } else {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          BillsAnalyticsWidget(),
-                          SizedBox(height: 24),
-                          DashboardStockSection(),
-                        ],
-                      );
-                    }
-                  },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  dateStr,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: AppColor.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColor.primary.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.storefront_rounded,
+              color: AppColor.primary,
+              size: 26,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickAccessSection(BuildContext context, List<_DashboardItem> items) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = 2;
+        if (constraints.maxWidth > 1100) {
+          crossAxisCount = 4;
+        } else if (constraints.maxWidth > 700) {
+          crossAxisCount = 3;
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Management Hub",
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColor.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+                mainAxisExtent: 90,
+              ),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return _buildModuleCard(item);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildModuleCard(_DashboardItem item) {
+    return Material(
+      color: AppColor.surface,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => Get.to(() => item.page),
+        borderRadius: BorderRadius.circular(16),
+        hoverColor: item.color.withValues(alpha: 0.08),
+        splashColor: item.color.withValues(alpha: 0.15),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColor.textSecondary.withValues(alpha: 0.12)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(item.icon, color: item.color, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        color: AppColor.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.poppins(
+                        color: AppColor.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 13,
+                color: Colors.white24,
+              ),
+            ],
+          ),
         ),
+      ),
     );
   }
 
@@ -245,14 +451,14 @@ class Dashboard extends StatelessWidget {
                       color: AppColor.background.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.admin_panel_settings, size: 40, color: AppColor.background),
+                    child: const Icon(Icons.admin_panel_settings, size: 36, color: AppColor.background),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   Text(
                     "Admin Menu",
                     style: GoogleFonts.poppins(
                       color: AppColor.background,
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -274,8 +480,15 @@ class Dashboard extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                  subtitle: Text(
+                    item.subtitle,
+                    style: GoogleFonts.poppins(
+                      color: AppColor.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
                   onTap: () {
-                    Navigator.pop(context); // Close drawer
+                    Navigator.pop(context);
                     Get.to(() => item.page);
                   },
                 );
@@ -291,12 +504,14 @@ class Dashboard extends StatelessWidget {
 /// 🔹 Model class for dashboard items
 class _DashboardItem {
   final String title;
+  final String subtitle;
   final IconData icon;
   final Color color;
   final Widget page;
 
   _DashboardItem({
     required this.title,
+    required this.subtitle,
     required this.icon,
     required this.color,
     required this.page,
