@@ -6,6 +6,7 @@ class Customer {
   final String phone;
   final String? cardId;
   final String? cardTier;
+  final double? customDiscountPercent;
   final String createdAt;
 
   Customer({
@@ -14,6 +15,7 @@ class Customer {
     required this.phone,
     this.cardId,
     this.cardTier,
+    this.customDiscountPercent,
     required this.createdAt,
   });
 
@@ -24,6 +26,7 @@ class Customer {
       'phone': phone,
       'cardId': cardId,
       'cardTier': cardTier,
+      'customDiscountPercent': customDiscountPercent,
       'createdAt': createdAt,
     };
   }
@@ -35,6 +38,7 @@ class Customer {
       phone: map['phone'] ?? '',
       cardId: map['cardId'],
       cardTier: map['cardTier'],
+      customDiscountPercent: (map['customDiscountPercent'] as num?)?.toDouble(),
       createdAt: map['createdAt'] ?? '',
     );
   }
@@ -47,6 +51,7 @@ class Customer {
       phone: data['phone'] ?? '',
       cardId: data['cardId'],
       cardTier: data['cardTier'],
+      customDiscountPercent: (data['customDiscountPercent'] as num?)?.toDouble(),
       createdAt: data['createdAt'] ?? '',
     );
   }
@@ -57,6 +62,7 @@ class Customer {
     String? phone,
     String? cardId,
     String? cardTier,
+    double? customDiscountPercent,
     String? createdAt,
   }) {
     return Customer(
@@ -65,6 +71,7 @@ class Customer {
       phone: phone ?? this.phone,
       cardId: cardId ?? this.cardId,
       cardTier: cardTier ?? this.cardTier,
+      customDiscountPercent: customDiscountPercent ?? this.customDiscountPercent,
       createdAt: createdAt ?? this.createdAt,
     );
   }

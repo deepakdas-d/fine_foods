@@ -16,6 +16,7 @@ class CustomerController extends GetxController {
 
   final nameController = TextEditingController();
   final phoneController = TextEditingController();
+  final customDiscountPercentController = TextEditingController();
   final selectedCardId = Rxn<String>();
   final searchQuery = ''.obs;
   final formKey = GlobalKey<FormState>();
@@ -30,7 +31,17 @@ class CustomerController extends GetxController {
   void clearForm() {
     nameController.clear();
     phoneController.clear();
+    customDiscountPercentController.clear();
     selectedCardId.value = null;
+  }
+
+  String? validateCustomDiscount(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final numValue = double.tryParse(value.trim());
+    if (numValue == null || numValue < 0 || numValue > 100) {
+      return 'Enter a valid percentage (0-100)';
+    }
+    return null;
   }
 
   void showToast(String message, Color bgColor) {
@@ -102,6 +113,12 @@ class CustomerController extends GetxController {
       return;
     }
 
+    final discountErr = validateCustomDiscount(customDiscountPercentController.text);
+    if (selectedCardId.value == null && discountErr != null) {
+      showToast(discountErr, Colors.red);
+      return;
+    }
+
     try {
       isLoading.value = true;
       
@@ -112,9 +129,12 @@ class CustomerController extends GetxController {
       }
 
       String? cardTier;
+      double? customDiscount;
       if (selectedCardId.value != null) {
         final card = activeCards.firstWhereOrNull((c) => c.id == selectedCardId.value);
         cardTier = card?.tier;
+      } else if (customDiscountPercentController.text.trim().isNotEmpty) {
+        customDiscount = double.tryParse(customDiscountPercentController.text.trim());
       }
 
       final customer = Customer(
@@ -123,6 +143,7 @@ class CustomerController extends GetxController {
         phone: phoneController.text.trim(),
         cardId: selectedCardId.value,
         cardTier: cardTier,
+        customDiscountPercent: customDiscount,
         createdAt: DateTime.now().toString(),
       );
 
@@ -151,6 +172,12 @@ class CustomerController extends GetxController {
       return;
     }
 
+    final discountErr = validateCustomDiscount(customDiscountPercentController.text);
+    if (selectedCardId.value == null && discountErr != null) {
+      showToast(discountErr, Colors.red);
+      return;
+    }
+
     try {
       isLoading.value = true;
 
@@ -165,9 +192,12 @@ class CustomerController extends GetxController {
       final existingCustomer = customers[existingIndex];
 
       String? cardTier;
+      double? customDiscount;
       if (selectedCardId.value != null) {
         final card = activeCards.firstWhereOrNull((c) => c.id == selectedCardId.value);
         cardTier = card?.tier;
+      } else if (customDiscountPercentController.text.trim().isNotEmpty) {
+        customDiscount = double.tryParse(customDiscountPercentController.text.trim());
       }
 
       final updatedCustomer = Customer(
@@ -176,6 +206,7 @@ class CustomerController extends GetxController {
         phone: phoneController.text.trim(),
         cardId: selectedCardId.value,
         cardTier: cardTier,
+        customDiscountPercent: customDiscount,
         createdAt: existingCustomer.createdAt,
       );
 

@@ -552,9 +552,16 @@ class BillingController extends GetxController {
             itemCount: foundCustomers.length,
             itemBuilder: (context, index) {
               final c = foundCustomers[index];
+              final hasTier = c['cardTier'] != null && c['cardTier'].toString().isNotEmpty;
+              final hasCustom = c['customDiscountPercent'] != null && (c['customDiscountPercent'] as num) > 0;
+              final subtitleText = hasTier
+                  ? 'Tier: ${c['cardTier'].toString().toUpperCase()}'
+                  : hasCustom
+                      ? 'Discount: ${c['customDiscountPercent']}% (Custom)'
+                      : 'Tier: None';
               return ListTile(
                 title: Text(c['name'] ?? '', style: const TextStyle(color: Colors.white)),
-                subtitle: Text('Tier: ${c['cardTier']?.toString().toUpperCase() ?? 'None'}', style: const TextStyle(color: Colors.white70)),
+                subtitle: Text(subtitleText, style: const TextStyle(color: Colors.white70)),
                 onTap: () {
                   Get.back();
                   applySelectedCustomer(c);
@@ -589,12 +596,18 @@ class BillingController extends GetxController {
       } catch (e) {
         cardDiscountPercent.value = 0.0;
       }
+    } else if (data['customDiscountPercent'] != null && (data['customDiscountPercent'] as num) > 0) {
+      cardDiscountPercent.value = (data['customDiscountPercent'] as num).toDouble();
+      cardTierUsed.value = 'Custom';
     } else {
       cardDiscountPercent.value = 0.0;
     }
     
     if (cardDiscountPercent.value > 0) {
-      Get.snackbar('Discount Applied', '${cardTierUsed.value?.toUpperCase()} Card applied (${cardDiscountPercent.value}%)');
+      final label = cardTierUsed.value?.toLowerCase() == 'custom'
+          ? 'Custom Discount'
+          : '${cardTierUsed.value?.toUpperCase()} Card';
+      Get.snackbar('Discount Applied', '$label applied (${cardDiscountPercent.value}%)');
     }
   }
 

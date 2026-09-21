@@ -1017,11 +1017,15 @@ class BillingScreen extends StatelessWidget {
               ],
             ),
             Obx(() {
-              if (controller.cardTierUsed.value != null) {
+              if (controller.cardTierUsed.value != null && controller.cardDiscountPercent.value > 0) {
+                final isCustom = controller.cardTierUsed.value?.toLowerCase() == 'custom';
+                final label = isCustom
+                    ? 'Custom Discount Applied: ${controller.cardDiscountPercent.value}%'
+                    : '${controller.cardTierUsed.value?.toUpperCase()} Card Applied: ${controller.cardDiscountPercent.value}%';
                 return Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
-                    '${controller.cardTierUsed.value?.toUpperCase()} Card Applied: ${controller.cardDiscountPercent.value}%',
+                    label,
                     style: const TextStyle(
                       color: Colors.green,
                       fontWeight: FontWeight.bold,

@@ -92,6 +92,8 @@ class CustomerView extends StatelessWidget {
           badgeColor = const Color(0xFFC0C0C0);
           break;
       }
+    } else if (customer.customDiscountPercent != null && customer.customDiscountPercent! > 0) {
+      badgeColor = AppColor.primary;
     }
 
     return Card(
@@ -122,6 +124,15 @@ class CustomerView extends StatelessWidget {
               Text(
                 'Tier: ${customer.cardTier!.toUpperCase()}',
                 style: GoogleFonts.poppins(color: badgeColor, fontSize: 12),
+              )
+            else if (customer.customDiscountPercent != null && customer.customDiscountPercent! > 0)
+              Text(
+                'Custom Discount: ${customer.customDiscountPercent}%',
+                style: GoogleFonts.poppins(
+                  color: AppColor.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
           ],
         ),
@@ -147,6 +158,10 @@ class CustomerView extends StatelessWidget {
       controller.nameController.text = customer.name;
       controller.phoneController.text = customer.phone;
       controller.selectedCardId.value = customer.cardId;
+      controller.customDiscountPercentController.text =
+          (customer.customDiscountPercent != null && customer.customDiscountPercent! > 0)
+              ? customer.customDiscountPercent.toString()
+              : '';
     } else {
       controller.clearForm();
     }
@@ -209,8 +224,29 @@ class CustomerView extends StatelessWidget {
                       ],
                       onChanged: (value) {
                         controller.selectedCardId.value = value;
+                        if (value != null) {
+                          controller.customDiscountPercentController.clear();
+                        }
                       },
                     );
+                  }),
+                  Obx(() {
+                    if (controller.selectedCardId.value == null) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: TextFormField(
+                          controller: controller.customDiscountPercentController,
+                          style: GoogleFonts.poppins(color: Colors.white),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                          ],
+                          decoration: _inputDecoration('Custom Discount Percentage (%) - Optional'),
+                          validator: controller.validateCustomDiscount,
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
                   }),
                   const SizedBox(height: 24),
                   Row(
