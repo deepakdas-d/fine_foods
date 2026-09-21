@@ -1,6 +1,5 @@
 import 'package:fine_foods/SALES/billing/controller/billing_controller.dart';
 import 'package:fine_foods/SALES/billing/models/queued_bill_model.dart';
-import 'package:fine_foods/SALES/billing/models/queued_bill_model.dart';
 import 'package:fine_foods/ADMIN/Bills/billing_list_controller.dart';
 import 'package:fine_foods/home/printer_controller.dart';
 import 'package:flutter/foundation.dart';
@@ -605,12 +604,8 @@ class BillingScreen extends StatelessWidget {
                           final productId = controller.selectedProducts.keys
                               .elementAt(index);
                           final product = controller.getProductById(productId);
-                          final product = controller.getProductById(productId);
                           final quantity =
                               controller.selectedProducts[productId]!;
-                          if (product == null) {
-                            return _buildMissingCartItem(productId, quantity);
-                          }
                           if (product == null) {
                             return _buildMissingCartItem(productId, quantity);
                           }
