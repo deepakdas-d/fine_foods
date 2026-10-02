@@ -6,7 +6,6 @@ import 'package:fine_foods/ADMIN/invoice_generator/invoice_generator.dart';
 import 'package:fine_foods/ADMIN/sales_data/sales_growth.dart';
 import 'package:fine_foods/appcolor.dart';
 import 'package:fine_foods/bluetooth_list.dart';
-import 'package:fine_foods/home/home.dart';
 import 'package:fine_foods/home/user_bills.dart';
 import 'package:fine_foods/login.dart';
 import 'package:fine_foods/ADMIN/Customers/customer_view.dart';
@@ -42,7 +41,7 @@ class DesktopShell extends StatelessWidget {
 
     switch (index) {
       case 0:
-        return Home();
+        return BillingScreen();
       case 1:
         return const Dashboard();
       case 2:
@@ -57,7 +56,7 @@ class DesktopShell extends StatelessWidget {
         return const BillingList();
       case 7:
         if (!kIsWeb) return const BluetoothList();
-        return Home(); // fallback — shouldn't reach on web
+        return BillingScreen(); // fallback — shouldn't reach on web
       case 8:
         return const UserBills();
       case 9:
@@ -67,7 +66,7 @@ class DesktopShell extends StatelessWidget {
       case 11:
         return DiscountCardsView();
       default:
-        return Home();
+        return BillingScreen();
     }
   }
 

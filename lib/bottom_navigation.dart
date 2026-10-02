@@ -10,7 +10,6 @@ import 'package:get/get.dart';
 import 'package:fine_foods/ADMIN/Auth/auth_controller.dart';
 import 'package:fine_foods/ADMIN/dashboard/dashboard.dart';
 import 'package:fine_foods/SALES/billing/view/billing.dart';
-import 'package:fine_foods/home/home.dart';
 
 class BottomNavPage extends StatelessWidget {
   BottomNavPage({super.key});
@@ -23,8 +22,7 @@ class BottomNavPage extends StatelessWidget {
     final auth = Get.find<AuthController>();
     return [
       Obx(() => auth.isAdminLoggedIn.value ? const Dashboard() : LoginPage()),
-      Home(),
-      BillingScreen()
+      BillingScreen(),
     ];
   }
 
@@ -33,11 +31,6 @@ class BottomNavPage extends StatelessWidget {
       inActiveItem: Icon(Icons.dashboard, color: AppColor.textSecondary),
       activeItem: Icon(Icons.dashboard, color: AppColor.primary),
       itemLabel: 'Admin',
-    ),
-    BottomBarItem(
-      inActiveItem: Icon(Icons.home, color: AppColor.textSecondary),
-      activeItem: Icon(Icons.home, color: AppColor.primary),
-      itemLabel: 'Home',
     ),
     BottomBarItem(
       inActiveItem: Icon(Icons.point_of_sale, color: AppColor.textSecondary),
@@ -54,9 +47,6 @@ class BottomNavPage extends StatelessWidget {
     }
 
     // Mobile: existing bottom-nav layout (unchanged).
-    final screenWidth = MediaQuery.of(context).size.width;
-    final itemWidth = screenWidth / bottomBarItems.length;
-
     return Obx(
       () => PopScope(
         canPop:
@@ -94,42 +84,45 @@ class BottomNavPage extends StatelessWidget {
           ),
           bottomNavigationBar: Container(
             color: AppColor.primary,
+            padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: List.generate(bottomBarItems.length, (index) {
                 final item = bottomBarItems[index];
                 final isActive = controller.currentIndex.value == index;
 
-                return GestureDetector(
-                  onTap: () {
-                    controller.currentIndex.value = index;
-                    pageController.jumpToPage(index);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    width: itemWidth,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? AppColor.textOnPrimary
-                          : AppColor.primary,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        isActive ? item.activeItem : item.inActiveItem,
-                        const SizedBox(height: 4),
-                        Text(
-                          item.itemLabel ?? '',
-                          style: TextStyle(
-                            color: isActive
-                                ? AppColor.primary
-                                : AppColor.textOnPrimary,
-                            fontSize: 14,
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      controller.currentIndex.value = index;
+                      pageController.jumpToPage(index);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? AppColor.textOnPrimary
+                            : AppColor.primary,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          isActive ? item.activeItem : item.inActiveItem,
+                          const SizedBox(height: 4),
+                          Text(
+                            item.itemLabel ?? '',
+                            style: TextStyle(
+                              color: isActive
+                                  ? AppColor.primary
+                                  : AppColor.textOnPrimary,
+                              fontSize: 14,
+                              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 );

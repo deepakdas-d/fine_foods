@@ -622,7 +622,7 @@ class BillingScreen extends StatelessWidget {
   );
 
   Widget _buildCartItem(Product product, int quantity) {
-    final isQuickItem = product.id.startsWith('custom_');
+    final isQuickItem = product.id.startsWith('quick_');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1018,10 +1018,8 @@ class BillingScreen extends StatelessWidget {
             ),
             Obx(() {
               if (controller.cardTierUsed.value != null && controller.cardDiscountPercent.value > 0) {
-                final isCustom = controller.cardTierUsed.value?.toLowerCase() == 'custom';
-                final label = isCustom
-                    ? 'Custom Discount Applied: ${controller.cardDiscountPercent.value}%'
-                    : '${controller.cardTierUsed.value?.toUpperCase()} Card Applied: ${controller.cardDiscountPercent.value}%';
+                // final isCustom = controller.cardTierUsed.value?.toLowerCase() == 'custom';
+                final label = 'Custom Discount Applied';
                 return Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
@@ -1245,39 +1243,36 @@ class BillingScreen extends StatelessWidget {
     developer.log(
       '[GenerateInvoice] 1. Generate Invoice button clicked. Calling controller.createBill()...',
     );
-    print(
-      '[GenerateInvoice] 1. Generate Invoice button clicked. Calling controller.createBill()...',
-    );
     try {
       final billData = await controller.createBill();
       if (billData == null) {
         developer.log(
           '[GenerateInvoice] createBill() returned null. Aborting.',
         );
-        print('[GenerateInvoice] createBill() returned null. Aborting.');
         return;
       }
 
       developer.log(
         '[GenerateInvoice] 2. Bill created successfully. InvoiceNumber: ${billData['invoiceNumber']}',
       );
-      print(
-        '[GenerateInvoice] 2. Bill created successfully. InvoiceNumber: ${billData['invoiceNumber']}',
-      );
 
       developer.log(
-        '[GenerateInvoice] 3. Loading Roboto font from assets/fonts/Roboto-Regular.ttf...',
-      );
-      print(
         '[GenerateInvoice] 3. Loading Roboto font from assets/fonts/Roboto-Regular.ttf...',
       );
       final fontData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
       final robotoFont = pw.Font.ttf(fontData);
 
+      pw.Font poppinsBoldFont;
+      try {
+        poppinsBoldFont = await PdfGoogleFonts.poppinsBold();
+      } catch (e) {
+        developer.log('[GenerateInvoice] Failed to load Poppins font: $e. Falling back to Roboto.');
+        poppinsBoldFont = robotoFont;
+      }
+
       developer.log(
         '[GenerateInvoice] 4. Building PDF document and adding page...',
       );
-      print('[GenerateInvoice] 4. Building PDF document and adding page...');
       final pdf = pw.Document();
       pdf.addPage(
         pw.Page(
@@ -1290,7 +1285,7 @@ class BillingScreen extends StatelessWidget {
             developer.log(
               '[GenerateInvoice] 4a. Rendering PDF content callback...',
             );
-            return _buildPDFContent(billData, robotoFont);
+            return _buildPDFContent(billData, robotoFont, totalFont: poppinsBoldFont);
           },
         ),
       );
@@ -1298,14 +1293,10 @@ class BillingScreen extends StatelessWidget {
       developer.log(
         '[GenerateInvoice] 5. PDF page added. Opening dialog for Platform: ${Platform.operatingSystem}...',
       );
-      print(
-        '[GenerateInvoice] 5. PDF page added. Opening dialog for Platform: ${Platform.operatingSystem}...',
-      );
 
       // ================= WINDOWS =================
       if (Platform.isWindows) {
         developer.log('[GenerateInvoice] 6. Showing Windows preview dialog...');
-        print('[GenerateInvoice] 6. Showing Windows preview dialog...');
         await Get.dialog(
           Dialog(
             backgroundColor: const Color(0xFF1E232A),
@@ -1348,9 +1339,6 @@ class BillingScreen extends StatelessWidget {
                       child: PdfPreview(
                         build: (format) {
                           developer.log(
-                            '[GenerateInvoice] 7. PdfPreview.build called. Saving PDF bytes...',
-                          );
-                          print(
                             '[GenerateInvoice] 7. PdfPreview.build called. Saving PDF bytes...',
                           );
                           return pdf.save();
@@ -1552,8 +1540,10 @@ class BillingScreen extends StatelessWidget {
 
   pw.Widget _buildPDFContent(
     Map<String, dynamic> billData,
-    pw.Font robotoFont,
-  ) {
+    pw.Font robotoFont, {
+    pw.Font? totalFont,
+  }) {
+    final effectiveTotalFont = totalFont ?? robotoFont;
     final subtotal = controllerlist.calculateBillSubtotal(billData);
     final discount = controllerlist.calculateBillDiscount(billData);
     final finalTotal = (subtotal - discount).clamp(0, double.infinity);
@@ -1781,17 +1771,17 @@ class BillingScreen extends StatelessWidget {
             pw.Text(
               'Total:',
               style: pw.TextStyle(
-                fontSize: 10.5,
+                fontSize: 11,
                 fontWeight: pw.FontWeight.bold,
-                font: robotoFont,
+                font: effectiveTotalFont,
               ),
             ),
             pw.Text(
               'Rs ${finalTotal.toStringAsFixed(2)}',
               style: pw.TextStyle(
-                fontSize: 10.5,
+                fontSize: 11,
                 fontWeight: pw.FontWeight.bold,
-                font: robotoFont,
+                font: effectiveTotalFont,
               ),
             ),
           ],
@@ -1914,8 +1904,9 @@ class BillingScreen extends StatelessWidget {
                           isDense: true,
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty)
+                          if (val == null || val.trim().isEmpty) {
                             return 'Enter price';
+                          }
                           final price = double.tryParse(val.trim());
                           return price == null || price <= 0
                               ? 'Invalid price'
@@ -1940,8 +1931,9 @@ class BillingScreen extends StatelessWidget {
                           isDense: true,
                         ),
                         validator: (val) {
-                          if (val == null || val.trim().isEmpty)
+                          if (val == null || val.trim().isEmpty) {
                             return 'Enter qty';
+                          }
                           final qty = int.tryParse(val.trim());
                           return qty == null || qty <= 0 ? 'Invalid' : null;
                         },
@@ -2192,8 +2184,9 @@ class BillingScreen extends StatelessWidget {
                     ),
                     const Spacer(),
                     Obx(() {
-                      if (controller.queuedBills.isEmpty)
+                      if (controller.queuedBills.isEmpty) {
                         return const SizedBox.shrink();
+                      }
                       return PopupMenuButton<String>(
                         icon: const Icon(
                           Icons.more_vert,

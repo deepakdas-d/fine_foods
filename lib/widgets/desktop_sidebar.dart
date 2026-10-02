@@ -40,9 +40,8 @@ class DesktopSidebar extends StatelessWidget {
         index: -1,
         isSection: true,
       ),
-      const _SidebarItem(label: 'Home', icon: Icons.home_rounded, index: 0),
+      const _SidebarItem(label: 'Sales', icon: Icons.point_of_sale_rounded, index: 0),
       const _SidebarItem(label: 'Bills', icon: Icons.receipt_outlined, index: 8),
-      const _SidebarItem(label: 'Sales Bill', icon: Icons.point_of_sale_rounded, index: 9),
     ];
     
     if (!kIsWeb) {

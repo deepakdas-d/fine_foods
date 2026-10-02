@@ -699,10 +699,8 @@ class BillingController extends GetxController {
     try {
       final billId = const Uuid().v4();
       developer.log('[createBill] Requesting next sequential invoice number...');
-      print('[createBill] Requesting next sequential invoice number...');
       final invoiceNumber = await generateInvoiceNumber();
       developer.log('[createBill] Received invoice number: $invoiceNumber, billId: $billId');
-      print('[createBill] Received invoice number: $invoiceNumber, billId: $billId');
       final batch = _firestore.batch();
 
       final totalAmount = calculateTotal();
@@ -712,7 +710,6 @@ class BillingController extends GetxController {
 
       if (totalAmount <= 0) {
         developer.log('[createBill] Validation failed: totalAmount is $totalAmount');
-        print('[createBill] Validation failed: totalAmount is $totalAmount');
         Get.snackbar('Error', 'Total amount must be greater than 0');
         return null;
       }
@@ -841,10 +838,8 @@ class BillingController extends GetxController {
       // -----------------------------------------------
 
       developer.log('[createBill] Committing Firestore batch write...');
-      print('[createBill] Committing Firestore batch write...');
       await batch.commit();
       developer.log('[createBill] Batch write committed successfully!');
-      print('[createBill] Batch write committed successfully!');
 
       Get.snackbar(
         'Success',
@@ -862,7 +857,6 @@ class BillingController extends GetxController {
       return billData;
     } catch (e, stackTrace) {
       developer.log('[createBill] Failed to create bill: $e\n$stackTrace', error: e, stackTrace: stackTrace);
-      print('[createBill] Failed to create bill: $e\n$stackTrace');
       Get.snackbar('Error', 'Failed to create invoice: $e');
       return null;
     } finally {
@@ -908,6 +902,11 @@ class BillingController extends GetxController {
         const center = PosStyles(align: PosAlign.center);
         const normal = PosStyles();
         const bold = PosStyles(bold: true);
+        const totalStyle = PosStyles(
+          bold: true,
+          height: PosTextSize.size2,
+          fontType: PosFontType.fontA,
+        );
 
         // Header
         bytes += generator.text('FINE FOODS', styles: centerBold);
@@ -969,7 +968,7 @@ class BillingController extends GetxController {
         }
         bytes += generator.text(
           'Total:    Rs${total.toStringAsFixed(2).padLeft(8)}',
-          styles: bold,
+          styles: totalStyle,
         );
 
         // Payment Details
@@ -1069,7 +1068,7 @@ class BillingController extends GetxController {
         }
         esc.text(
           content:
-              '\x1B\x45\x01Total: Rs${total.toStringAsFixed(2)}\n\x1B\x45\x00',
+              '\x1B\x21\x10\x1B\x45\x01Total: Rs${total.toStringAsFixed(2)}\n\x1B\x21\x00\x1B\x45\x00',
         );
 
         // Payment Details

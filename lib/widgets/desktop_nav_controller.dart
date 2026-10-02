@@ -7,7 +7,7 @@ import 'package:get/get.dart';
 class DesktopNavController extends GetxController {
   /// Index of the currently selected sidebar item.
   ///
-  /// 0 = Home (Quick Bill)
+  /// 0 = Sales (Point of Sale)
   /// 1 = Dashboard (Admin overview grid)
   /// 2 = Inventory
   /// 3 = Stocks

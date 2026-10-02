@@ -30,7 +30,6 @@ class InvoiceSequenceService {
   }) async {
     final counterRef = _firestore.collection(_counterCollection).doc(_counterDoc);
     developer.log('[InvoiceSequenceService] 1. Fetching counter document counters/invoices...');
-    print('[InvoiceSequenceService] 1. Fetching counter document counters/invoices...');
 
     try {
       final snapshot = await counterRef.get();
@@ -40,10 +39,8 @@ class InvoiceSequenceService {
         final data = snapshot.data()!;
         currentNumber = (data['lastNumber'] as num?)?.toInt() ?? 0;
         developer.log('[InvoiceSequenceService] 2. Found existing counter: $currentNumber');
-        print('[InvoiceSequenceService] 2. Found existing counter: $currentNumber');
       } else {
         developer.log('[InvoiceSequenceService] 2. Counter document not found. Looking up highest bill...');
-        print('[InvoiceSequenceService] 2. Counter document not found. Looking up highest bill...');
         try {
           final recentBills = await _firestore
               .collection('bills')
@@ -67,7 +64,6 @@ class InvoiceSequenceService {
 
       final nextNumber = currentNumber + 1;
       developer.log('[InvoiceSequenceService] 3. Saving updated counter: $nextNumber');
-      print('[InvoiceSequenceService] 3. Saving updated counter: $nextNumber');
 
       await counterRef.set(
         {
@@ -79,17 +75,14 @@ class InvoiceSequenceService {
 
       final formatted = formatInvoiceNumber(nextNumber, digits: digits, prefix: prefix);
       developer.log('[InvoiceSequenceService] 4. Generated invoice number: $formatted');
-      print('[InvoiceSequenceService] 4. Generated invoice number: $formatted');
       return formatted;
     } catch (e, s) {
       developer.log('[InvoiceSequenceService] Error fetching next invoice number: $e\n$s', error: e, stackTrace: s);
-      print('[InvoiceSequenceService] Error fetching next invoice number: $e\n$s');
       
       // Fallback in case of network issue so invoice generation never crashes
       final timestamp = DateTime.now().millisecondsSinceEpoch % 100000;
       final fallbackInv = formatInvoiceNumber(timestamp, digits: digits, prefix: prefix);
       developer.log('[InvoiceSequenceService] Using fallback invoice number: $fallbackInv');
-      print('[InvoiceSequenceService] Using fallback invoice number: $fallbackInv');
       return fallbackInv;
     }
   }
