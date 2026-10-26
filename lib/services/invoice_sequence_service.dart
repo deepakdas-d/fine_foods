@@ -29,61 +29,93 @@ class InvoiceSequenceService {
     String prefix = defaultPrefix,
   }) async {
     final counterRef = _firestore.collection(_counterCollection).doc(_counterDoc);
-    developer.log('[InvoiceSequenceService] 1. Fetching counter document counters/invoices...');
+    developer.log('[InvoiceSequenceService] 1. Requesting atomic invoice sequence allocation...');
 
     try {
-      final snapshot = await counterRef.get();
-      int currentNumber = 0;
+      final nextNumber = await _firestore.runTransaction<int>((transaction) async {
+        final snapshot = await transaction.get(counterRef);
+        int currentNumber = 0;
 
-      if (snapshot.exists && snapshot.data() != null) {
-        final data = snapshot.data()!;
-        currentNumber = (data['lastNumber'] as num?)?.toInt() ?? 0;
-        developer.log('[InvoiceSequenceService] 2. Found existing counter: $currentNumber');
-      } else {
-        developer.log('[InvoiceSequenceService] 2. Counter document not found. Looking up highest bill...');
-        try {
-          final recentBills = await _firestore
-              .collection('bills')
-              .orderBy('createdAt', descending: true)
-              .limit(20)
-              .get();
-          for (var doc in recentBills.docs) {
-            final inv = doc.data()['invoiceNumber']?.toString() ?? '';
-            if (inv.startsWith(prefix)) {
-              final numPart = inv.substring(prefix.length);
-              final parsed = int.tryParse(numPart);
-              if (parsed != null && parsed > currentNumber) {
-                currentNumber = parsed;
+        if (snapshot.exists && snapshot.data() != null) {
+          final data = snapshot.data()!;
+          currentNumber = (data['lastNumber'] as num?)?.toInt() ?? 0;
+          developer.log('[InvoiceSequenceService] 2. Found existing counter: $currentNumber');
+        } else {
+          developer.log('[InvoiceSequenceService] 2. Counter document not found. Looking up highest bill...');
+          try {
+            final recentBills = await _firestore
+                .collection('bills')
+                .orderBy('createdAt', descending: true)
+                .limit(20)
+                .get();
+            for (var doc in recentBills.docs) {
+              final inv = doc.data()['invoiceNumber']?.toString() ?? '';
+              if (inv.startsWith(prefix)) {
+                final numPart = inv.substring(prefix.length);
+                final parsed = int.tryParse(numPart);
+                if (parsed != null && parsed > currentNumber) {
+                  currentNumber = parsed;
+                }
               }
             }
+          } catch (e) {
+            developer.log('[InvoiceSequenceService] Warning reading bills fallback: $e');
           }
-        } catch (e) {
-          developer.log('[InvoiceSequenceService] Warning reading bills fallback: $e');
         }
-      }
 
-      final nextNumber = currentNumber + 1;
-      developer.log('[InvoiceSequenceService] 3. Saving updated counter: $nextNumber');
+        final next = currentNumber + 1;
+        developer.log('[InvoiceSequenceService] 3. Saving updated counter: $next');
 
-      await counterRef.set(
-        {
-          'lastNumber': nextNumber,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+        transaction.set(
+          counterRef,
+          {
+            'lastNumber': next,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+
+        return next;
+      });
 
       final formatted = formatInvoiceNumber(nextNumber, digits: digits, prefix: prefix);
       developer.log('[InvoiceSequenceService] 4. Generated invoice number: $formatted');
       return formatted;
     } catch (e, s) {
-      developer.log('[InvoiceSequenceService] Error fetching next invoice number: $e\n$s', error: e, stackTrace: s);
-      
-      // Fallback in case of network issue so invoice generation never crashes
-      final timestamp = DateTime.now().millisecondsSinceEpoch % 100000;
-      final fallbackInv = formatInvoiceNumber(timestamp, digits: digits, prefix: prefix);
-      developer.log('[InvoiceSequenceService] Using fallback invoice number: $fallbackInv');
-      return fallbackInv;
+      developer.log('[InvoiceSequenceService] Error in atomic transaction: $e\n$s', error: e, stackTrace: s);
+      rethrow;
+    }
+  }
+
+  /// Safely rolls back the counter if and only if the given invoice number was the last allocated number
+  /// and no subsequent bill has claimed a higher sequence number.
+  static Future<void> rollbackIfLast(String invoiceNumber, {String prefix = defaultPrefix}) async {
+    try {
+      if (!invoiceNumber.startsWith(prefix)) return;
+      final numPart = invoiceNumber.substring(prefix.length);
+      final allocatedNum = int.tryParse(numPart);
+      if (allocatedNum == null || allocatedNum <= 0) return;
+
+      final counterRef = _firestore.collection(_counterCollection).doc(_counterDoc);
+      await _firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(counterRef);
+        if (snapshot.exists && snapshot.data() != null) {
+          final current = (snapshot.data()!['lastNumber'] as num?)?.toInt() ?? 0;
+          if (current == allocatedNum) {
+            developer.log('[InvoiceSequenceService] Rolling back counter from $current to ${current - 1}');
+            transaction.set(
+              counterRef,
+              {
+                'lastNumber': current - 1,
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+              SetOptions(merge: true),
+            );
+          }
+        }
+      });
+    } catch (e) {
+      developer.log('[InvoiceSequenceService] Rollback skipped / failed (non-critical): $e');
     }
   }
 

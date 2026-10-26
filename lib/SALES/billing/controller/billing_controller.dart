@@ -652,31 +652,47 @@ class BillingController extends GetxController {
   }
 
   Future<Map<String, dynamic>?> createBill() async {
+    // 0. Double-click / re-entrancy protection
+    if (isLoading.value) {
+      developer.log('[createBill] Blocked duplicate concurrent call because isLoading is true.');
+      return null;
+    }
+
+    // 1. Cart validation
     if (selectedProducts.isEmpty) {
       Get.snackbar('Error', 'Please select at least one product');
       return null;
     }
 
-    // Phone validation (optional but if filled → 10 digits)
+    // 2. Phone validation (optional but if filled → 10 digits)
     if (customerPhone.text.trim().isNotEmpty &&
         !RegExp(r'^\d{10}$').hasMatch(customerPhone.text.trim())) {
       Get.snackbar('Error', 'Enter a valid 10-digit phone number');
       return null;
     }
 
-    // Discount validation
+    // 3. Total amount calculation & validation (checked BEFORE counter allocation)
+    final totalAmount = calculateTotal();
+    if (totalAmount <= 0) {
+      developer.log('[createBill] Validation failed: totalAmount is $totalAmount');
+      Get.snackbar('Error', 'Total amount must be greater than 0');
+      return null;
+    }
+
+    // 4. Discount validation
     if (customerDiscount.value.trim().isNotEmpty) {
       final disc = double.tryParse(customerDiscount.value.trim());
       if (disc == null || disc <= 0) {
         Get.snackbar('Error', 'Enter a valid discount greater than 0');
         return null;
       }
-      if (disc > calculateTotal()) {
+      if (disc > totalAmount) {
         Get.snackbar('Error', 'Discount cannot exceed total amount');
         return null;
       }
     }
-    // Issue 2: Stock validation before billing to prevent negative stock
+
+    // 5. Stock validation before billing to prevent negative stock
     for (var entry in selectedProducts.entries) {
       if (!entry.key.startsWith('quick_')) {
         final product = getProductById(entry.key);
@@ -694,45 +710,40 @@ class BillingController extends GetxController {
       }
     }
 
+    // 6. Payment validation (Full vs Split) validated BEFORE counter allocation
+    double cash = 0;
+    double online = 0;
+    if (selectedPaymentType.value == 'Full') {
+      if (paymentMethod.value == 'Cash') {
+        cash = totalAmount;
+      } else if (paymentMethod.value == 'Online') {
+        online = totalAmount;
+      }
+    } else if (selectedPaymentType.value == 'Split') {
+      cash = double.tryParse(cashReceived.value) ?? 0;
+      online = double.tryParse(onlineReceived.value) ?? 0;
+
+      if ((cash + online) != totalAmount) {
+        Get.snackbar('Error', 'Cash + Online must equal total amount');
+        return null;
+      }
+    }
+
+    // All validations passed. Acquire lock.
     isLoading.value = true;
+    String? allocatedInvoiceNumber;
 
     try {
       final billId = const Uuid().v4();
-      developer.log('[createBill] Requesting next sequential invoice number...');
-      final invoiceNumber = await generateInvoiceNumber();
-      developer.log('[createBill] Received invoice number: $invoiceNumber, billId: $billId');
-      final batch = _firestore.batch();
-
-      final totalAmount = calculateTotal();
       final discount = customerDiscount.value.trim().isEmpty
           ? 0.0
           : double.parse(customerDiscount.value.trim());
 
-      if (totalAmount <= 0) {
-        developer.log('[createBill] Validation failed: totalAmount is $totalAmount');
-        Get.snackbar('Error', 'Total amount must be greater than 0');
-        return null;
-      }
-
-      double cash = 0;
-      double online = 0;
-
-      // Determine payment amounts
-      if (selectedPaymentType.value == 'Full') {
-        if (paymentMethod.value == 'Cash') {
-          cash = totalAmount;
-        } else if (paymentMethod.value == 'Online') {
-          online = totalAmount;
-        }
-      } else if (selectedPaymentType.value == 'Split') {
-        cash = double.tryParse(cashReceived.value) ?? 0;
-        online = double.tryParse(onlineReceived.value) ?? 0;
-
-        if ((cash + online) != totalAmount) {
-          Get.snackbar('Error', 'Cash + Online must equal total amount');
-          return null;
-        }
-      }
+      developer.log('[createBill] Requesting next sequential invoice number...');
+      final invoiceNumber = await generateInvoiceNumber();
+      allocatedInvoiceNumber = invoiceNumber;
+      developer.log('[createBill] Received invoice number: $invoiceNumber, billId: $billId');
+      final batch = _firestore.batch();
 
       final billData = {
         'invoiceNumber': invoiceNumber,
@@ -857,6 +868,9 @@ class BillingController extends GetxController {
       return billData;
     } catch (e, stackTrace) {
       developer.log('[createBill] Failed to create bill: $e\n$stackTrace', error: e, stackTrace: stackTrace);
+      if (allocatedInvoiceNumber != null) {
+        await InvoiceSequenceService.rollbackIfLast(allocatedInvoiceNumber);
+      }
       Get.snackbar('Error', 'Failed to create invoice: $e');
       return null;
     } finally {

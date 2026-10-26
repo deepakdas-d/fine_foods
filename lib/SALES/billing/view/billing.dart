@@ -1170,24 +1170,35 @@ class BillingScreen extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               flex: 2,
-              child: ElevatedButton.icon(
-                onPressed: controller.selectedProducts.isEmpty
-                    ? null
-                    : _generateInvoice,
-                icon: const Icon(Icons.receipt_long),
-                label: const Text(
-                  'Generate Invoice',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColor.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              child: Obx(() {
+                final isCartEmpty = controller.selectedProducts.isEmpty;
+                final isLoading = controller.isLoading.value;
+                return ElevatedButton.icon(
+                  onPressed: (isCartEmpty || isLoading) ? null : _generateInvoice,
+                  icon: isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.receipt_long),
+                  label: Text(
+                    isLoading ? 'Generating...' : 'Generate Invoice',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
-                ),
-              ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColor.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                );
+              }),
             ),
           ],
         ),
@@ -1240,6 +1251,10 @@ class BillingScreen extends StatelessWidget {
   );
 
   Future<void> _generateInvoice() async {
+    if (controller.isLoading.value) {
+      developer.log('[GenerateInvoice] Ignored duplicate click: already generating.');
+      return;
+    }
     developer.log(
       '[GenerateInvoice] 1. Generate Invoice button clicked. Calling controller.createBill()...',
     );

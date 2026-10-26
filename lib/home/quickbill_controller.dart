@@ -133,6 +133,12 @@ class QuickbillController extends GetxController {
 
   //////------------------------------------------------Create Bill Function------------------------------------------------//////
   Future<Map<String, dynamic>?> createBill() async {
+    // 0. Double-click / re-entrancy protection
+    if (isLoading.value) {
+      developer.log('[createBill] Blocked duplicate concurrent call because isLoading is true.');
+      return null;
+    }
+
     if (newProducts.isEmpty) {
       _showErrorSnackbar('Please add at least one product');
       return null;
@@ -141,6 +147,13 @@ class QuickbillController extends GetxController {
     if (customerPhone.value.trim().isNotEmpty &&
         !RegExp(r'^\d{10}$').hasMatch(customerPhone.value.trim())) {
       _showErrorSnackbar('Enter a valid 10-digit phone number');
+      return null;
+    }
+
+    final totalAmount = calculateTotal();
+    /// 🔴 EDGE CASE: TOTAL MUST BE > 0 (checked BEFORE counter allocation)
+    if (totalAmount <= 0) {
+      _showErrorSnackbar('Total amount must be greater than 0');
       return null;
     }
 
@@ -160,46 +173,40 @@ class QuickbillController extends GetxController {
       }
     }
 
+    double cash = 0;
+    double online = 0;
+
+    /// ✅ FULL PAYMENT (Cash OR Online)
+    if (selectedPaymentType.value == 'Full') {
+      if (paymentMethod.value == 'Cash') {
+        cash = totalAmount;
+        online = 0;
+      } else if (paymentMethod.value == 'Online') {
+        cash = 0;
+        online = totalAmount;
+      }
+    }
+
+    /// ✅ SPLIT PAYMENT (Cash + Online) (validated BEFORE counter allocation)
+    if (selectedPaymentType.value == 'Split') {
+      cash = double.tryParse(cashReceived.value) ?? 0;
+      online = double.tryParse(onlineReceived.value) ?? 0;
+
+      if ((cash + online) != totalAmount) {
+        _showErrorSnackbar('Cash + Online must equal total amount');
+        return null;
+      }
+    }
+
     isLoading.value = true;
+    String? allocatedInvoiceNumber;
 
     try {
       final billId = const Uuid().v4();
       final invoiceNumber = await generateInvoiceNumber();
+      allocatedInvoiceNumber = invoiceNumber;
       final batch = _firestore.batch();
-
-      final totalAmount = calculateTotal();
       final discount = calculateDiscountAmount();
-
-      /// 🔴 EDGE CASE: TOTAL MUST BE > 0
-      if (totalAmount <= 0) {
-        _showErrorSnackbar('Total amount must be greater than 0');
-        return null;
-      }
-
-      double cash = 0;
-      double online = 0;
-
-      /// ✅ FULL PAYMENT (Cash OR Online)
-      if (selectedPaymentType.value == 'Full') {
-        if (paymentMethod.value == 'Cash') {
-          cash = totalAmount;
-          online = 0;
-        } else if (paymentMethod.value == 'Online') {
-          cash = 0;
-          online = totalAmount;
-        }
-      }
-
-      /// ✅ SPLIT PAYMENT (Cash + Online)
-      if (selectedPaymentType.value == 'Split') {
-        cash = double.tryParse(cashReceived.value) ?? 0;
-        online = double.tryParse(onlineReceived.value) ?? 0;
-
-        if ((cash + online) != totalAmount) {
-          _showErrorSnackbar('Cash + Online must equal total amount');
-          return null;
-        }
-      }
 
       final billData = {
         'invoiceNumber': invoiceNumber,
@@ -264,6 +271,9 @@ class QuickbillController extends GetxController {
       return billData;
     } catch (e) {
       developer.log('Failed to create bill: $e');
+      if (allocatedInvoiceNumber != null) {
+        await InvoiceSequenceService.rollbackIfLast(allocatedInvoiceNumber);
+      }
       _showErrorSnackbar('Failed to create invoice');
       return null;
     } finally {

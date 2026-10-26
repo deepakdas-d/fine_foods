@@ -523,28 +523,42 @@ class Home extends StatelessWidget {
 
         SizedBox(
           width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () => _generateInvoice(context),
-            icon: const Icon(Icons.receipt_long),
-            label: const Text(
-              'Generate Invoice',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColor.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          child: Obx(() {
+            final isLoading = quickbillController.isLoading.value;
+            final isCartEmpty = quickbillController.newProducts.isEmpty;
+            return ElevatedButton.icon(
+              onPressed: (isLoading || isCartEmpty) ? null : () => _generateInvoice(context),
+              icon: isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.receipt_long),
+              label: Text(
+                isLoading ? 'Generating...' : 'Generate Invoice',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
-            ),
-          ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColor.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            );
+          }),
         ),
       ],
     ),
   );
 
   Future<void> _generateInvoice(BuildContext context) async {
+    if (quickbillController.isLoading.value) return;
     try {
       final billData = await quickbillController.createBill();
       if (billData != null) {
