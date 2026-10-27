@@ -167,6 +167,27 @@ class BillingScreen extends StatelessWidget {
                         textAlign: TextAlign.center,
                       ),
                     ),
+                    if (query.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Center(
+                        child: OutlinedButton.icon(
+                          onPressed: controller.clearSearch,
+                          icon: const Icon(Icons.restart_alt, size: 18),
+                          label: const Text('Reset Search'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColor.primary,
+                            side: const BorderSide(color: AppColor.primary),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     Center(
                       child: ElevatedButton.icon(
@@ -332,23 +353,39 @@ class BillingScreen extends StatelessWidget {
             ),
             child: Obx(
               () => TextField(
+                controller: controller.searchController,
                 onChanged: controller.searchProducts,
                 decoration: InputDecoration(
                   hintText: 'Search products by name or product ID...',
                   prefixIcon: const Icon(Icons.search, color: AppColor.primary),
-                  suffixIcon: controller.isSearching.value
-                      ? const Padding(
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (controller.isSearching.value)
+                        const Padding(
                           padding: EdgeInsets.all(12.0),
                           child: SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 18,
+                            height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: AppColor.primary,
                             ),
                           ),
-                        )
-                      : null,
+                        ),
+                      if (controller.searchQuery.value.isNotEmpty ||
+                          controller.searchController.text.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.clear,
+                            color: Colors.grey,
+                            size: 20,
+                          ),
+                          tooltip: 'Reset search',
+                          onPressed: controller.clearSearch,
+                        ),
+                    ],
+                  ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.all(16),
                 ),
@@ -356,6 +393,30 @@ class BillingScreen extends StatelessWidget {
             ),
           ),
         ),
+        Obx(() {
+          if (controller.searchQuery.value.trim().isNotEmpty) {
+            return Padding(
+              padding: const EdgeInsets.only(left: 8.0),
+              child: OutlinedButton.icon(
+                onPressed: controller.clearSearch,
+                icon: const Icon(Icons.restart_alt, size: 18),
+                label: const Text('Reset'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColor.primary,
+                  side: const BorderSide(color: AppColor.primary),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        }),
         const SizedBox(width: 12),
         ElevatedButton.icon(
           onPressed: () => _showAddQuickItemDialog(
@@ -557,12 +618,12 @@ class BillingScreen extends StatelessWidget {
   Widget _buildCartContent() => Column(
     children: [
       Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(color: AppColor.primary),
         child: Row(
           children: [
             const Icon(Icons.shopping_cart, color: Colors.white),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             const Text(
               'Shopping Cart',
               style: TextStyle(
@@ -572,16 +633,78 @@ class BillingScreen extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            Obx(
-              () => Text(
-                '${controller.selectedProducts.length}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+            Obx(() {
+              if (controller.selectedProducts.isNotEmpty) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.white.withValues(alpha: 0.18),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () {
+                        Get.defaultDialog(
+                          title: 'Reset Sale?',
+                          middleText:
+                              'Are you sure you want to reset and clear this active sale?',
+                          textConfirm: 'Reset',
+                          textCancel: 'Cancel',
+                          confirmTextColor: Colors.white,
+                          buttonColor: Colors.red,
+                          onConfirm: () {
+                            controller.resetSales();
+                            Get.back();
+                          },
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.restart_alt,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        'Reset Sale',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${controller.selectedProducts.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return const SizedBox.shrink();
+            }),
           ],
         ),
       ),
@@ -1017,7 +1140,8 @@ class BillingScreen extends StatelessWidget {
               ],
             ),
             Obx(() {
-              if (controller.cardTierUsed.value != null && controller.cardDiscountPercent.value > 0) {
+              if (controller.cardTierUsed.value != null &&
+                  controller.cardDiscountPercent.value > 0) {
                 // final isCustom = controller.cardTierUsed.value?.toLowerCase() == 'custom';
                 final label = 'Custom Discount Applied';
                 return Padding(
@@ -1057,9 +1181,13 @@ class BillingScreen extends StatelessWidget {
                             .calculateTotal()
                             .toStringAsFixed(2);
                         controller.onlineReceived.value = '0';
+                        controller.cashAmountController.clear();
+                        controller.onlineAmountController.clear();
                       } else {
                         controller.cashReceived.value = '';
                         controller.onlineReceived.value = '';
+                        controller.cashAmountController.clear();
+                        controller.onlineAmountController.clear();
                       }
                     },
                   ),
@@ -1082,6 +1210,7 @@ class BillingScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: TextFormField(
+                            controller: controller.cashAmountController,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
                               labelText: 'Cash',
@@ -1094,6 +1223,7 @@ class BillingScreen extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: TextFormField(
+                            controller: controller.onlineAmountController,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
                               labelText: 'Online',
@@ -1174,7 +1304,9 @@ class BillingScreen extends StatelessWidget {
                 final isCartEmpty = controller.selectedProducts.isEmpty;
                 final isLoading = controller.isLoading.value;
                 return ElevatedButton.icon(
-                  onPressed: (isCartEmpty || isLoading) ? null : _generateInvoice,
+                  onPressed: (isCartEmpty || isLoading)
+                      ? null
+                      : _generateInvoice,
                   icon: isLoading
                       ? const SizedBox(
                           width: 18,
@@ -1187,7 +1319,10 @@ class BillingScreen extends StatelessWidget {
                       : const Icon(Icons.receipt_long),
                   label: Text(
                     isLoading ? 'Generating...' : 'Generate Invoice',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColor.primary,
@@ -1252,7 +1387,9 @@ class BillingScreen extends StatelessWidget {
 
   Future<void> _generateInvoice() async {
     if (controller.isLoading.value) {
-      developer.log('[GenerateInvoice] Ignored duplicate click: already generating.');
+      developer.log(
+        '[GenerateInvoice] Ignored duplicate click: already generating.',
+      );
       return;
     }
     developer.log(
@@ -1281,7 +1418,9 @@ class BillingScreen extends StatelessWidget {
       try {
         poppinsBoldFont = await PdfGoogleFonts.poppinsBold();
       } catch (e) {
-        developer.log('[GenerateInvoice] Failed to load Poppins font: $e. Falling back to Roboto.');
+        developer.log(
+          '[GenerateInvoice] Failed to load Poppins font: $e. Falling back to Roboto.',
+        );
         poppinsBoldFont = robotoFont;
       }
 
@@ -1300,7 +1439,11 @@ class BillingScreen extends StatelessWidget {
             developer.log(
               '[GenerateInvoice] 4a. Rendering PDF content callback...',
             );
-            return _buildPDFContent(billData, robotoFont, totalFont: poppinsBoldFont);
+            return _buildPDFContent(
+              billData,
+              robotoFont,
+              totalFont: poppinsBoldFont,
+            );
           },
         ),
       );

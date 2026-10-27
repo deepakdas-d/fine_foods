@@ -22,67 +22,62 @@ class InvoiceSequenceService {
   static const int defaultDigits = 5;
   static const String defaultPrefix = 'INV-';
 
-  /// Atomically increments the invoice counter in Firestore and returns the next formatted invoice number.
+  /// Safely increments the invoice counter in Firestore and returns the next formatted invoice number.
   /// Example: 'INV-00001'
   static Future<String> getNextInvoiceNumber({
     int digits = defaultDigits,
     String prefix = defaultPrefix,
   }) async {
     final counterRef = _firestore.collection(_counterCollection).doc(_counterDoc);
-    developer.log('[InvoiceSequenceService] 1. Requesting atomic invoice sequence allocation...');
+    developer.log('[InvoiceSequenceService] 1. Fetching counter document counters/invoices...');
 
     try {
-      final nextNumber = await _firestore.runTransaction<int>((transaction) async {
-        final snapshot = await transaction.get(counterRef);
-        int currentNumber = 0;
+      final snapshot = await counterRef.get();
+      int currentNumber = 0;
 
-        if (snapshot.exists && snapshot.data() != null) {
-          final data = snapshot.data()!;
-          currentNumber = (data['lastNumber'] as num?)?.toInt() ?? 0;
-          developer.log('[InvoiceSequenceService] 2. Found existing counter: $currentNumber');
-        } else {
-          developer.log('[InvoiceSequenceService] 2. Counter document not found. Looking up highest bill...');
-          try {
-            final recentBills = await _firestore
-                .collection('bills')
-                .orderBy('createdAt', descending: true)
-                .limit(20)
-                .get();
-            for (var doc in recentBills.docs) {
-              final inv = doc.data()['invoiceNumber']?.toString() ?? '';
-              if (inv.startsWith(prefix)) {
-                final numPart = inv.substring(prefix.length);
-                final parsed = int.tryParse(numPart);
-                if (parsed != null && parsed > currentNumber) {
-                  currentNumber = parsed;
-                }
+      if (snapshot.exists && snapshot.data() != null) {
+        final data = snapshot.data()!;
+        currentNumber = (data['lastNumber'] as num?)?.toInt() ?? 0;
+        developer.log('[InvoiceSequenceService] 2. Found existing counter: $currentNumber');
+      } else {
+        developer.log('[InvoiceSequenceService] 2. Counter document not found. Looking up highest bill...');
+        try {
+          final recentBills = await _firestore
+              .collection('bills')
+              .orderBy('createdAt', descending: true)
+              .limit(20)
+              .get();
+          for (var doc in recentBills.docs) {
+            final inv = doc.data()['invoiceNumber']?.toString() ?? '';
+            if (inv.startsWith(prefix)) {
+              final numPart = inv.substring(prefix.length);
+              final parsed = int.tryParse(numPart);
+              if (parsed != null && parsed > currentNumber) {
+                currentNumber = parsed;
               }
             }
-          } catch (e) {
-            developer.log('[InvoiceSequenceService] Warning reading bills fallback: $e');
           }
+        } catch (e) {
+          developer.log('[InvoiceSequenceService] Warning reading bills fallback: $e');
         }
+      }
 
-        final next = currentNumber + 1;
-        developer.log('[InvoiceSequenceService] 3. Saving updated counter: $next');
+      final nextNumber = currentNumber + 1;
+      developer.log('[InvoiceSequenceService] 3. Saving updated counter: $nextNumber');
 
-        transaction.set(
-          counterRef,
-          {
-            'lastNumber': next,
-            'updatedAt': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
-
-        return next;
-      });
+      await counterRef.set(
+        {
+          'lastNumber': nextNumber,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
 
       final formatted = formatInvoiceNumber(nextNumber, digits: digits, prefix: prefix);
       developer.log('[InvoiceSequenceService] 4. Generated invoice number: $formatted');
       return formatted;
     } catch (e, s) {
-      developer.log('[InvoiceSequenceService] Error in atomic transaction: $e\n$s', error: e, stackTrace: s);
+      developer.log('[InvoiceSequenceService] Error fetching next invoice number: $e\n$s', error: e, stackTrace: s);
       rethrow;
     }
   }
@@ -97,23 +92,20 @@ class InvoiceSequenceService {
       if (allocatedNum == null || allocatedNum <= 0) return;
 
       final counterRef = _firestore.collection(_counterCollection).doc(_counterDoc);
-      await _firestore.runTransaction((transaction) async {
-        final snapshot = await transaction.get(counterRef);
-        if (snapshot.exists && snapshot.data() != null) {
-          final current = (snapshot.data()!['lastNumber'] as num?)?.toInt() ?? 0;
-          if (current == allocatedNum) {
-            developer.log('[InvoiceSequenceService] Rolling back counter from $current to ${current - 1}');
-            transaction.set(
-              counterRef,
-              {
-                'lastNumber': current - 1,
-                'updatedAt': FieldValue.serverTimestamp(),
-              },
-              SetOptions(merge: true),
-            );
-          }
+      final snapshot = await counterRef.get();
+      if (snapshot.exists && snapshot.data() != null) {
+        final current = (snapshot.data()!['lastNumber'] as num?)?.toInt() ?? 0;
+        if (current == allocatedNum) {
+          developer.log('[InvoiceSequenceService] Rolling back counter from $current to ${current - 1}');
+          await counterRef.set(
+            {
+              'lastNumber': current - 1,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          );
         }
-      });
+      }
     } catch (e) {
       developer.log('[InvoiceSequenceService] Rollback skipped / failed (non-critical): $e');
     }

@@ -15,6 +15,8 @@ import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:fine_foods/services/invoice_sequence_service.dart';
+import 'package:fine_foods/ADMIN/Stocks/stock_controller.dart';
+import 'package:fine_foods/ADMIN/Inventory/inventory_controller.dart';
 
 class BillingController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -25,6 +27,9 @@ class BillingController extends GetxController {
   TextEditingController customerPhone = TextEditingController();
   var customerDiscount = ''.obs;
   final discountController = TextEditingController();
+  final searchController = TextEditingController();
+  final cashAmountController = TextEditingController();
+  final onlineAmountController = TextEditingController();
   /// Incrementing this forces the Autocomplete widget to rebuild with a fresh controller.
   final RxInt autocompleteKey = 0.obs;
   var cardDiscountPercent = 0.0.obs;
@@ -152,6 +157,9 @@ class BillingController extends GetxController {
     if (refresh) {
       lastDocument = null;
       hasMore.value = true;
+      _allProductsFetched = false;
+      _allProductsCache.clear();
+      filteredProducts.clear();
     }
 
     if (!hasMore.value || (isFetchingMore.value && !refresh)) return;
@@ -176,7 +184,10 @@ class BillingController extends GetxController {
         final newItems = snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList();
         
         for (var item in newItems) {
-          if (!products.any((p) => p.id == item.id)) {
+          final idx = products.indexWhere((p) => p.id == item.id);
+          if (idx != -1) {
+            products[idx] = item;
+          } else {
             products.add(item);
           }
         }
@@ -205,11 +216,22 @@ class BillingController extends GetxController {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     if (query.trim().isNotEmpty && !_allProductsFetched) {
       isSearching.value = true;
+    } else {
+      isSearching.value = false;
     }
     _debounce = Timer(const Duration(milliseconds: 300), () {
       searchQuery.value = query;
       fetchProducts(refresh: true);
     });
+  }
+
+  /// Clears the product search input, resets query, and reloads the full product catalog.
+  void clearSearch() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    searchController.clear();
+    searchQuery.value = '';
+    isSearching.value = false;
+    fetchProducts(refresh: true);
   }
 
   int getSelectedQuantity(Product product) {
@@ -410,6 +432,8 @@ class BillingController extends GetxController {
       paymentMethod.value = bill.paymentMethod;
       cashReceived.value = bill.cashReceived;
       onlineReceived.value = bill.onlineReceived;
+      cashAmountController.text = bill.cashReceived;
+      onlineAmountController.text = bill.onlineReceived;
       autocompleteKey.value++;
 
       queuedBills.removeWhere((b) => b.id == bill.id);
@@ -467,17 +491,31 @@ class BillingController extends GetxController {
     selectedProducts.clear();
     customPrices.clear();
     customerName.clear();
+    customerPhone.clear();
     customerPhone = TextEditingController();
     customerDiscount.value = '';
     discountController.clear();
+    cashAmountController.clear();
+    onlineAmountController.clear();
     cardDiscountPercent.value = 0.0;
     cardTierUsed.value = null;
     selectedPaymentType.value = 'Full';
     paymentMethod.value = 'Cash';
     cashReceived.value = '';
     onlineReceived.value = '';
+    foundCustomers.clear();
     // Increment key to force Autocomplete widget to rebuild with a fresh controller
     autocompleteKey.value++;
+  }
+
+  /// Completely resets all sales state:
+  /// - Cart items, custom prices, and discounts
+  /// - Customer phone, name, and autocomplete suggestions
+  /// - Payment method, split cash/online input values
+  /// - Product search input, active query, and restores full catalog
+  void resetSales() {
+    clearCart();
+    clearSearch();
   }
 
   /// Adds an ad-hoc quick item (not from inventory) to the cart.
@@ -818,10 +856,22 @@ class BillingController extends GetxController {
           });
         }
 
-        final index = products.indexOf(product);
-        if (index != -1) {
-          products[index] = product.copyWith(
-            count: product.count - entry.value,
+        final prodIdx = products.indexWhere((p) => p.id == product.id);
+        if (prodIdx != -1) {
+          products[prodIdx] = products[prodIdx].copyWith(
+            count: products[prodIdx].count - entry.value,
+          );
+        }
+        final filtIdx = filteredProducts.indexWhere((p) => p.id == product.id);
+        if (filtIdx != -1) {
+          filteredProducts[filtIdx] = filteredProducts[filtIdx].copyWith(
+            count: filteredProducts[filtIdx].count - entry.value,
+          );
+        }
+        final cacheIdx = _allProductsCache.indexWhere((p) => p.id == product.id);
+        if (cacheIdx != -1) {
+          _allProductsCache[cacheIdx] = _allProductsCache[cacheIdx].copyWith(
+            count: _allProductsCache[cacheIdx].count - entry.value,
           );
         }
       }
@@ -852,6 +902,22 @@ class BillingController extends GetxController {
       await batch.commit();
       developer.log('[createBill] Batch write committed successfully!');
 
+      // Notify admin screens (Stocks & Inventory) to refresh their stock caches
+      if (Get.isRegistered<StockAvailabilityController>()) {
+        try {
+          Get.find<StockAvailabilityController>().refreshProducts();
+        } catch (e) {
+          developer.log('StockAvailabilityController refresh error: $e');
+        }
+      }
+      if (Get.isRegistered<InventoryController>()) {
+        try {
+          Get.find<InventoryController>().loadInventory();
+        } catch (e) {
+          developer.log('InventoryController refresh error: $e');
+        }
+      }
+
       Get.snackbar(
         'Success',
         'Invoice $invoiceNumber created successfully!',
@@ -859,8 +925,7 @@ class BillingController extends GetxController {
         duration: const Duration(seconds: 3),
       );
 
-      clearCart();
-      fetchProducts(refresh: true);
+      resetSales();
       if (Get.isBottomSheetOpen == true) {
         Get.back();
       }
@@ -1193,6 +1258,9 @@ class BillingController extends GetxController {
 
   @override
   void onClose() {
+    searchController.dispose();
+    cashAmountController.dispose();
+    onlineAmountController.dispose();
     customerName.dispose();
     discountController.dispose();
     scrollController.dispose();
